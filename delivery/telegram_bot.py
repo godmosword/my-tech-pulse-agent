@@ -8,6 +8,7 @@ from typing import Optional
 from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput
+from delivery.feedback_handler import handle_callback
 from delivery.message_formatter import escape, format_earnings, format_items_digest
 
 logger = logging.getLogger(__name__)
@@ -22,10 +23,12 @@ class TelegramBot:
         if not token or not self._channel_id:
             logger.warning("TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not set — delivery disabled")
             self._bot = None
+            self._app = None
         else:
             # Lazy import so the cryptography chain is only triggered when a real bot is needed
             from telegram import Bot  # noqa: PLC0415
             self._bot = Bot(token=token)
+            self._app = None  # populated by start_polling()
 
     def send_items_digest(
         self,
@@ -55,6 +58,33 @@ class TelegramBot:
         text = format_earnings(earnings)
         return self._send(text)
 
+    def start_polling(self) -> None:
+        """Start long-polling for callback queries (feedback buttons).
+
+        Runs in the current thread and blocks until interrupted.
+        Call this from the scheduler process after the pipeline loop, or in
+        a separate thread alongside the scheduler.
+        """
+        if not self._bot:
+            logger.warning("Bot not configured; cannot start polling")
+            return
+
+        try:
+            from telegram.ext import Application, CallbackQueryHandler  # noqa: PLC0415
+        except ImportError:
+            logger.error("python-telegram-bot not installed; polling unavailable")
+            return
+
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        app = Application.builder().token(token).build()
+        app.add_handler(CallbackQueryHandler(self._on_callback_query))
+        logger.info("Starting Telegram callback polling …")
+        app.run_polling()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
     def _send(self, text: str) -> bool:
         try:
             asyncio.run(self._async_send(text))
@@ -71,6 +101,25 @@ class TelegramBot:
                 text=chunk,
                 parse_mode="MarkdownV2",
             )
+
+    @staticmethod
+    async def _on_callback_query(update, context) -> None:
+        """Handle inline keyboard button presses from users."""
+        query = update.callback_query
+        await query.answer()  # acknowledge immediately to remove loading spinner
+
+        data = query.data or ""
+        try:
+            result = handle_callback(data)
+            await query.edit_message_reply_markup(reply_markup=None)  # remove keyboard after action
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=escape(result),
+                parse_mode="MarkdownV2",
+            )
+            logger.info("Callback handled: %s → %s", data, result)
+        except Exception as exc:
+            logger.error("Callback handler failed for %r: %s", data, exc)
 
     def _format_digest(self, digest: DigestOutput) -> str:
         lines = [

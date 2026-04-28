@@ -51,6 +51,9 @@ class SourceConfig(BaseModel):
 class RSSFetcher:
     def __init__(self, registry_path: Path = REGISTRY_PATH):
         self._registry: dict[str, SourceConfig] = {}
+        # ETag and Last-Modified cache keyed by source name (in-process, per-run)
+        self._etag_cache: dict[str, str] = {}
+        self._last_modified_cache: dict[str, str] = {}
         self._load_registry(registry_path)
 
     def _load_registry(self, path: Path) -> None:
@@ -81,12 +84,28 @@ class RSSFetcher:
 
     def _fetch_source(self, source: SourceConfig) -> list[Article]:
         try:
-            with httpx.Client(timeout=15, follow_redirects=True) as client:
-                resp = client.get(source.url, headers={"User-Agent": "tech-pulse/0.1"})
-                resp.raise_for_status()
-                text = resp.text
+            headers = {"User-Agent": "tech-pulse/0.1"}
+            if source.name in self._etag_cache:
+                headers["If-None-Match"] = self._etag_cache[source.name]
+            elif source.name in self._last_modified_cache:
+                headers["If-Modified-Since"] = self._last_modified_cache[source.name]
 
-            articles = self._parse_feed(text, source.name)
+            with httpx.Client(timeout=15, follow_redirects=True) as client:
+                resp = client.get(source.url, headers=headers)
+
+            if resp.status_code == 304:
+                logger.debug("Feed %s not modified (304); skipping parse", source.name)
+                return []
+
+            resp.raise_for_status()
+
+            # Cache conditional-GET validators for next run
+            if etag := resp.headers.get("ETag"):
+                self._etag_cache[source.name] = etag
+            elif lm := resp.headers.get("Last-Modified"):
+                self._last_modified_cache[source.name] = lm
+
+            articles = self._parse_feed(resp.text, source.name)
             logger.info("Fetched %d articles from %s", len(articles), source.name)
             return articles
 

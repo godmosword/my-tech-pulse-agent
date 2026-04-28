@@ -8,6 +8,7 @@ Skip automatically if the API key is not set.
 import json
 import os
 import textwrap
+import time
 
 import anthropic
 import pytest
@@ -17,7 +18,7 @@ pytestmark = pytest.mark.skipif(
     reason="ANTHROPIC_API_KEY not set — skipping LLM-as-judge tests",
 )
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6-20250514")
 JUDGE_SYSTEM = textwrap.dedent("""\
     You are a strict quality evaluator for AI-generated tech news summaries.
     Evaluate the given output and respond with a JSON object:
@@ -30,15 +31,23 @@ JUDGE_SYSTEM = textwrap.dedent("""\
 """)
 
 
-def _judge(prompt: str) -> dict:
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    msg = client.messages.create(
-        model=MODEL,
-        max_tokens=512,
-        system=JUDGE_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return json.loads(msg.content[0].text.strip())
+def _judge(prompt: str, retries: int = 3) -> dict:
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], max_retries=retries)
+    for attempt in range(retries):
+        try:
+            msg = client.messages.create(
+                model=MODEL,
+                max_tokens=512,
+                system=JUDGE_SYSTEM,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = msg.content[0].text.strip()
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            if attempt == retries - 1:
+                raise
+            time.sleep(2 ** attempt)
+    return {}  # unreachable
 
 
 def test_judge_article_summary_no_hallucination():
@@ -58,7 +67,7 @@ def test_judge_article_summary_no_hallucination():
     """)
 
     result = _judge(prompt)
-    assert result["pass"] is True, f"Judge failed: {result['issues']}"
+    assert result["pass"] is True, f"Judge failed: {result.get('issues')}"
     assert result["score"] >= 7
 
 
@@ -82,8 +91,7 @@ def test_judge_article_summary_hallucination_detected():
     """)
 
     result = _judge(prompt)
-    # The hallucinated YoY % and estimate should cause the judge to flag issues
-    assert len(result["issues"]) > 0, "Judge should have detected hallucinated facts"
+    assert len(result.get("issues", [])) > 0, "Judge should have detected hallucinated facts"
 
 
 def test_judge_earnings_fact_guard():
@@ -113,7 +121,7 @@ def test_judge_earnings_fact_guard():
     """)
 
     result = _judge(prompt)
-    assert result["pass"] is True, f"fact_guard check failed: {result['issues']}"
+    assert result["pass"] is True, f"fact_guard check failed: {result.get('issues')}"
 
 
 def test_judge_digest_narrative_quality():
@@ -140,5 +148,5 @@ def test_judge_digest_narrative_quality():
     """)
 
     result = _judge(prompt)
-    assert result["pass"] is True, f"Narrative quality check failed: {result['issues']}"
+    assert result["pass"] is True, f"Narrative quality check failed: {result.get('issues')}"
     assert result["score"] >= 7
