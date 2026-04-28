@@ -14,6 +14,46 @@ from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
 from scoring.scorer import ScoreResult, Scorer
 from sources.rss_fetcher import Article, RSSFetcher
+from scripts.preflight import _failures as preflight_failures
+from llm.gemini_client import _extract_json_object
+
+
+def _gemini_response(text: str) -> MagicMock:
+    return MagicMock(text=text)
+
+
+@pytest.fixture(autouse=True)
+def _set_test_gemini_key(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+
+
+# ---------- Configuration ----------
+
+def test_env_example_uses_gemini_keys_only():
+    env_example = Path(".env.example").read_text()
+    assert "GEMINI_API_KEY" in env_example
+    assert "GEMINI_MODEL=gemini-3.1-pro-preview" in env_example
+    assert "GEMINI_FLASH_MODEL=gemini-3-flash-preview" in env_example
+    old_keys = [
+        "".join(("ANTH", "ROPIC", "_API_KEY")),
+        "".join(("CLA", "UDE", "_MODEL")),
+        "".join(("HA", "IKU", "_MODEL")),
+    ]
+    assert all(key not in env_example for key in old_keys)
+
+
+def test_preflight_passes_with_required_env(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-telegram-token")
+    monkeypatch.setenv("TELEGRAM_CHANNEL_ID", "@test")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
+    monkeypatch.setenv("GEMINI_FLASH_MODEL", "gemini-3-flash-preview")
+    assert preflight_failures() == []
+
+
+def test_extract_json_object_from_wrapped_text():
+    text = 'Here is the JSON requested:\n```json\n{"score": 1, "nested": {"ok": true}}\n```'
+    assert _extract_json_object(text) == '{"score": 1, "nested": {"ok": true}}'
 
 
 # ---------- RSS Fetcher ----------
@@ -47,12 +87,10 @@ MOCK_EXTRACTOR_RESPONSE = json.dumps({
 
 
 def test_extractor_parses_valid_response():
-    with patch("anthropic.Anthropic") as mock_anthropic:
+    with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=MOCK_EXTRACTOR_RESPONSE)]
-        )
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.return_value = _gemini_response(MOCK_EXTRACTOR_RESPONSE)
 
         agent = ExtractorAgent()
         result = agent.extract(
@@ -68,12 +106,10 @@ def test_extractor_parses_valid_response():
 
 
 def test_extractor_returns_none_on_invalid_json():
-    with patch("anthropic.Anthropic") as mock_anthropic:
+    with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="not valid json")]
-        )
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.return_value = _gemini_response("not valid json")
 
         agent = ExtractorAgent()
         result = agent.extract(title="Test", text="Test text")
@@ -124,12 +160,10 @@ def test_synthesizer_parses_valid_response():
         )
     ]
 
-    with patch("anthropic.Anthropic") as mock_anthropic:
+    with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=MOCK_DIGEST_RESPONSE)]
-        )
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.return_value = _gemini_response(MOCK_DIGEST_RESPONSE)
 
         agent = SynthesizerAgent()
         result = agent.synthesize(summaries)
@@ -141,8 +175,8 @@ def test_synthesizer_parses_valid_response():
 
 
 def test_synthesizer_returns_none_on_empty_input():
-    with patch("anthropic.Anthropic") as mock_anthropic:
-        mock_anthropic.return_value = MagicMock()
+    with patch("google.genai.Client") as mock_gemini:
+        mock_gemini.return_value = MagicMock()
         agent = SynthesizerAgent()
         result = agent.synthesize([])
 
@@ -187,7 +221,7 @@ def test_fact_guard_nulls_unverifiable_number():
     )
     source_text = "Acme reported EPS of $1.23 per diluted share."
 
-    with patch("anthropic.Anthropic"):
+    with patch("google.genai.Client"):
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, source_text)
 
@@ -205,7 +239,7 @@ def test_fact_guard_downgrades_confidence_on_violation():
         source="SEC 8-K",
         confidence="high",
     )
-    with patch("anthropic.Anthropic"):
+    with patch("google.genai.Client"):
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, "No financial figures here.")
 
@@ -223,7 +257,7 @@ def test_fact_guard_clears_beat_pct_when_estimate_missing():
         confidence="high",
     )
     source_text = "Revenue was $50.0 billion."
-    with patch("anthropic.Anthropic"):
+    with patch("google.genai.Client"):
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, source_text)
 
@@ -246,7 +280,7 @@ def test_fact_guard_passes_clean_output():
         "Revenue was $124.3 billion versus estimates of $122.0 billion. "
         "EPS of $2.40. Guidance for next quarter is $89.0 billion."
     )
-    with patch("anthropic.Anthropic"):
+    with patch("google.genai.Client"):
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, source_text)
 
@@ -436,12 +470,10 @@ MOCK_LOW_SCORE_RESPONSE = json.dumps({"relevance": 3.0, "novelty": 2.0, "depth":
 
 
 def test_scorer_parses_valid_response():
-    with patch("anthropic.Anthropic") as mock_anthropic:
+    with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=MOCK_SCORE_RESPONSE)]
-        )
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.return_value = _gemini_response(MOCK_SCORE_RESPONSE)
         scorer = Scorer()
         result = scorer.score_item("OpenAI launches GPT-5", "Full article text here")
 
@@ -451,12 +483,10 @@ def test_scorer_parses_valid_response():
 
 
 def test_scorer_returns_none_on_invalid_json():
-    with patch("anthropic.Anthropic") as mock_anthropic:
+    with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="not json")]
-        )
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.return_value = _gemini_response("not json")
         scorer = Scorer()
         result = scorer.score_item("title", "text")
     assert result is None
@@ -469,12 +499,10 @@ def test_scorer_filter_articles_passes_above_threshold():
     ]
     responses = [MOCK_SCORE_RESPONSE, MOCK_LOW_SCORE_RESPONSE]
 
-    with patch("anthropic.Anthropic") as mock_anthropic:
+    with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_client.messages.create.side_effect = [
-            MagicMock(content=[MagicMock(text=r)]) for r in responses
-        ]
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.side_effect = [_gemini_response(r) for r in responses]
         scorer = Scorer()
         # default threshold is 6.0; score 7.1 passes, 2.3 fails
         result = scorer.filter_articles(articles)
@@ -487,10 +515,10 @@ def test_scorer_filter_articles_passes_above_threshold():
 def test_scorer_fail_open_on_api_error():
     """If scoring fails, include the article (fail-open to avoid over-filtering)."""
     articles = [Article(title="Story", url="https://example.com/1", source="test")]
-    with patch("anthropic.Anthropic") as mock_anthropic:
+    with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_client.messages.create.side_effect = Exception("API error")
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.side_effect = Exception("API error")
         scorer = Scorer()
         result = scorer.filter_articles(articles)
 

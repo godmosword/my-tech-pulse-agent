@@ -2,18 +2,17 @@
 
 import json
 import logging
-import os
 from datetime import date
 from typing import Literal, Optional
 
-import anthropic
 from pydantic import BaseModel, Field
 
+from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
 from .extractor_agent import ArticleSummary
 
 logger = logging.getLogger(__name__)
 
-MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+MODEL = GEMINI_MODEL
 
 SYSTEM_PROMPT = """\
 You are a senior tech analyst writing a daily intelligence digest for a professional audience.
@@ -66,13 +65,10 @@ class DigestOutput(BaseModel):
 
 
 class SynthesizerAgent:
-    """Wraps the Claude API for cross-article digest synthesis."""
+    """Wraps the Gemini API for cross-article digest synthesis."""
 
     def __init__(self):
-        self._client = anthropic.Anthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY", ""),
-            max_retries=3,
-        )
+        self._client = make_client()
 
     def synthesize(self, summaries: list[ArticleSummary]) -> Optional[DigestOutput]:
         if not summaries:
@@ -85,20 +81,20 @@ class SynthesizerAgent:
         prompt = SYNTHESIS_PROMPT.format(summaries_json=summaries_json[:12000])
 
         try:
-            message = self._client.messages.create(
+            data, raw = generate_json(
+                self._client,
                 model=MODEL,
-                max_tokens=2048,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
+                max_output_tokens=2048,
+                system_instruction=SYSTEM_PROMPT,
+                prompt=prompt,
+                response_schema=DigestOutput,
             )
-            raw = message.content[0].text.strip()
-            data = json.loads(raw)
             if "date" not in data:
                 data["date"] = date.today().isoformat()
             return DigestOutput(**data)
 
         except json.JSONDecodeError as exc:
-            logger.error("JSON parse error from synthesizer: %s | raw=%s", exc, raw[:200])
+            logger.error("JSON parse error from synthesizer: %s", exc)
             return None
         except Exception as exc:
             logger.error("Synthesizer agent failed: %s", exc)

@@ -6,18 +6,17 @@ structured source data — the LLM must never calculate or infer numbers.
 
 import json
 import logging
-import os
 import re
 from typing import Literal, Optional
 
-import anthropic
 from pydantic import BaseModel, Field, field_validator
 
+from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
 from sources.earnings_fetcher import EarningsFiling
 
 logger = logging.getLogger(__name__)
 
-MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+MODEL = GEMINI_MODEL
 
 SYSTEM_PROMPT = """\
 You are a financial data extractor specializing in earnings filings.
@@ -87,10 +86,7 @@ class EarningsAgent:
     """Extracts structured earnings facts from raw filing text."""
 
     def __init__(self):
-        self._client = anthropic.Anthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY", ""),
-            max_retries=3,
-        )
+        self._client = make_client()
 
     def extract(self, filing: EarningsFiling) -> Optional[EarningsOutput]:
         if not filing.raw_text:
@@ -104,20 +100,20 @@ class EarningsAgent:
         )
 
         try:
-            message = self._client.messages.create(
+            data, raw = generate_json(
+                self._client,
                 model=MODEL,
-                max_tokens=1536,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
+                max_output_tokens=1536,
+                system_instruction=SYSTEM_PROMPT,
+                prompt=prompt,
+                response_schema=EarningsOutput,
             )
-            raw = message.content[0].text.strip()
-            data = json.loads(raw)
             output = EarningsOutput(**data)
             output = self._fact_guard_apply(output, filing.raw_text)
             return output
 
         except json.JSONDecodeError as exc:
-            logger.error("JSON parse error from earnings agent: %s | raw=%s", exc, raw[:200])
+            logger.error("JSON parse error from earnings agent: %s", exc)
             return None
         except Exception as exc:
             logger.error("Earnings agent failed for %s: %s", filing.company, exc)

@@ -11,11 +11,12 @@ parses earnings reports from official sources, and delivers structured summaries
 ```
 sources/      → Data ingestion (RSS, social trending, SEC EDGAR)
 scoring/      → Stage 0 dedup (sqlite) + Stage 1 LLM score gate (Horizon pattern)
-agents/       → Multi-layer CrewAI agent pipeline (Stage 2 + 3)
+agents/       → Multi-layer Gemini agent wrappers (Stage 2 + 3)
 pipeline/     → Orchestration (crew.py, scheduler)
 delivery/     → Telegram bot output
 dashboard/    → (Future) Web dashboard
 tests/        → Smoke tests and LLM-as-judge validation
+scripts/      → Production preflight checks
 ```
 
 ## Full Pipeline (Four Stages)
@@ -28,15 +29,15 @@ Stage 0 — Ingest & Deduplicate
 
 Stage 1 — Score & Filter  ← Horizon pattern (Thysrael/Horizon)
   Input : deduplicated items
-  Logic : Claude Haiku scores each item 0–10 (relevance/novelty/depth)
+  Logic : Gemini Flash scores each item 0–10 (relevance/novelty/depth)
           drop items below score_threshold (default 6.0)
   Output: filtered + scored item list
 
-Stage 2 — Extractor Agent  ← CrewAI Layer 1 (Sonnet)
+Stage 2 — Extractor Agent  ← Gemini Pro
   Input : single scored article
   Output: structured JSON (entity, summary, source, score, confidence)
 
-Stage 3 — Synthesizer Agent  ← CrewAI Layer 2 (Sonnet)
+Stage 3 — Synthesizer Agent  ← Gemini Pro
   Input : batch of Extractor outputs
   Output: cross-article themes, contradictions, daily digest narrative
 ```
@@ -65,7 +66,31 @@ python -m pipeline.scheduler
 
 # Run tests
 pytest tests/
+
+# Check production secrets and deploy config
+python scripts/preflight.py
 ```
+
+## Production Deployment
+
+The GitHub Pages workflow is the production runner. On schedule or manual dispatch it:
+
+1. Installs the package.
+2. Runs `python -m pipeline.crew`.
+3. Uploads generated `docs/` as a Pages artifact.
+4. Deploys the current report to GitHub Pages.
+
+Required GitHub secrets:
+- `GEMINI_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHANNEL_ID`
+
+Optional GitHub secrets:
+- `APIFY_API_KEY`
+- `NEWSAPI_KEY`
+
+Optional GitHub variable:
+- `GITHUB_PAGES_URL`
 
 ## Anti-Hallucination Rules
 
@@ -77,8 +102,8 @@ pytest tests/
 
 ## Scoring Design (Horizon-Inspired)
 
-`scoring/scorer.py` scores every item **before** it reaches any CrewAI agent.
-Uses Claude Haiku (cheap, fast). Items below threshold never reach Sonnet.
+`scoring/scorer.py` scores every item **before** it reaches any Gemini Pro agent.
+Uses Gemini Flash (cheap, fast). Items below threshold never reach Gemini Pro.
 
 Scoring prompt evaluates three dimensions:
 - **Relevance** (weight 0.4): Is this meaningful tech/business news?
@@ -128,11 +153,20 @@ Do not change field names without coordinating with the investment-digest repo.
 
 Cross-tagging: when a story is relevant to both repos, emit `cross_ref: true` in the JSON.
 
+## V1 Feature Status
+
+- RSS news, Gemini scoring/extraction/synthesis, earnings extraction, Telegram delivery,
+  and static Pages reports are in the production path.
+- Social trending is signal-only in v1: it is fetched and logged when `APIFY_API_KEY` is set,
+  but it is not yet merged into article scoring or digest synthesis.
+- Feedback callbacks are implemented as handlers, but v1 Telegram broadcasts do not attach
+  inline keyboards or run callback polling by default.
+
 ## Tech Stack
 
-- Agent orchestration: CrewAI
-- LLM (agents): Claude API (`claude-sonnet-4-20250514`)
-- LLM (scoring gate): Claude Haiku (`claude-haiku-4-5-20251001`)
+- Agent orchestration: direct Gemini API wrappers
+- LLM (agents): Gemini Pro (`gemini-3.1-pro-preview`)
+- LLM (scoring gate): Gemini Flash (`gemini-3-flash-preview`)
 - Scheduling: APScheduler
 - Deduplication: sqlite3 (built-in, TTL-based)
 - RSS parsing: stdlib xml.etree + httpx

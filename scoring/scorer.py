@@ -1,7 +1,7 @@
-"""LLM-based 0-10 item scorer using Claude Haiku as a cheap fast filter gate.
+"""LLM-based 0-10 item scorer using Gemini Flash as a cheap fast filter gate.
 
 Inspired by Thysrael/Horizon: run a cheap model score gate *before* expensive
-Sonnet agent calls so only high-signal items reach CrewAI.
+Gemini Pro agent calls so only high-signal items reach the extraction agents.
 """
 
 import json
@@ -10,14 +10,15 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import anthropic
 import yaml
 from pydantic import BaseModel
+
+from llm.gemini_client import GEMINI_FLASH_MODEL, generate_json, make_client
 
 logger = logging.getLogger(__name__)
 
 SCORE_CONFIG_PATH = Path(__file__).parent / "score_config.yaml"
-HAIKU_MODEL = os.getenv("HAIKU_MODEL", "claude-haiku-4-5-20251001")
+FLASH_MODEL = GEMINI_FLASH_MODEL
 
 _SYSTEM = (
     "You are a tech news quality filter. "
@@ -48,13 +49,10 @@ class ScoreResult(BaseModel):
 
 
 class Scorer:
-    """Scores news articles using Claude Haiku before expensive Sonnet calls."""
+    """Scores news articles using Gemini Flash before expensive Gemini Pro calls."""
 
     def __init__(self, config_path: Path = SCORE_CONFIG_PATH):
-        self._client = anthropic.Anthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY", ""),
-            max_retries=2,
-        )
+        self._client = make_client()
         self._config = self._load_config(config_path)
 
     def _load_config(self, path: Path) -> dict:
@@ -78,17 +76,17 @@ class Scorer:
             text=text[:800],
         )
         try:
-            message = self._client.messages.create(
-                model=HAIKU_MODEL,
-                max_tokens=128,
-                system=_SYSTEM,
-                messages=[{"role": "user", "content": prompt}],
+            data, raw = generate_json(
+                self._client,
+                model=FLASH_MODEL,
+                max_output_tokens=512,
+                system_instruction=_SYSTEM,
+                prompt=prompt,
+                response_schema=ScoreResult,
             )
-            raw = message.content[0].text.strip()
-            data = json.loads(raw)
             return ScoreResult(**data)
         except json.JSONDecodeError as exc:
-            logger.warning("Scorer JSON parse error: %s | raw=%s", exc, raw[:100])
+            logger.warning("Scorer JSON parse error: %s", exc)
             return None
         except Exception as exc:
             logger.warning("Scorer failed for '%s': %s", title[:60], exc)

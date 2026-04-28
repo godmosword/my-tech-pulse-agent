@@ -71,7 +71,7 @@ class TechPulseCrew:
             logger.error("Dedup stage failed: %s", exc, exc_info=True)
             articles = raw_articles  # fallback: use all articles
 
-        # Stage 1 — Score & Filter (Horizon pattern — cheap Haiku gate)
+        # Stage 1 — Score & Filter (Horizon pattern — cheap Gemini Flash gate)
         scored_articles = []
         try:
             scored_articles = self.scorer.filter_articles(articles)
@@ -79,7 +79,7 @@ class TechPulseCrew:
             logger.error("Scoring stage failed: %s", exc, exc_info=True)
             scored_articles = articles  # fallback: pass everything through unscored
 
-        # Stage 2 — Extract (CrewAI Layer 1, Sonnet)
+        # Stage 2 — Extract (Gemini Pro)
         summaries: list[ArticleSummary] = []
         try:
             article_dicts = [a.model_dump() for a in scored_articles]
@@ -92,7 +92,7 @@ class TechPulseCrew:
         except Exception as exc:
             logger.error("Extraction stage failed: %s", exc, exc_info=True)
 
-        # Stage 3 — Synthesize (CrewAI Layer 2, Sonnet)
+        # Stage 3 — Synthesize (Gemini Pro)
         digest: DigestOutput | None = None
         try:
             digest = self.synthesizer.synthesize(summaries)

@@ -1,7 +1,7 @@
 """LLM-as-judge output quality gate.
 
-These tests use Claude itself to evaluate the quality of pipeline outputs.
-They require ANTHROPIC_API_KEY and are intended to run in CI after the smoke tests pass.
+These tests use Gemini itself to evaluate the quality of pipeline outputs.
+They require GEMINI_API_KEY and are intended to run in CI after the smoke tests pass.
 Skip automatically if the API key is not set.
 """
 
@@ -10,15 +10,16 @@ import os
 import textwrap
 import time
 
-import anthropic
 import pytest
+from google import genai
+from google.genai import types
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set — skipping LLM-as-judge tests",
+    not os.getenv("GEMINI_API_KEY"),
+    reason="GEMINI_API_KEY not set — skipping LLM-as-judge tests",
 )
 
-MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6-20250514")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
 JUDGE_SYSTEM = textwrap.dedent("""\
     You are a strict quality evaluator for AI-generated tech news summaries.
     Evaluate the given output and respond with a JSON object:
@@ -32,16 +33,20 @@ JUDGE_SYSTEM = textwrap.dedent("""\
 
 
 def _judge(prompt: str, retries: int = 3) -> dict:
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], max_retries=retries)
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     for attempt in range(retries):
         try:
-            msg = client.messages.create(
+            response = client.models.generate_content(
                 model=MODEL,
-                max_tokens=512,
-                system=JUDGE_SYSTEM,
-                messages=[{"role": "user", "content": prompt}],
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=JUDGE_SYSTEM,
+                    max_output_tokens=512,
+                    temperature=0,
+                    response_mime_type="application/json",
+                ),
             )
-            raw = msg.content[0].text.strip()
+            raw = response.text.strip()
             return json.loads(raw)
         except json.JSONDecodeError:
             if attempt == retries - 1:
