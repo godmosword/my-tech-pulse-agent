@@ -1,0 +1,51 @@
+sources:
+  - name: bloomberg_rss
+    url: https://feeds.bloomberg.com/technology/news.rss
+    priority: 1
+    fallback: techcrunch_rss
+    last_success: null
+    health_check: true
+
+  - name: techcrunch_rss
+    url: https://techcrunch.com/feed/
+    priority: 2
+    fallback: theverge_rss
+    last_success: null
+    health_check: true
+
+  - name: theverge_rss
+    url: https://www.theverge.com/rss/index.xml
+    priority: 3
+    fallback: null
+    last_success: null
+    health_check: true
+
+  - name: ars_technica_rss
+    url: https://feeds.arstechnica.com/arstechnica/technology-lab
+    priority: 4
+    fallback: null
+    last_success: null
+    health_check: true
+
+  - name: wired_rss
+    url: https://www.wired.com/feed/rss
+    priority: 5
+    fallback: null
+    last_success: null
+    health_check: true
+
+  - name: sec_edgar_rss
+    url: https://efts.sec.gov/LATEST/search-index?q=%2210-Q%22+%2210-K%228-K%22&dateRange=custom&startdt=2024-01-01&forms=8-K
+    priority: 1
+    fallback: null
+    last_success: null
+    health_check: true
+    type: earnings
+
+  - name: sec_edgar_earnings_rss
+    url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&dateb=&owner=include&count=40&search_text=&output=atom
+    priority: 1
+    fallback: null
+    last_success: null
+    health_check: true
+    type: earnings

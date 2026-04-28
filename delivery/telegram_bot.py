@@ -1,0 +1,133 @@
+"""Telegram delivery for the #科技脈搏 channel."""
+
+import asyncio
+import logging
+import os
+from typing import Optional
+
+from telegram import Bot
+from telegram.constants import ParseMode
+
+from agents.earnings_agent import EarningsOutput
+from agents.synthesizer_agent import DigestOutput
+
+logger = logging.getLogger(__name__)
+
+MAX_MESSAGE_LENGTH = 4096
+
+
+class TelegramBot:
+    def __init__(self):
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        self._channel_id = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+        if not token or not self._channel_id:
+            logger.warning("TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not set — delivery disabled")
+            self._bot: Optional[Bot] = None
+        else:
+            self._bot = Bot(token=token)
+
+    def send_digest(self, digest: DigestOutput) -> bool:
+        if not self._bot:
+            logger.info("Telegram bot not configured; skipping digest delivery")
+            return False
+        text = self._format_digest(digest)
+        return self._send(text)
+
+    def send_earnings(self, earnings: EarningsOutput) -> bool:
+        if not self._bot:
+            logger.info("Telegram bot not configured; skipping earnings delivery")
+            return False
+        text = self._format_earnings(earnings)
+        return self._send(text)
+
+    def _send(self, text: str) -> bool:
+        try:
+            asyncio.run(self._async_send(text))
+            return True
+        except Exception as exc:
+            logger.error("Telegram send failed: %s", exc)
+            return False
+
+    async def _async_send(self, text: str) -> None:
+        # Split long messages to respect Telegram's 4096-char limit
+        chunks = [text[i:i + MAX_MESSAGE_LENGTH] for i in range(0, len(text), MAX_MESSAGE_LENGTH)]
+        for chunk in chunks:
+            await self._bot.send_message(
+                chat_id=self._channel_id,
+                text=chunk,
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
+
+    def _format_digest(self, digest: DigestOutput) -> str:
+        lines = [
+            f"*📡 科技脈搏 — {digest.date}*",
+            "",
+            f"*{self._escape(digest.headline)}*",
+            "",
+        ]
+
+        if digest.themes:
+            lines.append("*📌 今日主題*")
+            for theme in digest.themes[:3]:
+                lines.append(f"• *{self._escape(theme.theme)}*: {self._escape(theme.description)}")
+            lines.append("")
+
+        if digest.narrative:
+            lines.append(self._escape(digest.narrative))
+            lines.append("")
+
+        if digest.contradictions:
+            lines.append("*⚠️ 消息矛盾*")
+            for contradiction in digest.contradictions:
+                lines.append(f"• {self._escape(contradiction)}")
+            lines.append("")
+
+        if digest.cross_ref_count > 0:
+            lines.append(f"_投資相關新聞: {digest.cross_ref_count} 篇 \\(見 \\#投資日報\\)_")
+
+        return "\n".join(lines)
+
+    def _format_earnings(self, earnings: EarningsOutput) -> str:
+        lines = [
+            f"*💰 財報速報 — {self._escape(earnings.company)}*",
+            f"季度: {self._escape(earnings.quarter)}",
+            "",
+        ]
+
+        if earnings.revenue.actual is not None:
+            rev_line = f"營收: ${earnings.revenue.actual:,.2f}B"
+            if earnings.revenue.estimate is not None:
+                rev_line += f" \\(預期 ${earnings.revenue.estimate:,.2f}B\\)"
+            if earnings.revenue.beat_pct is not None:
+                beat = "超出" if earnings.revenue.beat_pct >= 0 else "低於"
+                rev_line += f" {beat} {abs(earnings.revenue.beat_pct):.1f}%"
+            lines.append(rev_line)
+
+        if earnings.eps.actual is not None:
+            eps_line = f"EPS: ${earnings.eps.actual:.2f}"
+            if earnings.eps.estimate is not None:
+                eps_line += f" \\(預期 ${earnings.eps.estimate:.2f}\\)"
+            lines.append(eps_line)
+
+        if earnings.guidance_next_q is not None:
+            lines.append(f"下季指引: ${earnings.guidance_next_q:,.2f}B")
+
+        if earnings.key_quotes:
+            lines.append("")
+            lines.append("*重要引述:*")
+            for quote in earnings.key_quotes[:2]:
+                lines.append(f"> {self._escape(quote)}")
+
+        lines.append("")
+        lines.append(f"_來源: {self._escape(earnings.source)} \\| 信心: {earnings.confidence}_")
+
+        if earnings.cross_ref:
+            lines.append("_cross\\_ref: true \\— 已同步 \\#投資日報_")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _escape(text: str) -> str:
+        """Escape MarkdownV2 special characters."""
+        special = r"\_*[]()~`>#+-=|{}.!"
+        return "".join(f"\\{c}" if c in special else c for c in text)
