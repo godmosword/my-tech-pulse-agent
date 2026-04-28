@@ -53,12 +53,12 @@ def main():
     signal.signal(signal.SIGINT, _shutdown)
 
     logger.info(
-        "Scheduler started — news pipeline every %d min",
+        "Scheduler started — news pipeline every %d min; running immediately",
         NEWS_INTERVAL_MINUTES,
     )
 
-    # Run immediately on start, then on schedule
-    scheduler.add_job(run_news_pipeline, id="news_pipeline_immediate", name="Immediate run")
+    # Run immediately before the first scheduled interval fires
+    run_news_pipeline()
     scheduler.start()
 
 

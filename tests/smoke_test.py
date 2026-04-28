@@ -1,12 +1,14 @@
 """Smoke tests: validate pipeline stages without hitting live APIs."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from agents.earnings_agent import EarningsAgent, EarningsOutput, EPSData, RevenueData
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
+from delivery.telegram_bot import TelegramBot
 from sources.rss_fetcher import Article, RSSFetcher
 
 
@@ -147,8 +149,6 @@ def test_synthesizer_returns_none_on_empty_input():
 
 def test_earnings_output_schema_matches_contract():
     """Validate the earnings JSON contract fields are all present."""
-    from agents.earnings_agent import EarningsOutput, RevenueData, EPSData
-
     output = EarningsOutput(
         company="Apple Inc",
         quarter="Q1 FY2026",
@@ -167,3 +167,197 @@ def test_earnings_output_schema_matches_contract():
     assert required_keys.issubset(dumped.keys())
     assert dumped["revenue"]["actual"] == 124.3
     assert dumped["cross_ref"] is True  # always True for earnings
+
+
+# ---------- fact_guard Enforcement ----------
+
+def test_fact_guard_nulls_unverifiable_number():
+    """Numbers not found in source text must be cleared."""
+    output = EarningsOutput(
+        company="Acme Corp",
+        quarter="Q2 FY2026",
+        revenue=RevenueData(actual=999.9),  # not in source text
+        eps=EPSData(actual=1.23),
+        source="SEC 8-K",
+        confidence="high",
+    )
+    source_text = "Acme reported EPS of $1.23 per diluted share."
+
+    with patch("anthropic.Anthropic"):
+        agent = EarningsAgent()
+    result = agent._fact_guard_apply(output, source_text)
+
+    assert result.revenue.actual is None, "Unverifiable revenue.actual should be cleared"
+    assert result.eps.actual == 1.23, "Verifiable eps.actual should be kept"
+
+
+def test_fact_guard_downgrades_confidence_on_violation():
+    """Confidence must drop to low when any field is cleared."""
+    output = EarningsOutput(
+        company="Acme Corp",
+        quarter="Q2 FY2026",
+        revenue=RevenueData(actual=999.9),
+        eps=EPSData(),
+        source="SEC 8-K",
+        confidence="high",
+    )
+    with patch("anthropic.Anthropic"):
+        agent = EarningsAgent()
+    result = agent._fact_guard_apply(output, "No financial figures here.")
+
+    assert result.confidence == "low"
+
+
+def test_fact_guard_clears_beat_pct_when_estimate_missing():
+    """beat_pct must be nulled if estimate is absent after fact_guard clears it."""
+    output = EarningsOutput(
+        company="Acme Corp",
+        quarter="Q2 FY2026",
+        revenue=RevenueData(actual=50.0, estimate=None, beat_pct=3.2),
+        eps=EPSData(),
+        source="SEC 8-K",
+        confidence="high",
+    )
+    source_text = "Revenue was $50.0 billion."
+    with patch("anthropic.Anthropic"):
+        agent = EarningsAgent()
+    result = agent._fact_guard_apply(output, source_text)
+
+    assert result.revenue.beat_pct is None, "beat_pct requires both actual and estimate"
+    assert result.revenue.actual == 50.0, "Verifiable actual should remain"
+
+
+def test_fact_guard_passes_clean_output():
+    """No violations when all numbers appear verbatim in source."""
+    output = EarningsOutput(
+        company="Apple Inc",
+        quarter="Q1 FY2026",
+        revenue=RevenueData(actual=124.3, estimate=122.0),
+        eps=EPSData(actual=2.40),
+        guidance_next_q=89.0,
+        source="SEC 10-Q",
+        confidence="high",
+    )
+    source_text = (
+        "Revenue was $124.3 billion versus estimates of $122.0 billion. "
+        "EPS of $2.40. Guidance for next quarter is $89.0 billion."
+    )
+    with patch("anthropic.Anthropic"):
+        agent = EarningsAgent()
+    result = agent._fact_guard_apply(output, source_text)
+
+    assert result.confidence == "high", "Clean output should keep original confidence"
+    assert result.revenue.actual == 124.3
+    assert result.eps.actual == 2.40
+
+
+# ---------- Telegram Delivery ----------
+
+def _make_digest() -> DigestOutput:
+    from agents.synthesizer_agent import Theme
+    return DigestOutput(
+        date="2026-04-28",
+        headline="AI dominates the week",
+        themes=[Theme(
+            theme="AI expansion",
+            description="Multiple AI launches. Trend accelerates.",
+            supporting_entities=["OpenAI"],
+            confidence="high",
+        )],
+        contradictions=["Source A says X, Source B says Y."],
+        narrative="Tech news was busy this week.",
+        top_stories=[],
+        cross_ref_count=2,
+    )
+
+
+def _make_earnings() -> EarningsOutput:
+    return EarningsOutput(
+        company="Apple Inc",
+        quarter="Q1 FY2026",
+        revenue=RevenueData(actual=124.3, estimate=122.0, beat_pct=1.9),
+        eps=EPSData(actual=2.40, estimate=2.35),
+        guidance_next_q=89.0,
+        key_quotes=["Revenue was $124.3 billion."],
+        source="SEC 10-Q",
+        confidence="high",
+    )
+
+
+def test_telegram_bot_disabled_without_env():
+    """TelegramBot._bot is None when token/channel env vars are absent."""
+    with patch.dict("os.environ", {}, clear=False):
+        # Ensure the keys are unset
+        import os
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        os.environ.pop("TELEGRAM_CHANNEL_ID", None)
+        bot = TelegramBot()
+    assert bot._bot is None
+
+
+def test_telegram_send_digest_returns_false_when_disabled():
+    """send_digest returns False gracefully when bot not configured."""
+    with patch.dict("os.environ", {}, clear=False):
+        import os
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        os.environ.pop("TELEGRAM_CHANNEL_ID", None)
+        bot = TelegramBot()
+    result = bot.send_digest(_make_digest())
+    assert result is False
+
+
+def test_telegram_escape_special_chars():
+    """All MarkdownV2 special characters must be escaped."""
+    bot = TelegramBot.__new__(TelegramBot)  # bypass __init__
+    special = r"\_*[]()~`>#+-=|{}.!"
+    for ch in special:
+        escaped = bot._escape(ch)
+        assert escaped == f"\\{ch}", f"Expected \\{ch}, got {escaped}"
+
+
+def test_telegram_format_digest_contains_key_sections():
+    """Formatted digest must contain headline, themes, narrative, and cross_ref hint."""
+    bot = TelegramBot.__new__(TelegramBot)
+    digest = _make_digest()
+    text = bot._format_digest(digest)
+
+    assert "AI dominates the week" in text
+    assert "AI expansion" in text
+    assert "Tech news was busy this week" in text
+    assert "2" in text  # cross_ref_count
+
+
+def test_telegram_format_earnings_contains_financials():
+    """Formatted earnings must show revenue, EPS, guidance, and cross_ref flag."""
+    bot = TelegramBot.__new__(TelegramBot)
+    earnings = _make_earnings()
+    text = bot._format_earnings(earnings)
+
+    assert "Apple Inc" in text
+    assert "124" in text   # revenue
+    assert "2.40" in text  # EPS
+    assert "89" in text    # guidance
+    assert "cross" in text.lower()
+
+
+def test_telegram_message_chunking():
+    """Messages exceeding 4096 chars must be split into chunks."""
+    bot = TelegramBot.__new__(TelegramBot)
+    bot._bot = MagicMock()
+    bot._channel_id = "@test"
+
+    long_text = "A" * 9000  # 9000 chars → 3 chunks of ≤4096
+
+    sent_chunks = []
+
+    async def mock_send(**kwargs):
+        sent_chunks.append(kwargs["text"])
+
+    bot._bot.send_message = mock_send
+
+    import asyncio
+    asyncio.run(bot._async_send(long_text))
+
+    assert len(sent_chunks) == 3
+    assert all(len(c) <= 4096 for c in sent_chunks)
+    assert "".join(sent_chunks) == long_text

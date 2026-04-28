@@ -13,7 +13,7 @@ from .extractor_agent import ArticleSummary
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
 SYSTEM_PROMPT = """\
 You are a senior tech analyst writing a daily intelligence digest for a professional audience.
@@ -69,7 +69,10 @@ class SynthesizerAgent:
     """Wraps the Claude API for cross-article digest synthesis."""
 
     def __init__(self):
-        self._client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+        self._client = anthropic.Anthropic(
+            api_key=os.getenv("ANTHROPIC_API_KEY", ""),
+            max_retries=3,
+        )
 
     def synthesize(self, summaries: list[ArticleSummary]) -> Optional[DigestOutput]:
         if not summaries:

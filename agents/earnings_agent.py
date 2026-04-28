@@ -17,7 +17,7 @@ from sources.earnings_fetcher import EarningsFiling
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
 SYSTEM_PROMPT = """\
 You are a financial data extractor specializing in earnings filings.
@@ -87,7 +87,10 @@ class EarningsAgent:
     """Extracts structured earnings facts from raw filing text."""
 
     def __init__(self):
-        self._client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+        self._client = anthropic.Anthropic(
+            api_key=os.getenv("ANTHROPIC_API_KEY", ""),
+            max_retries=3,
+        )
 
     def extract(self, filing: EarningsFiling) -> Optional[EarningsOutput]:
         if not filing.raw_text:
@@ -110,7 +113,7 @@ class EarningsAgent:
             raw = message.content[0].text.strip()
             data = json.loads(raw)
             output = EarningsOutput(**data)
-            self._fact_guard_check(output, filing.raw_text)
+            output = self._fact_guard_apply(output, filing.raw_text)
             return output
 
         except json.JSONDecodeError as exc:
@@ -120,20 +123,52 @@ class EarningsAgent:
             logger.error("Earnings agent failed for %s: %s", filing.company, exc)
             return None
 
-    def _fact_guard_check(self, output: EarningsOutput, source_text: str) -> None:
-        """Warn if extracted numbers cannot be found verbatim in source text."""
-        def check_value(field_name: str, value: Optional[float]) -> None:
-            if value is None:
-                return
-            value_str = str(value)
-            # Allow for common formatting variants (commas, B/M suffixes omitted)
-            stripped = re.sub(r"[,\s]", "", value_str)
-            if stripped not in re.sub(r"[,\s]", "", source_text):
-                logger.warning(
-                    "fact_guard: %s value %s not found verbatim in source for %s",
-                    field_name, value, output.company
-                )
+    def _fact_guard_apply(self, output: EarningsOutput, source_text: str) -> EarningsOutput:
+        """Enforce fact_guard: null out unverifiable numeric fields and downgrade confidence.
 
-        check_value("revenue.actual", output.revenue.actual)
-        check_value("eps.actual", output.eps.actual)
-        check_value("guidance_next_q", output.guidance_next_q)
+        Any numeric field whose value cannot be found in the source text is cleared to None.
+        If any violations are found, confidence is downgraded to "low".
+        beat_pct is cleared whenever revenue.actual or revenue.estimate is absent.
+        """
+        clean_source = re.sub(r"[$,\s]", "", source_text)
+        violations: list[str] = []
+
+        def _in_source(value: float) -> bool:
+            for fmt in (str(value), f"{value:.1f}", f"{value:.2f}", str(int(value))):
+                if re.sub(r"[$,\s]", "", fmt) in clean_source:
+                    return True
+            return False
+
+        def _check_and_clear(field_name: str, value: Optional[float]) -> Optional[float]:
+            if value is not None and not _in_source(value):
+                violations.append(field_name)
+                return None
+            return value
+
+        output.revenue.actual = _check_and_clear("revenue.actual", output.revenue.actual)
+        output.revenue.estimate = _check_and_clear("revenue.estimate", output.revenue.estimate)
+        output.eps.actual = _check_and_clear("eps.actual", output.eps.actual)
+        output.eps.estimate = _check_and_clear("eps.estimate", output.eps.estimate)
+        output.guidance_next_q = _check_and_clear("guidance_next_q", output.guidance_next_q)
+
+        # beat_pct is only valid when both actual and estimate are present
+        if output.revenue.beat_pct is not None:
+            if output.revenue.actual is None or output.revenue.estimate is None:
+                violations.append("revenue.beat_pct (missing actual/estimate)")
+                output.revenue.beat_pct = None
+
+        # Validate segments
+        for seg_name in list(output.segments.keys()):
+            val = output.segments[seg_name]
+            if val is not None and not _in_source(val):
+                violations.append(f"segments.{seg_name}")
+                output.segments[seg_name] = None
+
+        if violations:
+            logger.warning(
+                "fact_guard cleared %d field(s) for %s: %s — confidence downgraded to low",
+                len(violations), output.company, violations,
+            )
+            output.confidence = "low"
+
+        return output

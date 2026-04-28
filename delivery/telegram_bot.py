@@ -5,9 +5,6 @@ import logging
 import os
 from typing import Optional
 
-from telegram import Bot
-from telegram.constants import ParseMode
-
 from agents.earnings_agent import EarningsOutput
 from agents.synthesizer_agent import DigestOutput
 
@@ -22,8 +19,10 @@ class TelegramBot:
         self._channel_id = os.environ.get("TELEGRAM_CHANNEL_ID", "")
         if not token or not self._channel_id:
             logger.warning("TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not set — delivery disabled")
-            self._bot: Optional[Bot] = None
+            self._bot = None
         else:
+            # Lazy import so the cryptography chain is only triggered when a real bot is needed
+            from telegram import Bot  # noqa: PLC0415
             self._bot = Bot(token=token)
 
     def send_digest(self, digest: DigestOutput) -> bool:
@@ -55,7 +54,7 @@ class TelegramBot:
             await self._bot.send_message(
                 chat_id=self._channel_id,
                 text=chunk,
-                parse_mode=ParseMode.MARKDOWN_V2,
+                parse_mode="MarkdownV2",
             )
 
     def _format_digest(self, digest: DigestOutput) -> str:

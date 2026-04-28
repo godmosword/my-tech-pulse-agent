@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from typing import Optional
 
 import httpx
@@ -11,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 APIFY_ACTOR_X = "apidojo/tweet-scraper"
 APIFY_BASE_URL = "https://api.apify.com/v2"
+ACTOR_POLL_INTERVAL = 3   # seconds between status checks
+ACTOR_TIMEOUT = 90        # seconds before giving up on an actor run
 
 
 class TrendingTopic(BaseModel):
@@ -58,7 +61,14 @@ class SocialTracker:
                     json=payload,
                 )
                 run_resp.raise_for_status()
-                run_id = run_resp.json()["data"]["id"]
+                run_data = run_resp.json().get("data", {})
+                run_id = run_data.get("id")
+                if not run_id:
+                    logger.warning("Apify run response missing id: %s", run_resp.text[:200])
+                    return []
+
+                if not self._wait_for_run(client, run_id):
+                    return []
 
                 results_resp = client.get(
                     f"{APIFY_BASE_URL}/actor-runs/{run_id}/dataset/items",
@@ -67,26 +77,43 @@ class SocialTracker:
                 results_resp.raise_for_status()
                 items = results_resp.json()
 
-            topics = []
             hashtag_counts: dict[str, int] = {}
             for item in items:
                 for tag in item.get("entities", {}).get("hashtags", []):
                     text = f"#{tag['text'].lower()}"
                     hashtag_counts[text] = hashtag_counts.get(text, 0) + 1
 
-            for rank, (hashtag, count) in enumerate(
-                sorted(hashtag_counts.items(), key=lambda x: -x[1])[:limit], start=1
-            ):
-                topics.append(
-                    TrendingTopic(
-                        platform="x",
-                        hashtag=hashtag,
-                        volume=count,
-                        rank=rank,
-                    )
+            return [
+                TrendingTopic(platform="x", hashtag=hashtag, volume=count, rank=rank)
+                for rank, (hashtag, count) in enumerate(
+                    sorted(hashtag_counts.items(), key=lambda x: -x[1])[:limit], start=1
                 )
-            return topics
+            ]
 
         except Exception as exc:
             logger.warning("X trending fetch failed: %s", exc)
             return []
+
+    def _wait_for_run(self, client: httpx.Client, run_id: str) -> bool:
+        """Poll until the actor run succeeds or times out."""
+        deadline = time.time() + ACTOR_TIMEOUT
+        while time.time() < deadline:
+            try:
+                status_resp = client.get(
+                    f"{APIFY_BASE_URL}/actor-runs/{run_id}",
+                    params={"token": self._apify_key},
+                )
+                status_resp.raise_for_status()
+                status = status_resp.json().get("data", {}).get("status", "")
+                if status == "SUCCEEDED":
+                    return True
+                if status in ("FAILED", "ABORTED", "TIMED-OUT"):
+                    logger.warning("Apify actor run %s ended with status: %s", run_id, status)
+                    return False
+            except Exception as exc:
+                logger.warning("Error polling actor run %s: %s", run_id, exc)
+                return False
+            time.sleep(ACTOR_POLL_INTERVAL)
+
+        logger.warning("Apify actor run %s timed out after %ds", run_id, ACTOR_TIMEOUT)
+        return False

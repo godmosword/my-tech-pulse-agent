@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
 SYSTEM_PROMPT = """\
 You are a tech news extractor. Your only job is to extract structured information from a given article.
@@ -59,7 +59,10 @@ class ExtractorAgent:
     """Wraps the Claude API for per-article structured extraction."""
 
     def __init__(self):
-        self._client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+        self._client = anthropic.Anthropic(
+            api_key=os.getenv("ANTHROPIC_API_KEY", ""),
+            max_retries=3,
+        )
 
     def extract(self, title: str, text: str, source_name: str = "", source_url: str = "") -> Optional[ArticleSummary]:
         prompt = EXTRACTION_PROMPT.format(

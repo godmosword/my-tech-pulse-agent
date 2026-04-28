@@ -4,7 +4,7 @@ import io
 import logging
 import re
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Optional
@@ -47,8 +47,18 @@ class EarningsFetcher:
     ) -> list[EarningsFiling]:
         filings: list[EarningsFiling] = []
         for source in self._sources:
-            filings.extend(self._fetch_edgar_rss(source["url"], form_types))
+            url = self._inject_rolling_date(source["url"])
+            filings.extend(self._fetch_edgar_rss(url, form_types))
         return filings
+
+    def _inject_rolling_date(self, url: str, days_back: int = 7) -> str:
+        """Replace or append startdt with a rolling window from today."""
+        startdt = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
+        if "startdt=" in url:
+            return re.sub(r"startdt=[^&]*", f"startdt={startdt}", url)
+        if "dateRange=custom" in url:
+            return f"{url}&startdt={startdt}"
+        return url
 
     def _fetch_edgar_rss(self, url: str, form_types: tuple[str, ...]) -> list[EarningsFiling]:
         try:
