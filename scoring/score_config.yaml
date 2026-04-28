@@ -1,0 +1,9 @@
+thresholds:
+  default: 6.0        # general news items
+  earnings: 7.5       # stricter — financial facts require higher quality
+  social_signal: 4.0  # looser — social is signal-only, not content
+
+weights:
+  relevance: 0.4      # Is this meaningful tech/business news?
+  novelty: 0.3        # Is this new information, not a rehash?
+  depth: 0.3          # Does it contain specific facts, not just headlines?

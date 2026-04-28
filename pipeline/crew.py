@@ -1,4 +1,4 @@
-"""CrewAI orchestration: runs the full tech-pulse pipeline once."""
+"""Pipeline orchestration: Stage 0 (dedup) → Stage 1 (score) → Stage 2 (extract) → Stage 3 (synthesize)."""
 
 import json
 import logging
@@ -12,6 +12,8 @@ from agents.earnings_agent import EarningsAgent, EarningsOutput
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.telegram_bot import TelegramBot
+from scoring.deduplicator import Deduplicator
+from scoring.scorer import Scorer
 from sources.earnings_fetcher import EarningsFetcher
 from sources.ir_scraper import IRScraper
 from sources.rss_fetcher import RSSFetcher
@@ -31,6 +33,8 @@ class TechPulseCrew:
         self.social = SocialTracker()
         self.earnings_fetcher = EarningsFetcher()
         self.ir_scraper = IRScraper()
+        self.deduplicator = Deduplicator()
+        self.scorer = Scorer()
         self.extractor = ExtractorAgent()
         self.synthesizer = SynthesizerAgent()
         self.earnings_agent = EarningsAgent()
@@ -42,25 +46,40 @@ class TechPulseCrew:
 
         logger.info("=== tech-pulse pipeline starting ===")
 
-        # Stage 1: Fetch news articles — failure here is non-fatal
-        articles = []
+        # Stage 0 — Ingest & Deduplicate
+        raw_articles = []
         try:
-            articles = self.rss.fetch_all()
-            logger.info("Fetched %d articles", len(articles))
+            raw_articles = self.rss.fetch_all()
+            logger.info("Fetched %d raw articles", len(raw_articles))
         except Exception as exc:
-            logger.error("RSS fetch stage failed: %s", exc, exc_info=True)
+            logger.error("RSS fetch failed: %s", exc, exc_info=True)
 
-        trending = []
         try:
             trending = self.social.fetch_trending()
             logger.info("Fetched %d trending topics", len(trending))
         except Exception as exc:
             logger.error("Social trending fetch failed: %s", exc, exc_info=True)
 
-        # Stage 2: Layer 1 extraction
+        articles = []
+        try:
+            articles = self.deduplicator.filter_new(raw_articles)
+            self.deduplicator.cleanup_expired()
+        except Exception as exc:
+            logger.error("Dedup stage failed: %s", exc, exc_info=True)
+            articles = raw_articles  # fallback: use all articles
+
+        # Stage 1 — Score & Filter (Horizon pattern — cheap Haiku gate)
+        scored_articles = []
+        try:
+            scored_articles = self.scorer.filter_articles(articles)
+        except Exception as exc:
+            logger.error("Scoring stage failed: %s", exc, exc_info=True)
+            scored_articles = articles  # fallback: pass everything through unscored
+
+        # Stage 2 — Extract (CrewAI Layer 1, Sonnet)
         summaries: list[ArticleSummary] = []
         try:
-            article_dicts = [a.model_dump() for a in articles]
+            article_dicts = [a.model_dump() for a in scored_articles]
             summaries = self.extractor.extract_batch(article_dicts)
             logger.info("Extracted %d article summaries", len(summaries))
             self._save_json(
@@ -70,7 +89,7 @@ class TechPulseCrew:
         except Exception as exc:
             logger.error("Extraction stage failed: %s", exc, exc_info=True)
 
-        # Stage 3: Layer 2 synthesis
+        # Stage 3 — Synthesize (CrewAI Layer 2, Sonnet)
         digest: DigestOutput | None = None
         try:
             digest = self.synthesizer.synthesize(summaries)
@@ -80,14 +99,14 @@ class TechPulseCrew:
         except Exception as exc:
             logger.error("Synthesis stage failed: %s", exc, exc_info=True)
 
-        # Stage 4: Earnings sub-pipeline
+        # Earnings sub-pipeline (separate path, not scored — always high-value)
         earnings_outputs: list[EarningsOutput] = []
         try:
             earnings_outputs = self._run_earnings_pipeline(timestamp)
         except Exception as exc:
             logger.error("Earnings pipeline failed: %s", exc, exc_info=True)
 
-        # Stage 5: Telegram delivery — each send is independently guarded
+        # Delivery — each send independently guarded
         if digest:
             try:
                 self.telegram.send_digest(digest)
@@ -102,7 +121,9 @@ class TechPulseCrew:
 
         logger.info("=== tech-pulse pipeline complete ===")
         return {
-            "articles_fetched": len(articles),
+            "articles_fetched": len(raw_articles),
+            "articles_after_dedup": len(articles),
+            "articles_after_scoring": len(scored_articles),
             "summaries_extracted": len(summaries),
             "digest": digest.model_dump() if digest else None,
             "earnings": [e.model_dump() for e in earnings_outputs],
@@ -116,7 +137,6 @@ class TechPulseCrew:
         for filing in filings[:10]:  # cap per run to avoid rate limits
             filing = self.earnings_fetcher.enrich_with_text(filing)
 
-            # Fallback: try IR scraper if EDGAR text extraction came up empty
             if not filing.raw_text:
                 company_key = filing.company.lower().split()[0]
                 doc = self.ir_scraper.fetch(company_key)

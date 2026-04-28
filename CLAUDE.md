@@ -10,11 +10,42 @@ parses earnings reports from official sources, and delivers structured summaries
 
 ```
 sources/      → Data ingestion (RSS, social trending, SEC EDGAR)
-agents/       → Multi-layer CrewAI agent pipeline
+scoring/      → Stage 0 dedup (sqlite) + Stage 1 LLM score gate (Horizon pattern)
+agents/       → Multi-layer CrewAI agent pipeline (Stage 2 + 3)
 pipeline/     → Orchestration (crew.py, scheduler)
 delivery/     → Telegram bot output
 dashboard/    → (Future) Web dashboard
 tests/        → Smoke tests and LLM-as-judge validation
+```
+
+## Full Pipeline (Four Stages)
+
+```
+Stage 0 — Ingest & Deduplicate
+  Input : raw items from all sources (RSS, social, EDGAR)
+  Logic : normalize URL, compute content hash, drop seen items (sqlite TTL 72h)
+  Output: deduplicated item list
+
+Stage 1 — Score & Filter  ← Horizon pattern (Thysrael/Horizon)
+  Input : deduplicated items
+  Logic : Claude Haiku scores each item 0–10 (relevance/novelty/depth)
+          drop items below score_threshold (default 6.0)
+  Output: filtered + scored item list
+
+Stage 2 — Extractor Agent  ← CrewAI Layer 1 (Sonnet)
+  Input : single scored article
+  Output: structured JSON (entity, summary, source, score, confidence)
+
+Stage 3 — Synthesizer Agent  ← CrewAI Layer 2 (Sonnet)
+  Input : batch of Extractor outputs
+  Output: cross-article themes, contradictions, daily digest narrative
+```
+
+## Earnings Sub-Pipeline (separate, not scored — always high-value)
+
+```
+SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
+             → structured earnings JSON → Telegram + investment-digest
 ```
 
 ## Running the Pipeline
@@ -43,6 +74,28 @@ pytest tests/
 - All agent outputs include a `confidence` field: `high | medium | low`
 - **fact_guard**: numeric fields in earnings JSON must be parsed directly from structured
   source data — the LLM must never calculate or infer numbers.
+
+## Scoring Design (Horizon-Inspired)
+
+`scoring/scorer.py` scores every item **before** it reaches any CrewAI agent.
+Uses Claude Haiku (cheap, fast). Items below threshold never reach Sonnet.
+
+Scoring prompt evaluates three dimensions:
+- **Relevance** (weight 0.4): Is this meaningful tech/business news?
+- **Novelty**   (weight 0.3): Is this new information, not a rehash?
+- **Depth**     (weight 0.3): Does it contain specific facts?
+
+Thresholds in `scoring/score_config.yaml`:
+- `default: 6.0` — general news
+- `earnings: 7.5` — stricter for financial facts
+- `social_signal: 4.0` — looser (signal-only)
+
+## Deduplication Design
+
+`scoring/deduplicator.py` uses sqlite3 (built-in) with:
+- Primary key: SHA-256 of normalized URL (tracking params stripped)
+- Secondary key: SHA-256 of first 500 chars of title+content
+- TTL: 72 hours (configurable via `DEDUP_TTL_HOURS`)
 
 ## Earnings JSON Contract
 
@@ -78,10 +131,20 @@ Cross-tagging: when a story is relevant to both repos, emit `cross_ref: true` in
 ## Tech Stack
 
 - Agent orchestration: CrewAI
-- LLM: Claude API (`claude-sonnet-4-20250514`)
+- LLM (agents): Claude API (`claude-sonnet-4-20250514`)
+- LLM (scoring gate): Claude Haiku (`claude-haiku-4-5-20251001`)
 - Scheduling: APScheduler
-- RSS parsing: feedparser
+- Deduplication: sqlite3 (built-in, TTL-based)
+- RSS parsing: stdlib xml.etree + httpx
 - PDF parsing: pdfplumber
 - Delivery: python-telegram-bot
 - Validation: Pydantic v2
 - Testing: pytest + LLM-as-judge
+
+## Reference Projects
+
+| Project | What was borrowed |
+|---------|-------------------|
+| Thysrael/Horizon | Scoring rubric, cheap-model gate pattern, score_config schema |
+| finaldie/auto-news | Source connector layering design |
+| hrnrxb/AI-News-Aggregator-Bot | sqlite dedup pattern, TTL design |

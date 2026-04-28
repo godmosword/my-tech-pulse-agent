@@ -53,6 +53,7 @@ class ArticleSummary(BaseModel):
     cross_ref: bool = False
     source_url: str = ""
     source_name: str = ""
+    score: float = 0.0  # propagated from Scorer; 0.0 = unscored
 
 
 class ExtractorAgent:
@@ -102,5 +103,6 @@ class ExtractorAgent:
                 source_url=article.get("url", ""),
             )
             if result:
+                result.score = float(article.get("score", 0.0))
                 results.append(result)
         return results

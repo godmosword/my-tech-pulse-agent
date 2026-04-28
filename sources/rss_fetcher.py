@@ -33,6 +33,7 @@ class Article(BaseModel):
     summary: str = ""
     content: str = ""
     cross_ref: bool = False
+    score: float = 0.0  # set by Scorer; 0.0 = unscored or below-threshold fallback
 
 
 class SourceConfig(BaseModel):

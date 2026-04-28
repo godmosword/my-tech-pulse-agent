@@ -1,6 +1,8 @@
 """Smoke tests: validate pipeline stages without hitting live APIs."""
 
 import json
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -9,6 +11,8 @@ from agents.earnings_agent import EarningsAgent, EarningsOutput, EPSData, Revenu
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.telegram_bot import TelegramBot
+from scoring.deduplicator import Deduplicator
+from scoring.scorer import ScoreResult, Scorer
 from sources.rss_fetcher import Article, RSSFetcher
 
 
@@ -361,3 +365,151 @@ def test_telegram_message_chunking():
     assert len(sent_chunks) == 3
     assert all(len(c) <= 4096 for c in sent_chunks)
     assert "".join(sent_chunks) == long_text
+
+
+# ---------- Deduplicator ----------
+
+def _tmp_dedup(tmp_path: Path) -> Deduplicator:
+    return Deduplicator(db_path=tmp_path / "dedup.sqlite", ttl_hours=72)
+
+
+def test_deduplicator_allows_new_item(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    assert not dedup.is_duplicate("https://example.com/story-1", "Some content")
+
+
+def test_deduplicator_detects_same_url(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    dedup.mark_seen("https://example.com/story-1", "Some content")
+    assert dedup.is_duplicate("https://example.com/story-1", "Different content")
+
+
+def test_deduplicator_detects_same_content_different_url(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    dedup.mark_seen("https://example.com/a", "Identical body text here")
+    assert dedup.is_duplicate("https://other.com/b", "Identical body text here")
+
+
+def test_deduplicator_strips_tracking_params(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    clean_url = "https://techcrunch.com/article"
+    tracked_url = "https://techcrunch.com/article?utm_source=twitter&utm_medium=social"
+    dedup.mark_seen(clean_url, "")
+    assert dedup.is_duplicate(tracked_url, "")
+
+
+def test_deduplicator_filter_new_returns_only_new(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    articles = [
+        Article(title="Old Story", url="https://example.com/old", source="test"),
+        Article(title="New Story", url="https://example.com/new", source="test"),
+    ]
+    # Mark the first one as already seen
+    dedup.mark_seen("https://example.com/old", "Old Story")
+
+    result = dedup.filter_new(articles)
+    assert len(result) == 1
+    assert result[0].url == "https://example.com/new"
+
+
+def test_deduplicator_filter_new_marks_seen(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    articles = [Article(title="Fresh", url="https://example.com/fresh", source="test")]
+    dedup.filter_new(articles)
+    # Second call should return empty — already marked
+    result = dedup.filter_new(articles)
+    assert len(result) == 0
+
+
+def test_deduplicator_cleanup_expired(tmp_path):
+    """cleanup_expired() should remove nothing when all records are fresh."""
+    dedup = _tmp_dedup(tmp_path)
+    dedup.mark_seen("https://example.com/x", "body")
+    removed = dedup.cleanup_expired()
+    assert removed == 0  # record is within TTL
+
+
+# ---------- Scorer ----------
+
+MOCK_SCORE_RESPONSE = json.dumps({"relevance": 8.0, "novelty": 7.0, "depth": 6.0, "score": 7.1})
+MOCK_LOW_SCORE_RESPONSE = json.dumps({"relevance": 3.0, "novelty": 2.0, "depth": 2.0, "score": 2.3})
+
+
+def test_scorer_parses_valid_response():
+    with patch("anthropic.Anthropic") as mock_anthropic:
+        mock_client = MagicMock()
+        mock_anthropic.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text=MOCK_SCORE_RESPONSE)]
+        )
+        scorer = Scorer()
+        result = scorer.score_item("OpenAI launches GPT-5", "Full article text here")
+
+    assert result is not None
+    assert result.score == pytest.approx(7.1)
+    assert result.relevance == 8.0
+
+
+def test_scorer_returns_none_on_invalid_json():
+    with patch("anthropic.Anthropic") as mock_anthropic:
+        mock_client = MagicMock()
+        mock_anthropic.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text="not json")]
+        )
+        scorer = Scorer()
+        result = scorer.score_item("title", "text")
+    assert result is None
+
+
+def test_scorer_filter_articles_passes_above_threshold():
+    articles = [
+        Article(title="High quality story", url="https://example.com/1", source="test"),
+        Article(title="Low quality story", url="https://example.com/2", source="test"),
+    ]
+    responses = [MOCK_SCORE_RESPONSE, MOCK_LOW_SCORE_RESPONSE]
+
+    with patch("anthropic.Anthropic") as mock_anthropic:
+        mock_client = MagicMock()
+        mock_anthropic.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            MagicMock(content=[MagicMock(text=r)]) for r in responses
+        ]
+        scorer = Scorer()
+        # default threshold is 6.0; score 7.1 passes, 2.3 fails
+        result = scorer.filter_articles(articles)
+
+    assert len(result) == 1
+    assert result[0].title == "High quality story"
+    assert result[0].score == pytest.approx(7.1)
+
+
+def test_scorer_fail_open_on_api_error():
+    """If scoring fails, include the article (fail-open to avoid over-filtering)."""
+    articles = [Article(title="Story", url="https://example.com/1", source="test")]
+    with patch("anthropic.Anthropic") as mock_anthropic:
+        mock_client = MagicMock()
+        mock_anthropic.return_value = mock_client
+        mock_client.messages.create.side_effect = Exception("API error")
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert len(result) == 1
+    assert result[0].score == 0.0
+
+
+def test_article_score_field_default():
+    article = Article(title="Test", url="https://example.com", source="test")
+    assert article.score == 0.0
+
+
+def test_article_summary_carries_score():
+    summary = ArticleSummary(
+        entity="Test",
+        summary="Test summary.",
+        category="other",
+        sentiment="neutral",
+        confidence="high",
+        score=7.5,
+    )
+    assert summary.score == 7.5
