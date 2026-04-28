@@ -6,4 +6,3 @@ output/
 .pytest_cache/
 dist/
 build/
-docs/

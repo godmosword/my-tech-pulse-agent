@@ -67,30 +67,26 @@ python -m pipeline.scheduler
 # Run tests
 pytest tests/
 
-# Check production secrets and deploy config
+# Check production secrets and runtime config
 python scripts/preflight.py
 ```
 
 ## Production Deployment
 
-The GitHub Pages workflow is the production runner. On schedule or manual dispatch it:
+Production runs should execute the container one-shot command:
 
-1. Installs the package.
-2. Runs `python -m pipeline.crew`.
-3. Uploads generated `docs/` as a Pages artifact.
-4. Deploys the current report to GitHub Pages.
+```bash
+python -m pipeline.crew
+```
 
-Required GitHub secrets:
+Required production environment variables:
 - `GEMINI_API_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHANNEL_ID`
 
-Optional GitHub secrets:
+Optional production environment variables:
 - `APIFY_API_KEY`
 - `NEWSAPI_KEY`
-
-Optional GitHub variable:
-- `GITHUB_PAGES_URL`
 
 ## Anti-Hallucination Rules
 
@@ -155,8 +151,8 @@ Cross-tagging: when a story is relevant to both repos, emit `cross_ref: true` in
 
 ## V1 Feature Status
 
-- RSS news, Gemini scoring/extraction/synthesis, earnings extraction, Telegram delivery,
-  and static Pages reports are in the production path.
+- RSS news, Gemini scoring/extraction/synthesis, earnings extraction, and Telegram delivery
+  are in the production path.
 - Social trending is signal-only in v1: it is fetched and logged when `APIFY_API_KEY` is set,
   but it is not yet merged into article scoring or digest synthesis.
 - Feedback callbacks are implemented as handlers, but v1 Telegram broadcasts do not attach

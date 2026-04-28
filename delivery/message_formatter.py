@@ -9,7 +9,6 @@ from agents.extractor_agent import ArticleSummary
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "10"))
 MAX_SUMMARY_CHARS = 100
-GITHUB_PAGES_URL = os.getenv("GITHUB_PAGES_URL", "")
 
 # All MarkdownV2 special characters that must be escaped
 _MV2_SPECIAL = r"\_*[]()~`>#+-=|{}.!"
@@ -88,11 +87,6 @@ def format_items_digest(
     fetched_esc = escape(str(total_fetched))
     filtered_esc = escape(str(total_after_filter))
     lines.append(f"_今日 {fetched_esc} 篇 → 過濾後 {filtered_esc} 篇_")
-
-    if GITHUB_PAGES_URL:
-        date_slug = escape(now.strftime("%Y-%m-%d"))
-        report_url = f"{GITHUB_PAGES_URL.rstrip('/')}/{now.strftime('%Y-%m-%d')}.html"
-        lines.append(f"[📄 完整報告]({report_url})")
 
     return "\n".join(lines)
 

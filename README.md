@@ -49,19 +49,12 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 
 ## Deployment
 
-GitHub Actions runs the production pipeline every 15 minutes and deploys the generated
-`docs/` artifact to GitHub Pages. Configure these repository secrets before enabling the
-workflow:
+The pipeline is packaged for container deployment. Run `python scripts/preflight.py` in
+the same environment before the first production run, then start the one-shot command:
 
-- `GEMINI_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHANNEL_ID`
-
-Optional secrets: `APIFY_API_KEY`, `NEWSAPI_KEY`. Optional repository variable:
-`GITHUB_PAGES_URL`.
-
-Run `python scripts/preflight.py` locally or in a shell with the same environment before
-the first production run.
+```bash
+python -m pipeline.crew
+```
 
 ## Project Structure
 

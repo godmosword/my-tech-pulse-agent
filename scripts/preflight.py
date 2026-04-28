@@ -1,7 +1,7 @@
 """Production preflight checks for tech-pulse.
 
-This script validates local/GitHub Actions configuration without calling
-external APIs. It is meant to fail fast before a scheduled production run.
+This script validates production configuration without calling external APIs.
+It is meant to fail fast before a deployed production run.
 """
 
 import os
@@ -30,15 +30,6 @@ def _failures() -> list[str]:
         value = os.getenv(key, expected).strip()
         if value != expected:
             failures.append(f"{key} must be {expected!r}, got {value!r}")
-
-    workflow = ROOT / ".github" / "workflows" / "pages.yml"
-    if not workflow.exists():
-        failures.append("Missing GitHub Pages workflow: .github/workflows/pages.yml")
-    else:
-        workflow_text = workflow.read_text(encoding="utf-8")
-        for needle in ("python -m pipeline.crew", "upload-pages-artifact", "docs/"):
-            if needle not in workflow_text:
-                failures.append(f"Pages workflow missing {needle!r}")
 
     if not (ROOT / ".env.example").exists():
         failures.append("Missing .env.example")
