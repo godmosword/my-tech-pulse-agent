@@ -5,6 +5,8 @@ sources:
     fallback: techcrunch_rss
     last_success: null
     health_check: true
+    enabled: true
+    weight: 1.0
 
   - name: techcrunch_rss
     url: https://techcrunch.com/feed/
@@ -12,6 +14,8 @@ sources:
     fallback: theverge_rss
     last_success: null
     health_check: true
+    enabled: true
+    weight: 1.0
 
   - name: theverge_rss
     url: https://www.theverge.com/rss/index.xml
@@ -19,6 +23,8 @@ sources:
     fallback: null
     last_success: null
     health_check: true
+    enabled: true
+    weight: 1.0
 
   - name: ars_technica_rss
     url: https://feeds.arstechnica.com/arstechnica/technology-lab
@@ -26,6 +32,8 @@ sources:
     fallback: null
     last_success: null
     health_check: true
+    enabled: true
+    weight: 1.0
 
   - name: wired_rss
     url: https://www.wired.com/feed/rss
@@ -33,6 +41,8 @@ sources:
     fallback: null
     last_success: null
     health_check: true
+    enabled: true
+    weight: 1.0
 
   - name: sec_edgar_rss
     # startdt is injected dynamically (rolling 7-day window) by earnings_fetcher.py
@@ -42,6 +52,8 @@ sources:
     last_success: null
     health_check: true
     type: earnings
+    enabled: true
+    weight: 1.0
 
   - name: sec_edgar_earnings_rss
     url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&dateb=&owner=include&count=40&search_text=&output=atom
@@ -50,3 +62,5 @@ sources:
     last_success: null
     health_check: true
     type: earnings
+    enabled: true
+    weight: 1.0

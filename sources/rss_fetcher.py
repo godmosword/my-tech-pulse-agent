@@ -44,6 +44,8 @@ class SourceConfig(BaseModel):
     last_success: Optional[datetime] = None
     health_check: bool = True
     type: str = "news"
+    enabled: bool = True
+    weight: float = 1.0
 
 
 class RSSFetcher:
@@ -60,8 +62,11 @@ class RSSFetcher:
                 self._registry[cfg.name] = cfg
 
     def fetch_all(self) -> list[Article]:
-        """Fetch articles from all news sources, sorted by priority."""
-        sources = sorted(self._registry.values(), key=lambda s: s.priority)
+        """Fetch articles from all enabled news sources, sorted by priority."""
+        sources = sorted(
+            (s for s in self._registry.values() if s.enabled),
+            key=lambda s: s.priority,
+        )
         articles: list[Article] = []
         seen_urls: set[str] = set()
 

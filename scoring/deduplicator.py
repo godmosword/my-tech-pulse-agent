@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS seen_items (
 );
 CREATE INDEX IF NOT EXISTS idx_content_hash ON seen_items (content_hash);
 CREATE INDEX IF NOT EXISTS idx_seen_at      ON seen_items (seen_at);
+CREATE TABLE IF NOT EXISTS saved_items (
+    item_id  TEXT PRIMARY KEY,
+    saved_at TEXT NOT NULL
+);
 """
 
 

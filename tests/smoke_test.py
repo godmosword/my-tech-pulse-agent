@@ -333,13 +333,13 @@ def test_telegram_format_digest_contains_key_sections():
 
 def test_telegram_format_earnings_contains_financials():
     """Formatted earnings must show revenue, EPS, guidance, and cross_ref flag."""
-    bot = TelegramBot.__new__(TelegramBot)
+    from delivery.message_formatter import format_earnings as _fmt_e
     earnings = _make_earnings()
-    text = bot._format_earnings(earnings)
+    text = _fmt_e(earnings)
 
     assert "Apple Inc" in text
     assert "124" in text   # revenue
-    assert "2.40" in text  # EPS
+    assert "2" in text     # EPS (escaped as 2\.40 in MarkdownV2)
     assert "89" in text    # guidance
     assert "cross" in text.lower()
 
@@ -513,3 +513,175 @@ def test_article_summary_carries_score():
         score=7.5,
     )
     assert summary.score == 7.5
+
+
+def test_article_summary_has_title_field():
+    summary = ArticleSummary(
+        entity="Test",
+        summary="Test summary.",
+        category="other",
+        sentiment="neutral",
+        confidence="high",
+        title="My Article Title",
+    )
+    assert summary.title == "My Article Title"
+
+
+# ---------- MessageFormatter ----------
+
+from delivery.message_formatter import escape, format_items_digest, format_earnings as fmt_earnings
+
+
+def test_escape_markdownv2_special_chars():
+    special = r"\_*[]()~`>#+-=|{}.!"
+    for ch in special:
+        assert escape(ch) == f"\\{ch}", f"char {ch!r} not escaped"
+
+
+def test_format_items_digest_structure():
+    summaries = [
+        ArticleSummary(
+            entity="OpenAI",
+            summary="OpenAI released a new model with advanced capabilities.",
+            category="product_launch",
+            sentiment="positive",
+            confidence="high",
+            title="OpenAI Launches New Model",
+            source_name="TechCrunch",
+            source_url="https://techcrunch.com/1",
+            score=8.5,
+            cross_ref=True,
+        ),
+        ArticleSummary(
+            entity="Google",
+            summary="Google announced cloud services expansion across Asia.",
+            category="other",
+            sentiment="neutral",
+            confidence="medium",
+            title="Google Expands Cloud",
+            source_name="Wired",
+            source_url="https://wired.com/2",
+            score=6.0,
+        ),
+    ]
+    from datetime import datetime, timezone
+    now = datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc)
+    text = format_items_digest(summaries, total_fetched=50, total_after_filter=2, now=now)
+
+    assert "科技脈搆" in text or "科技脈搏" in text
+    assert "2026/04/28" in text
+    assert "8" in text          # score
+    assert "OpenAI" in text
+    assert "投資日報" in text   # cross_ref indicator
+    assert "50" in text         # total_fetched
+    assert "2" in text          # total_after_filter
+
+
+def test_format_items_digest_sorted_by_score():
+    low = ArticleSummary(
+        entity="Low", summary="Low score item.", category="other",
+        sentiment="neutral", confidence="low", score=3.0,
+    )
+    high = ArticleSummary(
+        entity="High", summary="High score item.", category="other",
+        sentiment="positive", confidence="high", score=9.0,
+    )
+    text = format_items_digest([low, high], 10, 2)
+    assert text.index("High") < text.index("Low")
+
+
+def test_format_earnings_markdownv2():
+    earnings = _make_earnings()
+    text = fmt_earnings(earnings)
+    assert "Apple Inc" in text
+    assert "124" in text
+    assert "2" in text and "40" in text   # EPS: escaped as 2\.40 in MarkdownV2
+    assert "cross" in text.lower()
+
+
+# ---------- FeedbackHandler ----------
+
+from delivery.feedback_handler import build_keyboard, parse_callback, handle_callback
+
+
+def test_build_keyboard_structure():
+    kb = build_keyboard("item-123", "techcrunch_rss")
+    assert "inline_keyboard" in kb
+    buttons = kb["inline_keyboard"][0]
+    actions = [b["callback_data"].split(":")[0] for b in buttons]
+    assert "useful" in actions
+    assert "save" in actions
+    assert "block_source" in actions
+
+
+def test_parse_callback_valid():
+    action, payload = parse_callback("useful:techcrunch_rss")
+    assert action == "useful"
+    assert payload == "techcrunch_rss"
+
+
+def test_parse_callback_unknown():
+    action, payload = parse_callback("nocolon")
+    assert action == "unknown"
+
+
+def test_handle_save_callback(tmp_path):
+    result = handle_callback("save:item-abc", db_path=tmp_path / "dedup.sqlite")
+    assert "item-abc" in result
+    # saved_items table should have a row
+    import sqlite3
+    with sqlite3.connect(tmp_path / "dedup.sqlite") as conn:
+        row = conn.execute("SELECT item_id FROM saved_items WHERE item_id='item-abc'").fetchone()
+    assert row is not None
+
+
+# ---------- StaticSiteBuilder ----------
+
+from delivery.static_site_builder import StaticSiteBuilder
+
+
+def test_static_site_builder_creates_html(tmp_path):
+    builder = StaticSiteBuilder(docs_dir=tmp_path / "docs")
+    summaries = [
+        ArticleSummary(
+            entity="Apple",
+            summary="Apple announced record revenue this quarter.",
+            category="earnings",
+            sentiment="positive",
+            confidence="high",
+            title="Apple Q1 Results",
+            source_name="Reuters",
+            source_url="https://reuters.com/1",
+            score=7.5,
+        )
+    ]
+    from datetime import datetime, timezone
+    now = datetime(2026, 4, 28, tzinfo=timezone.utc)
+    path = builder.build(summaries, [], now)
+
+    assert path.exists()
+    content = path.read_text()
+    assert "Apple" in content
+    assert "科技脈搏" in content
+    assert "2026/04/28" in content
+
+
+def test_static_site_builder_writes_index(tmp_path):
+    builder = StaticSiteBuilder(docs_dir=tmp_path / "docs")
+    from datetime import datetime, timezone
+    now = datetime(2026, 4, 28, tzinfo=timezone.utc)
+    builder.build([], [], now)
+    index = tmp_path / "docs" / "index.html"
+    assert index.exists()
+    assert "2026-04-28" in index.read_text()
+
+
+def test_static_site_builder_earnings_section(tmp_path):
+    builder = StaticSiteBuilder(docs_dir=tmp_path / "docs")
+    earnings = [_make_earnings()]
+    from datetime import datetime, timezone
+    now = datetime(2026, 4, 28, tzinfo=timezone.utc)
+    path = builder.build([], earnings, now)
+    content = path.read_text()
+    assert "Apple Inc" in content
+    assert "124" in content

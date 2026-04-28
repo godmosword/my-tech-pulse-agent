@@ -6,7 +6,9 @@ import os
 from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
+from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput
+from delivery.message_formatter import escape, format_earnings, format_items_digest
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,21 @@ class TelegramBot:
             from telegram import Bot  # noqa: PLC0415
             self._bot = Bot(token=token)
 
+    def send_items_digest(
+        self,
+        summaries: list[ArticleSummary],
+        total_fetched: int,
+        total_after_filter: int,
+    ) -> bool:
+        """Send a ranked item digest built from ArticleSummary list."""
+        if not self._bot:
+            logger.info("Telegram bot not configured; skipping items digest delivery")
+            return False
+        text = format_items_digest(summaries, total_fetched, total_after_filter)
+        return self._send(text)
+
     def send_digest(self, digest: DigestOutput) -> bool:
+        """Send a synthesizer DigestOutput (narrative format)."""
         if not self._bot:
             logger.info("Telegram bot not configured; skipping digest delivery")
             return False
@@ -36,7 +52,7 @@ class TelegramBot:
         if not self._bot:
             logger.info("Telegram bot not configured; skipping earnings delivery")
             return False
-        text = self._format_earnings(earnings)
+        text = format_earnings(earnings)
         return self._send(text)
 
     def _send(self, text: str) -> bool:
@@ -48,7 +64,6 @@ class TelegramBot:
             return False
 
     async def _async_send(self, text: str) -> None:
-        # Split long messages to respect Telegram's 4096-char limit
         chunks = [text[i:i + MAX_MESSAGE_LENGTH] for i in range(0, len(text), MAX_MESSAGE_LENGTH)]
         for chunk in chunks:
             await self._bot.send_message(
@@ -61,24 +76,24 @@ class TelegramBot:
         lines = [
             f"*📡 科技脈搏 — {digest.date}*",
             "",
-            f"*{self._escape(digest.headline)}*",
+            f"*{escape(digest.headline)}*",
             "",
         ]
 
         if digest.themes:
             lines.append("*📌 今日主題*")
             for theme in digest.themes[:3]:
-                lines.append(f"• *{self._escape(theme.theme)}*: {self._escape(theme.description)}")
+                lines.append(f"• *{escape(theme.theme)}*: {escape(theme.description)}")
             lines.append("")
 
         if digest.narrative:
-            lines.append(self._escape(digest.narrative))
+            lines.append(escape(digest.narrative))
             lines.append("")
 
         if digest.contradictions:
             lines.append("*⚠️ 消息矛盾*")
             for contradiction in digest.contradictions:
-                lines.append(f"• {self._escape(contradiction)}")
+                lines.append(f"• {escape(contradiction)}")
             lines.append("")
 
         if digest.cross_ref_count > 0:
@@ -86,47 +101,6 @@ class TelegramBot:
 
         return "\n".join(lines)
 
-    def _format_earnings(self, earnings: EarningsOutput) -> str:
-        lines = [
-            f"*💰 財報速報 — {self._escape(earnings.company)}*",
-            f"季度: {self._escape(earnings.quarter)}",
-            "",
-        ]
-
-        if earnings.revenue.actual is not None:
-            rev_line = f"營收: ${earnings.revenue.actual:,.2f}B"
-            if earnings.revenue.estimate is not None:
-                rev_line += f" \\(預期 ${earnings.revenue.estimate:,.2f}B\\)"
-            if earnings.revenue.beat_pct is not None:
-                beat = "超出" if earnings.revenue.beat_pct >= 0 else "低於"
-                rev_line += f" {beat} {abs(earnings.revenue.beat_pct):.1f}%"
-            lines.append(rev_line)
-
-        if earnings.eps.actual is not None:
-            eps_line = f"EPS: ${earnings.eps.actual:.2f}"
-            if earnings.eps.estimate is not None:
-                eps_line += f" \\(預期 ${earnings.eps.estimate:.2f}\\)"
-            lines.append(eps_line)
-
-        if earnings.guidance_next_q is not None:
-            lines.append(f"下季指引: ${earnings.guidance_next_q:,.2f}B")
-
-        if earnings.key_quotes:
-            lines.append("")
-            lines.append("*重要引述:*")
-            for quote in earnings.key_quotes[:2]:
-                lines.append(f"> {self._escape(quote)}")
-
-        lines.append("")
-        lines.append(f"_來源: {self._escape(earnings.source)} \\| 信心: {earnings.confidence}_")
-
-        if earnings.cross_ref:
-            lines.append("_cross\\_ref: true \\— 已同步 \\#投資日報_")
-
-        return "\n".join(lines)
-
     @staticmethod
     def _escape(text: str) -> str:
-        """Escape MarkdownV2 special characters."""
-        special = r"\_*[]()~`>#+-=|{}.!"
-        return "".join(f"\\{c}" if c in special else c for c in text)
+        return escape(text)

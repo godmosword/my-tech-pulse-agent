@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from agents.earnings_agent import EarningsAgent, EarningsOutput
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
+from delivery.static_site_builder import StaticSiteBuilder
 from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
 from scoring.scorer import Scorer
@@ -39,10 +40,12 @@ class TechPulseCrew:
         self.synthesizer = SynthesizerAgent()
         self.earnings_agent = EarningsAgent()
         self.telegram = TelegramBot()
+        self.site_builder = StaticSiteBuilder()
 
     def run(self) -> dict:
         OUTPUT_DIR.mkdir(exist_ok=True)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        now = datetime.now(timezone.utc)
 
         logger.info("=== tech-pulse pipeline starting ===")
 
@@ -107,6 +110,15 @@ class TechPulseCrew:
             logger.error("Earnings pipeline failed: %s", exc, exc_info=True)
 
         # Delivery — each send independently guarded
+        try:
+            self.telegram.send_items_digest(
+                summaries,
+                total_fetched=len(raw_articles),
+                total_after_filter=len(scored_articles),
+            )
+        except Exception as exc:
+            logger.error("Telegram items digest delivery failed: %s", exc, exc_info=True)
+
         if digest:
             try:
                 self.telegram.send_digest(digest)
@@ -118,6 +130,12 @@ class TechPulseCrew:
                 self.telegram.send_earnings(earnings)
             except Exception as exc:
                 logger.error("Telegram earnings delivery failed: %s", exc, exc_info=True)
+
+        # Phase 2 — Static site generation
+        try:
+            self.site_builder.build(summaries, earnings_outputs, now)
+        except Exception as exc:
+            logger.error("Static site build failed: %s", exc, exc_info=True)
 
         logger.info("=== tech-pulse pipeline complete ===")
         return {
