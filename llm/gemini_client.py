@@ -62,7 +62,8 @@ def generate_json(
     if isinstance(parsed, dict):
         return parsed, json.dumps(parsed, ensure_ascii=False)
 
-    raw = (getattr(response, "text", "") or "").strip()
+    raw_obj = getattr(response, "text", "")
+    raw = raw_obj.strip() if isinstance(raw_obj, str) else ""
     try:
         return json.loads(raw), raw
     except json.JSONDecodeError:

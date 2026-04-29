@@ -135,6 +135,7 @@ class Scorer:
                 article.score = 0.0
                 article.score_status = "fallback"
                 unscored_count += 1
+                passed.append(article)
                 continue
 
             weighted_score = self._apply_source_weight(result.score, getattr(article, "source", ""))
