@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import re
 from typing import Literal, Optional
 
@@ -104,7 +105,15 @@ class ExtractorAgent:
 
     def extract_batch(self, articles: list[dict]) -> list[ArticleSummary]:
         results = []
-        for article in articles:
+        max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "8"))
+        candidates = articles[:max_articles]
+        if len(articles) > len(candidates):
+            logger.info(
+                "Extraction capped at %d/%d articles to stay within runtime budget",
+                len(candidates), len(articles),
+            )
+
+        for article in candidates:
             text = article.get("content") or article.get("summary", "")
             result = self.extract(
                 title=article.get("title", ""),

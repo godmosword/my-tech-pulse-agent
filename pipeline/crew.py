@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import signal
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,6 +27,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "output"))
 ITEM_DIGEST_THEME_MIN_SUMMARIES = int(os.getenv("ITEM_DIGEST_THEME_MIN_SUMMARIES", "8"))
+PIPELINE_TIMEOUT_SECONDS = int(os.getenv("PIPELINE_TIMEOUT_SECONDS", "540"))
+MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "2"))
+
+
+class PipelineDeadlineExceeded(BaseException):
+    """Raised when the pipeline reaches its self-imposed Cloud Run runtime budget."""
 
 
 class TechPulseCrew:
@@ -44,70 +51,84 @@ class TechPulseCrew:
     def run(self) -> dict:
         OUTPUT_DIR.mkdir(exist_ok=True)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        alarm_supported = hasattr(signal, "SIGALRM")
+        previous_handler = None
+        if alarm_supported and PIPELINE_TIMEOUT_SECONDS > 0:
+            previous_handler = signal.getsignal(signal.SIGALRM)
+            signal.signal(signal.SIGALRM, self._handle_deadline)
+            signal.alarm(PIPELINE_TIMEOUT_SECONDS)
 
         logger.info("=== tech-pulse pipeline starting ===")
-
-        # Stage 0 — Ingest & Deduplicate
         raw_articles = []
-        try:
-            raw_articles = self.rss.fetch_all()
-            logger.info("Fetched %d raw articles", len(raw_articles))
-        except Exception as exc:
-            logger.error("RSS fetch failed: %s", exc, exc_info=True)
-
-        try:
-            trending = self.social.fetch_trending()
-            logger.info("Fetched %d trending topics", len(trending))
-        except Exception as exc:
-            logger.error("Social trending fetch failed: %s", exc, exc_info=True)
-
         articles = []
-        try:
-            articles = self.deduplicator.filter_new(raw_articles)
-            self.deduplicator.cleanup_expired()
-        except Exception as exc:
-            logger.error("Dedup stage failed: %s", exc, exc_info=True)
-            articles = raw_articles  # fallback: use all articles
-
-        # Stage 1 — Score & Filter (Horizon pattern — cheap Gemini Flash gate)
         scored_articles = []
-        try:
-            scored_articles = self.scorer.filter_articles(articles)
-        except Exception as exc:
-            logger.error("Scoring stage failed: %s", exc, exc_info=True)
-            scored_articles = articles  # fallback: pass everything through unscored
-
-        # Stage 2 — Extract (Gemini Pro)
         summaries: list[ArticleSummary] = []
-        try:
-            article_dicts = [a.model_dump() for a in scored_articles]
-            summaries = self.extractor.extract_batch(article_dicts)
-            logger.info("Extracted %d article summaries", len(summaries))
-            self._save_json(
-                OUTPUT_DIR / f"summaries_{timestamp}.json",
-                [s.model_dump() for s in summaries],
-            )
-        except Exception as exc:
-            logger.error("Extraction stage failed: %s", exc, exc_info=True)
-
         digest: DigestOutput | None = None
-        should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
-        if should_synthesize:
-            # Stage 3 — Synthesize (Gemini Pro)
-            try:
-                digest = self.synthesizer.synthesize(summaries)
-                if digest:
-                    self._save_json(OUTPUT_DIR / f"digest_{timestamp}.json", digest.model_dump())
-                    logger.info("Digest headline: %s", digest.headline)
-            except Exception as exc:
-                logger.error("Synthesis stage failed: %s", exc, exc_info=True)
-
-        # Earnings sub-pipeline (separate path, not scored — always high-value)
         earnings_outputs: list[EarningsOutput] = []
+
         try:
-            earnings_outputs = self._run_earnings_pipeline(timestamp)
-        except Exception as exc:
-            logger.error("Earnings pipeline failed: %s", exc, exc_info=True)
+            # Stage 0 — Ingest & Deduplicate
+            try:
+                raw_articles = self.rss.fetch_all()
+                logger.info("Fetched %d raw articles", len(raw_articles))
+            except Exception as exc:
+                logger.error("RSS fetch failed: %s", exc, exc_info=True)
+
+            try:
+                trending = self.social.fetch_trending()
+                logger.info("Fetched %d trending topics", len(trending))
+            except Exception as exc:
+                logger.error("Social trending fetch failed: %s", exc, exc_info=True)
+
+            try:
+                articles = self.deduplicator.filter_new(raw_articles)
+                self.deduplicator.cleanup_expired()
+            except Exception as exc:
+                logger.error("Dedup stage failed: %s", exc, exc_info=True)
+                articles = raw_articles  # fallback: use all articles
+
+            # Stage 1 — Score & Filter (Horizon pattern — cheap Gemini Flash gate)
+            try:
+                scored_articles = self.scorer.filter_articles(articles)
+            except Exception as exc:
+                logger.error("Scoring stage failed: %s", exc, exc_info=True)
+                scored_articles = articles  # fallback: pass everything through unscored
+
+            # Stage 2 — Extract (Gemini Pro)
+            try:
+                article_dicts = [a.model_dump() for a in scored_articles]
+                summaries = self.extractor.extract_batch(article_dicts)
+                logger.info("Extracted %d article summaries", len(summaries))
+                self._save_json(
+                    OUTPUT_DIR / f"summaries_{timestamp}.json",
+                    [s.model_dump() for s in summaries],
+                )
+            except Exception as exc:
+                logger.error("Extraction stage failed: %s", exc, exc_info=True)
+
+            should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
+            if should_synthesize:
+                # Stage 3 — Synthesize (Gemini Pro)
+                try:
+                    digest = self.synthesizer.synthesize(summaries)
+                    if digest:
+                        self._save_json(OUTPUT_DIR / f"digest_{timestamp}.json", digest.model_dump())
+                        logger.info("Digest headline: %s", digest.headline)
+                except Exception as exc:
+                    logger.error("Synthesis stage failed: %s", exc, exc_info=True)
+
+            # Earnings sub-pipeline (separate path, not scored — always high-value)
+            try:
+                earnings_outputs = self._run_earnings_pipeline(timestamp)
+            except Exception as exc:
+                logger.error("Earnings pipeline failed: %s", exc, exc_info=True)
+        except PipelineDeadlineExceeded as exc:
+            logger.warning("%s; delivering partial results", exc)
+        finally:
+            if alarm_supported and PIPELINE_TIMEOUT_SECONDS > 0:
+                signal.alarm(0)
+                if previous_handler is not None:
+                    signal.signal(signal.SIGALRM, previous_handler)
 
         # Delivery — each send independently guarded
         try:
@@ -148,7 +169,7 @@ class TechPulseCrew:
         logger.info("Fetched %d earnings filings", len(filings))
 
         results = []
-        for filing in filings[:10]:  # cap per run to avoid rate limits
+        for filing in filings[:MAX_EARNINGS_FILINGS]:
             filing = self.earnings_fetcher.enrich_with_text(filing)
 
             if not filing.raw_text:
@@ -170,6 +191,11 @@ class TechPulseCrew:
             )
         logger.info("Processed %d earnings reports", len(results))
         return results
+
+    def _handle_deadline(self, signum, frame):
+        raise PipelineDeadlineExceeded(
+            f"Pipeline runtime budget reached after {PIPELINE_TIMEOUT_SECONDS}s"
+        )
 
     def _save_json(self, path: Path, data: object) -> None:
         with open(path, "w", encoding="utf-8") as f:

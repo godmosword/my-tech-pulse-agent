@@ -42,10 +42,15 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `GEMINI_API_KEY`      | ✅       | Gemini API key                |
 | `GEMINI_MODEL`        | ❌       | Pro model for extraction/synthesis (`gemini-3.1-pro-preview`) |
 | `GEMINI_FLASH_MODEL`  | ❌       | Flash model for scoring (`gemini-3-flash-preview`) |
+| `GEMINI_REQUEST_TIMEOUT_MS` | ❌ | Per Gemini request timeout (`45000`) |
 | `TELEGRAM_BOT_TOKEN`  | ✅       | Telegram bot token            |
 | `TELEGRAM_CHANNEL_ID` | ✅       | Target channel (`#科技脈搏`)  |
 | `APIFY_API_KEY`       | ❌       | Social trending (optional)    |
 | `NEWSAPI_KEY`         | ❌       | Supplemental news (optional)  |
+| `MAX_SCORING_ARTICLES` | ❌      | Max articles scored per run (`24`) |
+| `MAX_EXTRACTION_ARTICLES` | ❌   | Max articles extracted per run (`8`) |
+| `MAX_EARNINGS_FILINGS` | ❌      | Max earnings filings processed per run (`2`) |
+| `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
 
 ## Deployment
 

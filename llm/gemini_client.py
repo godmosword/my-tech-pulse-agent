@@ -19,10 +19,15 @@ GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-3-flash-preview")
 def make_client():
     """Create a Gemini client using GEMINI_API_KEY."""
     from google import genai  # noqa: PLC0415 — lazy to avoid cryptography/cffi crash in tests
+    from google.genai import types  # noqa: PLC0415 — lazy import
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is required for Gemini API calls")
-    return genai.Client(api_key=api_key)
+    request_timeout_ms = int(os.getenv("GEMINI_REQUEST_TIMEOUT_MS", "45000"))
+    return genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=request_timeout_ms),
+    )
 
 
 def generate_json(

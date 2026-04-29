@@ -136,6 +136,21 @@ def test_extractor_parses_valid_response():
     assert result.category == "product_launch"
 
 
+def test_extractor_batch_respects_runtime_cap(monkeypatch):
+    monkeypatch.setenv("MAX_EXTRACTION_ARTICLES", "2")
+    articles = [
+        {"title": f"Story {idx}", "summary": "OpenAI announced a product.", "source": "test"}
+        for idx in range(4)
+    ]
+
+    with _mock_gemini_client([MOCK_EXTRACTOR_RESPONSE, MOCK_EXTRACTOR_RESPONSE]) as mock_client:
+        agent = ExtractorAgent()
+        result = agent.extract_batch(articles)
+
+    assert len(result) == 2
+    assert mock_client.models.generate_content.call_count == 2
+
+
 def test_extractor_returns_none_on_invalid_json():
     with patch("google.genai.Client") as mock_gemini:
         mock_client = MagicMock()
@@ -529,6 +544,21 @@ def test_scorer_filter_articles_passes_above_threshold():
     assert len(result) == 1
     assert result[0].title == "High quality story"
     assert result[0].score == pytest.approx(7.1)
+
+
+def test_scorer_filter_articles_respects_runtime_cap(monkeypatch):
+    monkeypatch.setenv("MAX_SCORING_ARTICLES", "2")
+    articles = [
+        Article(title=f"Story {idx}", url=f"https://example.com/{idx}", source="test")
+        for idx in range(4)
+    ]
+
+    with _mock_gemini_client([MOCK_SCORE_RESPONSE, MOCK_SCORE_RESPONSE]) as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert len(result) == 2
+    assert mock_client.models.generate_content.call_count == 2
 
 
 def test_scorer_fail_open_on_api_error():

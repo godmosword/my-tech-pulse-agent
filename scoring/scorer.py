@@ -140,8 +140,15 @@ class Scorer:
         thresh = self.threshold(item_type)
         passed: list = []
         unscored_count = 0
+        max_articles = int(os.getenv("MAX_SCORING_ARTICLES", "24"))
+        candidates = articles[:max_articles]
+        if len(articles) > len(candidates):
+            logger.info(
+                "Scoring capped at %d/%d articles to stay within runtime budget",
+                len(candidates), len(articles),
+            )
 
-        for article in articles:
+        for article in candidates:
             text = article.content or article.summary or ""
             outcome = self._score_item_with_status(article.title, text, item_type)
             result = outcome.result
@@ -167,10 +174,10 @@ class Scorer:
                     article.title[:60], weighted_score, thresh,
                 )
 
-        unscored_ratio = (unscored_count / len(articles)) if articles else 0.0
+        unscored_ratio = (unscored_count / len(candidates)) if candidates else 0.0
         logger.info(
             "Scoring: %d/%d articles passed+unscored threshold %.1f | unscored=%d (%.1f%%)",
-            len(passed), len(articles), thresh, unscored_count, unscored_ratio * 100,
+            len(passed), len(candidates), thresh, unscored_count, unscored_ratio * 100,
         )
         return passed
 
