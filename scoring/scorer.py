@@ -54,6 +54,7 @@ class Scorer:
     def __init__(self, config_path: Path = SCORE_CONFIG_PATH):
         self._client = make_client()
         self._config = self._load_config(config_path)
+        self._source_weights = self._config.get("source_weights", {})
 
     def _load_config(self, path: Path) -> dict:
         with open(path) as f:
@@ -119,13 +120,14 @@ class Scorer:
                 passed.append(article)
                 continue
 
-            article.score = result.score
-            if result.score >= thresh:
+            weighted_score = self._apply_source_weight(result.score, getattr(article, "source", ""))
+            article.score = weighted_score
+            if weighted_score >= thresh:
                 passed.append(article)
             else:
                 logger.debug(
                     "Filtered out '%s' (score=%.1f < %.1f)",
-                    article.title[:60], result.score, thresh,
+                    article.title[:60], weighted_score, thresh,
                 )
 
         logger.info(
@@ -133,3 +135,8 @@ class Scorer:
             len(passed), len(articles), thresh,
         )
         return passed
+
+    def _apply_source_weight(self, score: float, source_name: str) -> float:
+        weight = float(self._source_weights.get(source_name, 1.0))
+        weighted = max(0.0, min(10.0, score * weight))
+        return round(weighted, 2)

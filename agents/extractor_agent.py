@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -103,5 +104,30 @@ class ExtractorAgent:
             if result:
                 result.score = float(article.get("score", 0.0))
                 result.title = article.get("title", "")
+                self._postprocess_flags(result)
                 results.append(result)
         return results
+
+    def _postprocess_flags(self, summary: ArticleSummary) -> None:
+        corpus = " ".join([
+            summary.title,
+            summary.summary,
+            " ".join(summary.key_facts),
+        ]).lower()
+
+        earnings_signals = [
+            r"\brevenue\b", r"\beps\b", r"\bguidance\b", r"\bquarter\b",
+            r"\bq[1-4]\b", r"\bprofit\b", r"\boperating income\b",
+        ]
+        if summary.category == "earnings":
+            has_earnings_signal = any(re.search(p, corpus) for p in earnings_signals)
+            if not has_earnings_signal:
+                summary.category = "other"
+
+        investment_signals = [
+            r"\bearnings\b", r"\brevenue\b", r"\beps\b", r"\bguidance\b",
+            r"\bacquisition\b", r"\bmerger\b", r"\binvest\b", r"\bfunding\b",
+            r"\bdeal\b", r"\btax\b", r"\bregulat", r"\bfine\b", r"\bbillion\b",
+            r"\bmillion\b", r"\bstock\b", r"\bshares\b",
+        ]
+        summary.cross_ref = any(re.search(p, corpus) for p in investment_signals)
