@@ -7,6 +7,7 @@ from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
+from agents.synthesizer_agent import DigestOutput
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "10"))
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "150"))
@@ -65,6 +66,7 @@ def format_items_digest(
     summaries: list[ArticleSummary],
     total_fetched: int,
     total_after_filter: int,
+    digest: Optional[DigestOutput] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format a ranked digest of ArticleSummary items."""
@@ -88,6 +90,27 @@ def format_items_digest(
         f"📡 *科技脈搏 · {date_str}*",
         "",
     ]
+
+    if digest and (digest.headline or digest.themes or digest.contradictions):
+        headline = escape(digest.headline or "本日重點暫不可用")
+        lines.append(f"*{headline}*")
+        lines.append("")
+
+        if digest.themes:
+            for theme in digest.themes[:3]:
+                theme_text = escape(theme.description or theme.theme)
+                lines.append(f"• {theme_text}")
+        else:
+            lines.append("• 本日重點暫不可用")
+
+        if digest.contradictions:
+            lines.append("")
+            lines.append("*⚠️ 市場分歧*")
+
+        lines.append("")
+    else:
+        lines.append("_本日重點暫不可用_")
+        lines.append("")
 
     for s in top:
         lines.append(_score_line(s))

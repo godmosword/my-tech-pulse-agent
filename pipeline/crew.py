@@ -112,6 +112,7 @@ class TechPulseCrew:
                 summaries,
                 total_fetched=len(raw_articles),
                 total_after_filter=len(scored_articles),
+                digest=digest,
             )
         except Exception as exc:
             logger.error("Telegram items digest delivery failed: %s", exc, exc_info=True)
