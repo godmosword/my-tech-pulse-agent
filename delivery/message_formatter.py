@@ -8,6 +8,7 @@ from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
+from agents.synthesizer_agent import DigestOutput
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "10"))
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "150"))
@@ -139,6 +140,7 @@ def format_items_digest(
     summaries: list[ArticleSummary],
     total_fetched: int,
     total_after_filter: int,
+    digest: Optional[DigestOutput] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format a ranked digest of ArticleSummary items."""

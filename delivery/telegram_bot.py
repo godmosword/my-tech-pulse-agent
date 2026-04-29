@@ -35,12 +35,18 @@ class TelegramBot:
         summaries: list[ArticleSummary],
         total_fetched: int,
         total_after_filter: int,
+        digest: Optional[DigestOutput] = None,
     ) -> bool:
         """Send a ranked item digest built from ArticleSummary list."""
         if not self._bot:
             logger.info("Telegram bot not configured; skipping items digest delivery")
             return False
-        text = format_items_digest(summaries, total_fetched, total_after_filter)
+        text = format_items_digest(
+            summaries,
+            total_fetched,
+            total_after_filter,
+            digest=digest,
+        )
         return self._send(text)
 
     def send_digest(self, digest: DigestOutput) -> bool:
