@@ -3,11 +3,12 @@
 import json
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from google import genai
-from google.genai import types
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from google import genai as _genai
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +16,9 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
 GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-3-flash-preview")
 
 
-def make_client() -> genai.Client:
+def make_client():
     """Create a Gemini client using GEMINI_API_KEY."""
+    from google import genai  # noqa: PLC0415 — lazy to avoid cryptography/cffi crash in tests
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is required for Gemini API calls")
@@ -24,7 +26,7 @@ def make_client() -> genai.Client:
 
 
 def generate_json(
-    client: genai.Client,
+    client,
     *,
     model: str,
     system_instruction: str,
@@ -33,6 +35,7 @@ def generate_json(
     response_schema: type[BaseModel] | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Generate a JSON object with Gemini and return parsed data plus raw text."""
+    from google.genai import types  # noqa: PLC0415 — lazy import
     response = client.models.generate_content(
         model=model,
         contents=prompt,
