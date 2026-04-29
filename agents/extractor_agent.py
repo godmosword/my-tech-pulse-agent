@@ -65,7 +65,8 @@ class ArticleSummary(BaseModel):
     source_url: str = ""
     source_name: str = ""
     title: str = ""
-    score: float = 0.0  # propagated from Scorer; 0.0 = unscored
+    score: float = 0.0
+    score_status: str = "scored"
 
 
 class ExtractorAgent:
@@ -113,6 +114,7 @@ class ExtractorAgent:
             )
             if result:
                 result.score = float(article.get("score", 0.0))
+                result.score_status = article.get("score_status", "unscored")
                 result.title = article.get("title", "")
                 self._postprocess_flags(result)
                 results.append(result)
