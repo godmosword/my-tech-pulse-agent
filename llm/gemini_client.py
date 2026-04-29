@@ -63,7 +63,12 @@ def generate_json(
         return parsed, json.dumps(parsed, ensure_ascii=False)
 
     raw_obj = getattr(response, "text", "")
-    raw = raw_obj.strip() if isinstance(raw_obj, str) else ""
+    if isinstance(raw_obj, str):
+        raw = raw_obj.strip()
+    elif isinstance(raw_obj, (bytes, bytearray)):
+        raw = raw_obj.decode("utf-8", errors="ignore").strip()
+    else:
+        raw = ""
     try:
         return json.loads(raw), raw
     except json.JSONDecodeError:
