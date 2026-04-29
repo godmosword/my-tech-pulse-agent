@@ -7,8 +7,9 @@ Gemini Pro agent calls so only high-signal items reach the extraction agents.
 import json
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import yaml
 from pydantic import BaseModel
@@ -48,6 +49,12 @@ class ScoreResult(BaseModel):
     score: float
 
 
+@dataclass
+class ScoreOutcome:
+    result: Optional[ScoreResult]
+    error_kind: Literal["none", "parse", "api"]
+
+
 class Scorer:
     """Scores news articles using Gemini Flash before expensive Gemini Pro calls."""
 
@@ -55,7 +62,6 @@ class Scorer:
         self._client = make_client()
         self._config = self._load_config(config_path)
         self._source_weights = self._config.get("source_weights", {})
-        self._last_score_error: Optional[str] = None
         self._warn_if_threshold_too_low()
 
     def _load_config(self, path: Path) -> dict:
@@ -70,6 +76,13 @@ class Scorer:
         self, title: str, text: str, item_type: str = "default"
     ) -> Optional[ScoreResult]:
         """Score a single item. Returns None on API/parse failure (caller decides fallback)."""
+        outcome = self._score_item_with_status(title, text, item_type)
+        return outcome.result
+
+    def _score_item_with_status(
+        self, title: str, text: str, item_type: str = "default"
+    ) -> ScoreOutcome:
+        """Score item and include explicit error kind for downstream fallback policies."""
         w = self._config["weights"]
         prompt = _PROMPT.format(
             w_rel=w["relevance"],
@@ -79,7 +92,6 @@ class Scorer:
             text=text[:800],
         )
         try:
-            self._last_score_error = None
             data, raw = generate_json(
                 self._client,
                 model=FLASH_MODEL,
@@ -88,15 +100,13 @@ class Scorer:
                 prompt=prompt,
                 response_schema=ScoreResult,
             )
-            return ScoreResult(**data)
+            return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
         except json.JSONDecodeError as exc:
-            self._last_score_error = "parse"
             logger.warning("Scorer JSON parse error: %s", exc)
-            return None
+            return ScoreOutcome(result=None, error_kind="parse")
         except Exception as exc:
-            self._last_score_error = "api"
             logger.warning("Scorer failed for '%s': %s", title[:60], exc)
-            return None
+            return ScoreOutcome(result=None, error_kind="api")
 
     def threshold(self, item_type: str = "default") -> float:
         """Return score threshold for item_type. SCORE_THRESHOLD env var overrides default."""
@@ -133,13 +143,14 @@ class Scorer:
 
         for article in articles:
             text = article.content or article.summary or ""
-            result = self.score_item(article.title, text, item_type)
+            outcome = self._score_item_with_status(article.title, text, item_type)
+            result = outcome.result
 
             if result is None:
                 article.score = 0.0
                 article.score_status = "fallback"
                 unscored_count += 1
-                if self._last_score_error == "api":
+                if outcome.error_kind == "api":
                     passed.append(article)
                 continue
 
