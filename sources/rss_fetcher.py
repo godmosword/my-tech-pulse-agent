@@ -1,4 +1,4 @@
-"""RSS feed fetcher with source registry and fallback support."""
+"""RSS feed fetcher with source registry, fallback support, and KOL feeds."""
 
 import logging
 import xml.etree.ElementTree as ET
@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 REGISTRY_PATH = Path(__file__).parent / "source_registry.yaml"
+KOL_REGISTRY_PATH = Path(__file__).parent / "kol_registry.yaml"
 MAX_ARTICLES_PER_FEED = 20
 
 # RSS / Atom namespaces
@@ -35,6 +36,8 @@ class Article(BaseModel):
     cross_ref: bool = False
     score: float = 0.0  # set by Scorer; 0.0 = unscored or below-threshold fallback
     score_status: str = "ok"  # "ok" or "fallback" when scorer fails open
+    label: str = "news"   # "news" | "kol" — controls Telegram rendering prefix
+    author: str = ""      # populated for KOL items from kol_registry.yaml
 
 
 class SourceConfig(BaseModel):
@@ -49,13 +52,28 @@ class SourceConfig(BaseModel):
     weight: float = 1.0
 
 
+class KOLConfig(BaseModel):
+    name: str
+    author: str
+    url: str
+    focus: list[str] = Field(default_factory=list)
+    priority: int = 99
+    enabled: bool = True
+
+
 class RSSFetcher:
-    def __init__(self, registry_path: Path = REGISTRY_PATH):
+    def __init__(
+        self,
+        registry_path: Path = REGISTRY_PATH,
+        kol_registry_path: Path = KOL_REGISTRY_PATH,
+    ):
         self._registry: dict[str, SourceConfig] = {}
+        self._kol_registry: dict[str, KOLConfig] = {}
         # ETag and Last-Modified cache keyed by source name (in-process, per-run)
         self._etag_cache: dict[str, str] = {}
         self._last_modified_cache: dict[str, str] = {}
         self._load_registry(registry_path)
+        self._load_kol_registry(kol_registry_path)
 
     def _load_registry(self, path: Path) -> None:
         with open(path) as f:
@@ -65,8 +83,17 @@ class RSSFetcher:
             if cfg.type == "news":
                 self._registry[cfg.name] = cfg
 
+    def _load_kol_registry(self, path: Path) -> None:
+        if not path.exists():
+            return
+        with open(path) as f:
+            data = yaml.safe_load(f)
+        for entry in data.get("kol_sources", []):
+            cfg = KOLConfig(**entry)
+            self._kol_registry[cfg.name] = cfg
+
     def fetch_all(self) -> list[Article]:
-        """Fetch articles from all enabled news sources, sorted by priority."""
+        """Fetch articles from all enabled news and KOL sources, sorted by priority."""
         sources = sorted(
             (s for s in self._registry.values() if s.enabled),
             key=lambda s: s.priority,
@@ -81,7 +108,52 @@ class RSSFetcher:
                     seen_urls.add(article.url)
                     articles.append(article)
 
+        kol_sources = sorted(
+            (k for k in self._kol_registry.values() if k.enabled),
+            key=lambda k: k.priority,
+        )
+        for kol in kol_sources:
+            fetched = self._fetch_kol_source(kol)
+            for article in fetched:
+                if article.url not in seen_urls:
+                    seen_urls.add(article.url)
+                    articles.append(article)
+
         return articles
+
+    def _fetch_kol_source(self, kol: KOLConfig) -> list[Article]:
+        """Fetch and label articles from a KOL Substack/blog feed."""
+        try:
+            headers = {"User-Agent": "tech-pulse/0.1"}
+            if kol.name in self._etag_cache:
+                headers["If-None-Match"] = self._etag_cache[kol.name]
+            elif kol.name in self._last_modified_cache:
+                headers["If-Modified-Since"] = self._last_modified_cache[kol.name]
+
+            with httpx.Client(timeout=15, follow_redirects=True) as client:
+                resp = client.get(kol.url, headers=headers)
+
+            if resp.status_code == 304:
+                logger.debug("KOL feed %s not modified (304); skipping", kol.name)
+                return []
+
+            resp.raise_for_status()
+
+            if etag := resp.headers.get("ETag"):
+                self._etag_cache[kol.name] = etag
+            elif lm := resp.headers.get("Last-Modified"):
+                self._last_modified_cache[kol.name] = lm
+
+            articles = self._parse_feed(resp.text, kol.name)
+            for article in articles:
+                article.label = "kol"
+                article.author = kol.author
+            logger.info("Fetched %d KOL articles from %s (%s)", len(articles), kol.name, kol.author)
+            return articles
+
+        except Exception as exc:
+            logger.warning("Failed to fetch KOL feed %s: %s", kol.name, exc)
+            return []
 
     def _fetch_source(self, source: SourceConfig) -> list[Article]:
         try:

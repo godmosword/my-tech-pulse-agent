@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from agents.earnings_agent import EarningsAgent, EarningsOutput
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
+from agents.reviewer_agent import ReviewerAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
@@ -44,6 +45,7 @@ class TechPulseCrew:
         self.deduplicator = Deduplicator()
         self.scorer = Scorer()
         self.extractor = ExtractorAgent()
+        self.reviewer = ReviewerAgent()
         self.synthesizer = SynthesizerAgent()
         self.earnings_agent = EarningsAgent()
         self.telegram = TelegramBot()
@@ -105,6 +107,22 @@ class TechPulseCrew:
                 )
             except Exception as exc:
                 logger.error("Extraction stage failed: %s", exc, exc_info=True)
+
+            # Stage 2.5 — Reviewer (fact-grounding check + quality gate)
+            if summaries:
+                try:
+                    reviewed = self.reviewer.review_batch(summaries)
+                    approved = [r.final_output for r in reviewed if r.approved and r.final_output]
+                    fact_errors = sum(1 for r in reviewed if r.fact_error)
+                    inferred = sum(1 for r in reviewed if r.inferred)
+                    logger.info(
+                        "Reviewer: %d/%d approved | fact_errors=%d inferred=%d",
+                        len(approved), len(reviewed), fact_errors, inferred,
+                    )
+                    summaries = approved
+                except Exception as exc:
+                    logger.error("Reviewer stage failed: %s", exc, exc_info=True)
+                    # fail-open: continue with original summaries
 
             should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
             if should_synthesize:

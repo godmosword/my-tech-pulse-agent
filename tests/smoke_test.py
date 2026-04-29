@@ -736,3 +736,223 @@ def test_handle_save_callback(tmp_path):
     with sqlite3.connect(tmp_path / "dedup.sqlite") as conn:
         row = conn.execute("SELECT item_id FROM saved_items WHERE item_id='item-abc'").fetchone()
     assert row is not None
+
+
+# ---------- Reviewer Agent ----------
+
+from agents.reviewer_agent import ReviewerAgent, ReviewerOutput
+
+MOCK_REVIEWER_CLEAN = json.dumps({
+    "fact_error": False,
+    "inferred": False,
+    "needs_retry": False,
+    "review_comment": None,
+})
+
+MOCK_REVIEWER_INFERRED = json.dumps({
+    "fact_error": False,
+    "inferred": True,
+    "needs_retry": False,
+    "review_comment": None,
+})
+
+MOCK_REVIEWER_NEEDS_RETRY = json.dumps({
+    "fact_error": False,
+    "inferred": False,
+    "needs_retry": True,
+    "review_comment": "Signal is generic — no specific company or mechanism named.",
+})
+
+MOCK_REVIEWER_FACT_ERROR = json.dumps({
+    "fact_error": True,
+    "inferred": False,
+    "needs_retry": False,
+    "review_comment": None,
+})
+
+
+def _make_summary(**kwargs) -> ArticleSummary:
+    defaults = dict(
+        entity="OpenAI",
+        summary="OpenAI raised $100M.",
+        what_happened="OpenAI raised $100M in Series B funding.",
+        why_it_matters="This positions OpenAI to compete with Google DeepMind.",
+        category="funding",
+        sentiment="positive",
+        confidence="high",
+        source_url="https://techcrunch.com/openai",
+        source_name="techcrunch_rss",
+        title="OpenAI Raises $100M",
+        score=8.0,
+        source_text="OpenAI today announced a $100M Series B round led by a16z.",
+    )
+    defaults.update(kwargs)
+    return ArticleSummary(**defaults)
+
+
+def _mock_reviewer_client(response_text: str | list[str] | None = None, raise_error: bool = False):
+    """Mock that patches both reviewer and extractor make_client."""
+    from contextlib import ExitStack
+
+    mock_client = MagicMock()
+    if raise_error:
+        mock_client.models.generate_content.side_effect = Exception("API error")
+    elif isinstance(response_text, list):
+        mock_client.models.generate_content.side_effect = [
+            _gemini_response(t) for t in response_text
+        ]
+    else:
+        mock_client.models.generate_content.return_value = _gemini_response(
+            response_text or "{}"
+        )
+
+    def _mock_make_client():
+        return mock_client
+
+    class _Patcher:
+        def __enter__(self):
+            self._stack = ExitStack()
+            self._stack.enter_context(patch("agents.reviewer_agent.make_client", new=_mock_make_client))
+            self._stack.enter_context(patch("agents.extractor_agent.make_client", new=_mock_make_client))
+            return mock_client
+
+        def __exit__(self, exc_type, exc, tb):
+            return self._stack.__exit__(exc_type, exc, tb)
+
+    return _Patcher()
+
+
+def test_reviewer_approves_clean_summary():
+    summary = _make_summary()
+    with _mock_reviewer_client(MOCK_REVIEWER_CLEAN):
+        agent = ReviewerAgent()
+        result = agent.review(summary)
+
+    assert isinstance(result, ReviewerOutput)
+    assert result.approved is True
+    assert result.fact_error is False
+    assert result.inferred is False
+    assert result.needs_retry is False
+    assert result.final_output is not None
+    assert result.final_output.confidence == "high"
+
+
+def test_reviewer_prepends_inferred_to_signal():
+    summary = _make_summary()
+    with _mock_reviewer_client(MOCK_REVIEWER_INFERRED):
+        agent = ReviewerAgent()
+        result = agent.review(summary)
+
+    assert result.approved is True
+    assert result.inferred is True
+    assert result.final_output is not None
+    assert result.final_output.why_it_matters.startswith("[INFERRED]")
+
+
+def test_reviewer_flags_fact_error_and_still_approves():
+    summary = _make_summary()
+    with _mock_reviewer_client(MOCK_REVIEWER_FACT_ERROR):
+        agent = ReviewerAgent()
+        result = agent.review(summary)
+
+    assert result.fact_error is True
+    assert result.approved is True  # fact_error still delivers, doesn't block
+
+
+def test_reviewer_retry_degrades_confidence():
+    """On needs_retry=True and failed retry, confidence must be 'low'."""
+    # First call → needs_retry; second call (retry extraction) → extractor response
+    responses = [MOCK_REVIEWER_NEEDS_RETRY, MOCK_EXTRACTOR_RESPONSE]
+    summary = _make_summary()
+    with _mock_reviewer_client(responses):
+        agent = ReviewerAgent()
+        result = agent.review(summary)
+
+    assert result.approved is True
+    assert result.final_output is not None
+    assert result.final_output.confidence == "low"
+
+
+def test_reviewer_fails_open_on_api_error():
+    """If LLM call fails, reviewer must pass through the summary unchanged."""
+    summary = _make_summary()
+    with _mock_reviewer_client(raise_error=True):
+        agent = ReviewerAgent()
+        result = agent.review(summary)
+
+    assert result.approved is True
+    assert result.final_output is not None
+    assert result.final_output.entity == "OpenAI"
+
+
+def test_reviewer_batch_processes_all_items():
+    summaries = [_make_summary(), _make_summary(entity="Google", title="Google News")]
+    responses = [MOCK_REVIEWER_CLEAN, MOCK_REVIEWER_CLEAN]
+    with _mock_reviewer_client(responses):
+        agent = ReviewerAgent()
+        results = agent.review_batch(summaries)
+
+    assert len(results) == 2
+    assert all(r.approved for r in results)
+
+
+def test_reviewer_output_model_fields():
+    output = ReviewerOutput(
+        item_id="abc12345",
+        approved=True,
+        needs_retry=False,
+        fact_error=False,
+        inferred=False,
+        review_comment=None,
+        final_output=None,
+    )
+    assert output.item_id == "abc12345"
+    assert output.final_output is None
+
+
+# ---------- KOL Source Registry ----------
+
+def test_kol_registry_loads():
+    from sources.rss_fetcher import KOL_REGISTRY_PATH
+    assert KOL_REGISTRY_PATH.exists(), "kol_registry.yaml must exist"
+    import yaml
+    with open(KOL_REGISTRY_PATH) as f:
+        data = yaml.safe_load(f)
+    assert "kol_sources" in data
+    assert len(data["kol_sources"]) >= 5
+
+
+def test_rss_fetcher_loads_kol_registry():
+    fetcher = RSSFetcher()
+    assert len(fetcher._kol_registry) >= 5, "Should have at least 5 KOL sources"
+
+
+def test_article_label_defaults_to_news():
+    article = Article(title="Test", url="https://example.com", source="rss")
+    assert article.label == "news"
+    assert article.author == ""
+
+
+def test_article_kol_label_and_author():
+    article = Article(title="Analysis", url="https://stratechery.com/1", source="stratechery", label="kol", author="Ben Thompson")
+    assert article.label == "kol"
+    assert article.author == "Ben Thompson"
+
+
+def test_scorer_uses_kol_weights_for_kol_articles():
+    """KOL articles should use the kol_weights prompt, not the default weights prompt."""
+    kol_article = Article(
+        title="Platform Theory in 2026",
+        url="https://stratechery.com/2",
+        source="stratechery",
+        label="kol",
+        author="Ben Thompson",
+    )
+    with _mock_gemini_client(MOCK_SCORE_RESPONSE) as mock_client:
+        scorer = Scorer()
+        scorer.filter_articles([kol_article])
+
+    call_args = mock_client.models.generate_content.call_args
+    prompt_text = str(call_args)
+    # KOL prompt includes "Author:" field
+    assert "Author:" in prompt_text or "Ben Thompson" in prompt_text

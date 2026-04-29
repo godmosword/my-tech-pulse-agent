@@ -68,6 +68,9 @@ class ArticleSummary(BaseModel):
     title: str = ""
     score: float = 0.0  # propagated from Scorer; 0.0 = unscored
     score_status: str = "ok"  # propagated from Scorer; "fallback" means score unavailable
+    label: str = "news"   # "news" | "kol" — propagated from Article
+    author: str = ""      # KOL author name; empty for standard news
+    source_text: str = Field(default="", exclude=True)  # raw article text for reviewer; not serialized
 
 
 class ExtractorAgent:
@@ -125,6 +128,9 @@ class ExtractorAgent:
                 result.score = float(article.get("score", 0.0))
                 result.score_status = str(article.get("score_status", "ok"))
                 result.title = article.get("title", "")
+                result.label = str(article.get("label", "news"))
+                result.author = str(article.get("author", ""))
+                result.source_text = text[:4000]
                 self._postprocess_flags(result)
                 results.append(result)
         return results
