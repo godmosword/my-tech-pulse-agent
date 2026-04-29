@@ -73,9 +73,15 @@ def format_items_digest(
     date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
 
     ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
+    valid_ranked = [
+        s for s in ranked
+        if s.score > 0 and getattr(s, "score_status", "ok") != "fallback"
+    ]
+    display_pool = valid_ranked if len(valid_ranked) >= 5 else ranked
+
     top: list[ArticleSummary] = []
     cat_counts: dict[str, int] = {}
-    for item in ranked:
+    for item in display_pool:
         cat = item.category
         if cat_counts.get(cat, 0) >= MAX_PER_CATEGORY:
             continue
@@ -91,6 +97,8 @@ def format_items_digest(
 
     for s in top:
         lines.append(_score_line(s))
+        if s.score <= 0 or getattr(s, "score_status", "ok") == "fallback":
+            lines.append("⚠️ 資料待確認")
         summary_text = escape(_truncate(s.summary))
         lines.append(summary_text)
         tag_str = _tags(s)

@@ -55,6 +55,7 @@ class Scorer:
         self._client = make_client()
         self._config = self._load_config(config_path)
         self._source_weights = self._config.get("source_weights", {})
+        self._warn_if_threshold_too_low()
 
     def _load_config(self, path: Path) -> dict:
         with open(path) as f:
@@ -101,6 +102,21 @@ class Scorer:
             return float(os.getenv("SCORE_THRESHOLD", str(base)))
         return float(base)
 
+    def _warn_if_threshold_too_low(self) -> None:
+        raw = os.getenv("SCORE_THRESHOLD")
+        if raw is None:
+            return
+        try:
+            threshold = float(raw)
+        except ValueError:
+            logger.warning("Invalid SCORE_THRESHOLD env value: %s", raw)
+            return
+        if threshold < 1.0:
+            logger.warning(
+                "SCORE_THRESHOLD=%.2f is very low and may allow low-quality items through.",
+                threshold,
+            )
+
     def filter_articles(self, articles: list, item_type: str = "default") -> list:
         """Score all articles, attach score, and return those meeting threshold.
 
@@ -117,11 +133,13 @@ class Scorer:
             if result is None:
                 # API error: include with score 0.0 (fail-open)
                 article.score = 0.0
+                article.score_status = "fallback"
                 passed.append(article)
                 continue
 
             weighted_score = self._apply_source_weight(result.score, getattr(article, "source", ""))
             article.score = weighted_score
+            article.score_status = "ok"
             if weighted_score >= thresh:
                 passed.append(article)
             else:

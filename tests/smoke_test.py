@@ -524,11 +524,13 @@ def test_scorer_fail_open_on_api_error():
 
     assert len(result) == 1
     assert result[0].score == 0.0
+    assert result[0].score_status == "fallback"
 
 
 def test_article_score_field_default():
     article = Article(title="Test", url="https://example.com", source="test")
     assert article.score == 0.0
+    assert article.score_status == "ok"
 
 
 def test_article_summary_carries_score():
@@ -618,6 +620,33 @@ def test_format_items_digest_sorted_by_score():
     assert text.index("High") < text.index("Low")
 
 
+def test_format_items_digest_hides_zero_score_when_enough_valid_items():
+    valid_items = [
+        ArticleSummary(
+            entity=f"Valid{i}",
+            summary="Valid scored item.",
+            category="other",
+            sentiment="neutral",
+            confidence="high",
+            score=7.0 - i * 0.1,
+            score_status="ok",
+        )
+        for i in range(5)
+    ]
+    zero_item = ArticleSummary(
+        entity="ZeroScore",
+        summary="Should normally be hidden.",
+        category="other",
+        sentiment="neutral",
+        confidence="low",
+        score=0.0,
+        score_status="ok",
+    )
+    text = format_items_digest(valid_items + [zero_item], 12, 6)
+    assert "⭐ 0.0" not in text
+    assert "ZeroScore" not in text
+
+
 def test_format_earnings_markdownv2():
     earnings = _make_earnings()
     text = fmt_earnings(earnings)
@@ -661,4 +690,3 @@ def test_handle_save_callback(tmp_path):
     with sqlite3.connect(tmp_path / "dedup.sqlite") as conn:
         row = conn.execute("SELECT item_id FROM saved_items WHERE item_id='item-abc'").fetchone()
     assert row is not None
-
