@@ -11,6 +11,8 @@ from agents.extractor_agent import ArticleSummary
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "10"))
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "150"))
 MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
+UNSCORED_ALERT_RATIO = float(os.getenv("UNSCORED_ALERT_RATIO", "0.2"))
+MAX_UNSCORED_TAIL = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
 
 # All MarkdownV2 special characters that must be escaped
 _MV2_SPECIAL = r"\_*[]()~`>#+-=|{}.!"
@@ -37,8 +39,10 @@ def _score_line(summary: ArticleSummary) -> str:
         prefix = "📊"
         title_part = f"*{escape(summary.entity)} — {escape(summary.summary[:60])}*"
         return f"{prefix} {title_part}"
-    score_str = escape(f"{summary.score:.1f}")
     title = escape(getattr(summary, "title", "") or summary.entity)
+    if getattr(summary, "score_status", "scored") == "unscored":
+        return f"⚪ 未評分 *{title}*"
+    score_str = escape(f"{summary.score:.1f}")
     return f"⭐ {score_str} *{title}*"
 
 
@@ -72,7 +76,10 @@ def format_items_digest(
         now = datetime.now(timezone.utc)
     date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
 
-    ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
+    scored = [s for s in summaries if getattr(s, "score_status", "scored") == "scored"]
+    unscored = [s for s in summaries if getattr(s, "score_status", "scored") == "unscored"]
+
+    ranked = sorted(scored, key=lambda s: s.score, reverse=True)
     top: list[ArticleSummary] = []
     cat_counts: dict[str, int] = {}
     for item in ranked:
@@ -84,8 +91,13 @@ def format_items_digest(
         if len(top) >= MAX_ITEMS_PER_DIGEST:
             break
 
+    degradation = (len(unscored) / len(summaries)) if summaries else 0.0
+    header = f"📡 *科技脈搏 · {date_str}*"
+    if degradation > UNSCORED_ALERT_RATIO:
+        header += "\n⚠️ 模型評分降級"
+
     lines: list[str] = [
-        f"📡 *科技脈搏 · {date_str}*",
+        header,
         "",
     ]
 
@@ -100,6 +112,14 @@ def format_items_digest(
             meta += "  🔗 投資日報"
         lines.append(meta)
         lines.append("")
+
+    if unscored:
+        lines.append("*其他快訊*")
+        for s in unscored[:MAX_UNSCORED_TAIL]:
+            lines.append(_score_line(s))
+            lines.append(escape(_truncate(s.summary, max_chars=90)))
+            lines.append(_source_link(s))
+            lines.append("")
 
     fetched_esc = escape(str(total_fetched))
     filtered_esc = escape(str(total_after_filter))
