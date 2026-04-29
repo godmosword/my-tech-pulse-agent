@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "output"))
+ITEM_DIGEST_THEME_MIN_SUMMARIES = int(os.getenv("ITEM_DIGEST_THEME_MIN_SUMMARIES", "8"))
 
 
 class TechPulseCrew:
@@ -89,15 +90,17 @@ class TechPulseCrew:
         except Exception as exc:
             logger.error("Extraction stage failed: %s", exc, exc_info=True)
 
-        # Stage 3 — Synthesize (Gemini Pro)
         digest: DigestOutput | None = None
-        try:
-            digest = self.synthesizer.synthesize(summaries)
-            if digest:
-                self._save_json(OUTPUT_DIR / f"digest_{timestamp}.json", digest.model_dump())
-                logger.info("Digest headline: %s", digest.headline)
-        except Exception as exc:
-            logger.error("Synthesis stage failed: %s", exc, exc_info=True)
+        should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
+        if should_synthesize:
+            # Stage 3 — Synthesize (Gemini Pro)
+            try:
+                digest = self.synthesizer.synthesize(summaries)
+                if digest:
+                    self._save_json(OUTPUT_DIR / f"digest_{timestamp}.json", digest.model_dump())
+                    logger.info("Digest headline: %s", digest.headline)
+            except Exception as exc:
+                logger.error("Synthesis stage failed: %s", exc, exc_info=True)
 
         # Earnings sub-pipeline (separate path, not scored — always high-value)
         earnings_outputs: list[EarningsOutput] = []
@@ -112,6 +115,8 @@ class TechPulseCrew:
                 summaries,
                 total_fetched=len(raw_articles),
                 total_after_filter=len(scored_articles),
+                themes=digest.themes if digest else None,
+                market_takeaway=self.synthesizer.build_market_takeaway(digest) if digest else None,
             )
         except Exception as exc:
             logger.error("Telegram items digest delivery failed: %s", exc, exc_info=True)

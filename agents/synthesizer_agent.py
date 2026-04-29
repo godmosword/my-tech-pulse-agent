@@ -99,3 +99,14 @@ class SynthesizerAgent:
         except Exception as exc:
             logger.error("Synthesizer agent failed: %s", exc)
             return None
+
+    @staticmethod
+    def build_market_takeaway(digest: DigestOutput) -> str:
+        """Build a short 1-2 line takeaway from digest narrative/themes for item digest preamble."""
+        if digest.narrative:
+            first_line = digest.narrative.strip().splitlines()[0].strip()
+            if first_line:
+                return first_line[:180]
+        if digest.themes:
+            return "；".join(theme.theme for theme in digest.themes[:2])
+        return ""
