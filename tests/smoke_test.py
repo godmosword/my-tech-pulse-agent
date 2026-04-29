@@ -19,8 +19,43 @@ from llm.gemini_client import _extract_json_object
 
 
 def _gemini_response(text: str) -> MagicMock:
-    return MagicMock(text=text)
+    response = MagicMock()
+    response.text = text
+    return response
 
+
+def _mock_gemini_client(response_text: str | list[str] | None = None, raise_error: bool = False):
+    """可靠的 Gemini mock，直接 patch make_client()，解決 lazy import 問題"""
+    from contextlib import ExitStack
+
+    mock_client = MagicMock()
+
+    if raise_error:
+        mock_client.models.generate_content.side_effect = Exception("Simulated API error")
+    elif isinstance(response_text, str):
+        mock_client.models.generate_content.return_value = _gemini_response(response_text)
+    elif isinstance(response_text, list):
+        mock_client.models.generate_content.side_effect = [
+            _gemini_response(t) for t in response_text
+        ]
+    else:
+        mock_client.models.generate_content.return_value = _gemini_response("{}")
+
+    def _mock_make_client():
+        return mock_client
+
+    class _Patcher:
+        def __enter__(self):
+            self._stack = ExitStack()
+            self._stack.enter_context(patch("agents.extractor_agent.make_client", new=_mock_make_client))
+            self._stack.enter_context(patch("agents.synthesizer_agent.make_client", new=_mock_make_client))
+            self._stack.enter_context(patch("scoring.scorer.make_client", new=_mock_make_client))
+            return mock_client
+
+        def __exit__(self, exc_type, exc, tb):
+            return self._stack.__exit__(exc_type, exc, tb)
+
+    return _Patcher()
 
 @pytest.fixture(autouse=True)
 def _set_test_gemini_key(monkeypatch):
@@ -87,11 +122,7 @@ MOCK_EXTRACTOR_RESPONSE = json.dumps({
 
 
 def test_extractor_parses_valid_response():
-    with patch("google.genai.Client") as mock_gemini:
-        mock_client = MagicMock()
-        mock_gemini.return_value = mock_client
-        mock_client.models.generate_content.return_value = _gemini_response(MOCK_EXTRACTOR_RESPONSE)
-
+    with _mock_gemini_client(MOCK_EXTRACTOR_RESPONSE):
         agent = ExtractorAgent()
         result = agent.extract(
             title="OpenAI Releases GPT-5",
@@ -160,11 +191,7 @@ def test_synthesizer_parses_valid_response():
         )
     ]
 
-    with patch("google.genai.Client") as mock_gemini:
-        mock_client = MagicMock()
-        mock_gemini.return_value = mock_client
-        mock_client.models.generate_content.return_value = _gemini_response(MOCK_DIGEST_RESPONSE)
-
+    with _mock_gemini_client(MOCK_DIGEST_RESPONSE):
         agent = SynthesizerAgent()
         result = agent.synthesize(summaries)
 
@@ -470,10 +497,7 @@ MOCK_LOW_SCORE_RESPONSE = json.dumps({"relevance": 3.0, "novelty": 2.0, "depth":
 
 
 def test_scorer_parses_valid_response():
-    with patch("google.genai.Client") as mock_gemini:
-        mock_client = MagicMock()
-        mock_gemini.return_value = mock_client
-        mock_client.models.generate_content.return_value = _gemini_response(MOCK_SCORE_RESPONSE)
+    with _mock_gemini_client(MOCK_SCORE_RESPONSE):
         scorer = Scorer()
         result = scorer.score_item("OpenAI launches GPT-5", "Full article text here")
 
@@ -497,12 +521,7 @@ def test_scorer_filter_articles_passes_above_threshold():
         Article(title="High quality story", url="https://example.com/1", source="test"),
         Article(title="Low quality story", url="https://example.com/2", source="test"),
     ]
-    responses = [MOCK_SCORE_RESPONSE, MOCK_LOW_SCORE_RESPONSE]
-
-    with patch("google.genai.Client") as mock_gemini:
-        mock_client = MagicMock()
-        mock_gemini.return_value = mock_client
-        mock_client.models.generate_content.side_effect = [_gemini_response(r) for r in responses]
+    with _mock_gemini_client([MOCK_SCORE_RESPONSE, MOCK_LOW_SCORE_RESPONSE]):
         scorer = Scorer()
         # default threshold is 6.0; score 7.1 passes, 2.3 fails
         result = scorer.filter_articles(articles)
@@ -515,10 +534,7 @@ def test_scorer_filter_articles_passes_above_threshold():
 def test_scorer_fail_open_on_api_error():
     """If scoring fails, include the article (fail-open to avoid over-filtering)."""
     articles = [Article(title="Story", url="https://example.com/1", source="test")]
-    with patch("google.genai.Client") as mock_gemini:
-        mock_client = MagicMock()
-        mock_gemini.return_value = mock_client
-        mock_client.models.generate_content.side_effect = Exception("API error")
+    with _mock_gemini_client(raise_error=True):
         scorer = Scorer()
         result = scorer.filter_articles(articles)
 
