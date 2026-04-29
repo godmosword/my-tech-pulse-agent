@@ -61,7 +61,7 @@ def _source_link(summary: ArticleSummary) -> str:
     return name
 
 
-def format_items_digest(
+def _format_items_digest_v1(
     summaries: list[ArticleSummary],
     total_fetched: int,
     total_after_filter: int,
@@ -106,6 +106,99 @@ def format_items_digest(
     lines.append(f"_今日 {fetched_esc} 篇 → 過濾後 {filtered_esc} 篇_")
 
     return "\n".join(lines)
+
+
+def format_digest_v2(
+    summaries: list[ArticleSummary],
+    total_fetched: int,
+    total_after_filter: int,
+    now: Optional[datetime] = None,
+) -> str:
+    """Format digest in fixed v2 layout for Telegram MarkdownV2."""
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
+    top = ranked[:MAX_ITEMS_PER_DIGEST]
+
+    quality = 0.0
+    if total_fetched > 0:
+        quality = min(100.0, max(0.0, (total_after_filter / total_fetched) * 100))
+
+    date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
+    header = [
+        f"🧭 *科技脈搏 Digest v2 · {date_str}*",
+        f"總篇數: {escape(str(total_fetched))}",
+        f"過濾後篇數: {escape(str(total_after_filter))}",
+        f"資料品質指標: {escape(f'{quality:.1f}')}%",
+        "",
+    ]
+
+    lead = top[0] if top else None
+    headline = "今日市場焦點延續科技與供應鏈雙主軸。"
+    if lead:
+        title = escape(getattr(lead, "title", "") or lead.entity)
+        headline = f"{title} 成為今日 headline，情緒偏 {escape(lead.sentiment)}。"
+
+    takeaways = []
+    for item in top[:3]:
+        title = escape(getattr(item, "title", "") or item.entity)
+        takeaways.append(f"• {title} \\({escape(item.category)}\\)")
+    while len(takeaways) < 3:
+        takeaways.append("• 暫無更多高信號條目，持續追蹤中。")
+
+    theme_groups: dict[str, list[ArticleSummary]] = {}
+    for item in top:
+        theme_groups.setdefault(item.category, []).append(item)
+
+    themes = sorted(theme_groups.items(), key=lambda kv: max(x.score for x in kv[1]), reverse=True)[:4]
+    theme_lines = [r"*3\) 主題區*"]
+    for theme, items in themes:
+        theme_lines.append(f"• *{escape(theme.replace('_', ' ').title())}*")
+        for item in items[:2]:
+            title = escape(getattr(item, "title", "") or item.entity)
+            src = _source_link(item)
+            theme_lines.append(f"  - {title} ｜ {src}")
+    if len(theme_lines) == 1:
+        theme_lines.append("• 今日主題資料不足。")
+
+    cross_ref_items = [s for s in top if s.cross_ref]
+    focus_lines = [r"*4\) 焦點追蹤*"]
+    if cross_ref_items:
+        for item in cross_ref_items[:5]:
+            title = escape(getattr(item, "title", "") or item.entity)
+            focus_lines.append(f"• {title} \\\\- 跨日延續議題")
+    else:
+        focus_lines.append("• 未偵測到跨日延續議題。")
+
+    tomorrow_lines = [
+        r"*5\) 尾段：明日觀察指標*",
+        "• 財報節點：關注大型科技財報與指引變化。",
+        "• 供應鏈訊號：關注 AI 伺服器與關鍵零組件交期。",
+        "• 政策節點：追蹤監管與出口政策更新。",
+    ]
+
+    return "\n".join(
+        header
+        + [r"*1\) Header*", "", r"*2\) 今日總覽*", headline, *takeaways, ""]
+        + theme_lines
+        + [""]
+        + focus_lines
+        + [""]
+        + tomorrow_lines
+    )
+
+
+def format_items_digest(
+    summaries: list[ArticleSummary],
+    total_fetched: int,
+    total_after_filter: int,
+    now: Optional[datetime] = None,
+) -> str:
+    """Format digest with env-based version switch (v1 fallback / v2 opt-in)."""
+    if os.getenv("DIGEST_FORMAT", "v1").lower() == "v2":
+        return format_digest_v2(summaries, total_fetched, total_after_filter, now=now)
+    return _format_items_digest_v1(summaries, total_fetched, total_after_filter, now=now)
 
 
 def format_earnings(earnings: EarningsOutput) -> str:
