@@ -19,7 +19,10 @@ from llm.gemini_client import _extract_json_object
 
 
 def _gemini_response(text: str) -> MagicMock:
-    return MagicMock(text=text)
+    response = MagicMock()
+    response.parsed = None
+    response.text = text
+    return response
 
 
 @pytest.fixture(autouse=True)
@@ -525,6 +528,21 @@ def test_scorer_fail_open_on_api_error():
     assert len(result) == 1
     assert result[0].score == 0.0
     assert result[0].score_status == "fallback"
+
+
+def test_scorer_parse_error_does_not_fail_open():
+    """Parse failures should not be fail-open; item stays filtered out."""
+    articles = [Article(title="Story", url="https://example.com/1", source="test")]
+    with patch("google.genai.Client") as mock_gemini:
+        mock_client = MagicMock()
+        mock_gemini.return_value = mock_client
+        mock_client.models.generate_content.return_value = _gemini_response("")
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert len(result) == 0
+    assert articles[0].score == 0.0
+    assert articles[0].score_status == "fallback"
 
 
 def test_article_score_field_default():
