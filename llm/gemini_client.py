@@ -36,20 +36,25 @@ def generate_json(
 ) -> tuple[dict[str, Any], str]:
     """Generate a JSON object with Gemini and return parsed data plus raw text."""
     from google.genai import types  # noqa: PLC0415 — lazy import
+    config_kwargs = {
+        "system_instruction": (
+            f"{system_instruction}\n"
+            "Return exactly one JSON object. Do not include prose, markdown, or code fences."
+        ),
+        "max_output_tokens": max_output_tokens,
+        "temperature": 0,
+        "response_mime_type": "application/json",
+        "response_schema": response_schema,
+    }
+    if hasattr(types, "ThinkingConfig") and hasattr(types, "ThinkingLevel"):
+        config_kwargs["thinking_config"] = types.ThinkingConfig(
+            thinking_level=types.ThinkingLevel.LOW
+        )
+
     response = client.models.generate_content(
         model=model,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=(
-                f"{system_instruction}\n"
-                "Return exactly one JSON object. Do not include prose, markdown, or code fences."
-            ),
-            max_output_tokens=max_output_tokens,
-            temperature=0,
-            response_mime_type="application/json",
-            response_schema=response_schema,
-            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW),
-        ),
+        config=types.GenerateContentConfig(**config_kwargs),
     )
     parsed = getattr(response, "parsed", None)
     if isinstance(parsed, BaseModel):
@@ -57,7 +62,13 @@ def generate_json(
     if isinstance(parsed, dict):
         return parsed, json.dumps(parsed, ensure_ascii=False)
 
-    raw = (getattr(response, "text", "") or "").strip()
+    raw_obj = getattr(response, "text", "")
+    if isinstance(raw_obj, str):
+        raw = raw_obj.strip()
+    elif isinstance(raw_obj, (bytes, bytearray)):
+        raw = raw_obj.decode("utf-8", errors="ignore").strip()
+    else:
+        raw = ""
     try:
         return json.loads(raw), raw
     except json.JSONDecodeError:

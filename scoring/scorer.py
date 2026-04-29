@@ -55,6 +55,7 @@ class Scorer:
         self._client = make_client()
         self._config = self._load_config(config_path)
         self._source_weights = self._config.get("source_weights", {})
+        self._last_score_error: Optional[str] = None
         self._warn_if_threshold_too_low()
 
     def _load_config(self, path: Path) -> dict:
@@ -78,6 +79,7 @@ class Scorer:
             text=text[:800],
         )
         try:
+            self._last_score_error = None
             data, raw = generate_json(
                 self._client,
                 model=FLASH_MODEL,
@@ -88,9 +90,11 @@ class Scorer:
             )
             return ScoreResult(**data)
         except json.JSONDecodeError as exc:
+            self._last_score_error = "parse"
             logger.warning("Scorer JSON parse error: %s", exc)
             return None
         except Exception as exc:
+            self._last_score_error = "api"
             logger.warning("Scorer failed for '%s': %s", title[:60], exc)
             return None
 
@@ -134,7 +138,9 @@ class Scorer:
             if result is None:
                 article.score = 0.0
                 article.score_status = "fallback"
-                passed.append(article)
+                unscored_count += 1
+                if self._last_score_error == "api":
+                    passed.append(article)
                 continue
 
             weighted_score = self._apply_source_weight(result.score, getattr(article, "source", ""))
