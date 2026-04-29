@@ -3,14 +3,89 @@
 import os
 import re
 from datetime import datetime, timezone
+from statistics import mean
 from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
+from agents.synthesizer_agent import DigestOutput
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "10"))
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "150"))
 MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
+
+MAX_THEMES_PER_DIGEST = int(os.getenv("MAX_THEMES_PER_DIGEST", "4"))
+MAX_ITEMS_PER_THEME = int(os.getenv("MAX_ITEMS_PER_THEME", "3"))
+MIN_ITEMS_PER_THEME = int(os.getenv("MIN_ITEMS_PER_THEME", "2"))
+EARNINGS_THEME_RATIO_CAP = float(os.getenv("EARNINGS_THEME_RATIO_CAP", "0.4"))
+
+_THEME_KEYWORDS: dict[str, list[str]] = {
+    "AI 基礎設施": ["ai", "gpu", "chip", "晶片", "資料中心", "datacenter", "nvidia", "amd", "hbm"],
+    "雲端與企業軟體": ["cloud", "saas", "雲端", "azure", "aws", "gcp", "oracle", "enterprise", "crm"],
+    "消費電子": ["iphone", "android", "pc", "wearable", "consumer", "手機", "筆電", "平板", "耳機"],
+    "電動車供應鏈": ["ev", "electric vehicle", "battery", "tesla", "自駕", "電動車", "車用", "充電", "鋰電"],
+}
+
+
+def _theme_key(summary: ArticleSummary) -> str:
+    if summary.category == "earnings":
+        return "財報焦點"
+
+    corpus = " ".join([summary.entity, summary.summary, getattr(summary, "title", "")]).lower()
+    for theme, keywords in _THEME_KEYWORDS.items():
+        if any(k.lower() in corpus for k in keywords):
+            return theme
+
+    cat_map = {
+        "product_launch": "產品與策略",
+        "funding": "資本與投資",
+        "acquisition": "併購與整併",
+        "regulation": "政策與監管",
+        "research": "技術研發",
+    }
+    return cat_map.get(summary.category, "其他焦點")
+
+
+def _theme_rank_score(items: list[ArticleSummary]) -> float:
+    avg_score = mean(s.score for s in items)
+    max_score = max(s.score for s in items)
+    size_weight = min(len(items), MAX_ITEMS_PER_THEME) / MAX_ITEMS_PER_THEME
+    return avg_score * 0.45 + max_score * 0.35 + size_weight * 10 * 0.20
+
+
+def _select_by_theme(ranked: list[ArticleSummary]) -> list[tuple[str, list[ArticleSummary]]]:
+    grouped: dict[str, list[ArticleSummary]] = {}
+    for item in ranked:
+        key = _theme_key(item)
+        grouped.setdefault(key, []).append(item)
+
+    ordered_themes = sorted(grouped.items(), key=lambda kv: _theme_rank_score(kv[1]), reverse=True)
+    ordered_themes = ordered_themes[:MAX_THEMES_PER_DIGEST]
+
+    max_total = min(MAX_ITEMS_PER_DIGEST, MAX_THEMES_PER_DIGEST * MAX_ITEMS_PER_THEME)
+    earnings_cap = max(1, int(max_total * EARNINGS_THEME_RATIO_CAP))
+
+    selected: list[tuple[str, list[ArticleSummary]]] = []
+    total_used = 0
+    for theme, items in ordered_themes:
+        ordered_items = sorted(items, key=lambda s: s.score, reverse=True)
+        allowance = min(MAX_ITEMS_PER_THEME, len(ordered_items), max_total - total_used)
+        if allowance <= 0:
+            break
+        if theme == "財報焦點":
+            allowance = min(allowance, earnings_cap)
+
+        min_allowance = min(MIN_ITEMS_PER_THEME, len(ordered_items), allowance)
+        allowance = max(min_allowance, allowance)
+        chosen = ordered_items[:allowance]
+        if not chosen:
+            continue
+        selected.append((theme, chosen))
+        total_used += len(chosen)
+        if total_used >= max_total:
+            break
+
+    return selected
 
 # All MarkdownV2 special characters that must be escaped
 _MV2_SPECIAL = r"\_*[]()~`>#+-=|{}.!"
@@ -79,6 +154,7 @@ def format_items_digest(
     summaries: list[ArticleSummary],
     total_fetched: int,
     total_after_filter: int,
+    digest: Optional[DigestOutput] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format a ranked digest of ArticleSummary items."""
@@ -87,16 +163,7 @@ def format_items_digest(
     date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
 
     ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
-    top: list[ArticleSummary] = []
-    cat_counts: dict[str, int] = {}
-    for item in ranked:
-        cat = item.category
-        if cat_counts.get(cat, 0) >= MAX_PER_CATEGORY:
-            continue
-        top.append(item)
-        cat_counts[cat] = cat_counts.get(cat, 0) + 1
-        if len(top) >= MAX_ITEMS_PER_DIGEST:
-            break
+    themed_items = _select_by_theme(ranked)
 
     lines: list[str] = [
         f"📡 *科技脈搏 · {date_str}*",
@@ -115,6 +182,17 @@ def format_items_digest(
             meta += "  🔗 投資日報"
         lines.append(meta)
         lines.append("")
+        for s in items:
+            lines.append(_score_line(s))
+            summary_text = escape(_truncate(s.summary))
+            lines.append(summary_text)
+            tag_str = _tags(s)
+            src_str = _source_link(s)
+            meta = f"{tag_str}  {src_str}"
+            if s.cross_ref:
+                meta += "  🔗 投資日報"
+            lines.append(meta)
+            lines.append("")
 
     fetched_esc = escape(str(total_fetched))
     filtered_esc = escape(str(total_after_filter))
