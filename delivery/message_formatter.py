@@ -174,6 +174,8 @@ def _format_items_digest_v1(
     ]
     display_pool = valid_ranked if len(valid_ranked) >= 5 else ranked
 
+    unscored = [s for s in ranked if getattr(s, "score_status", "ok") == "fallback"]
+
     top: list[ArticleSummary] = []
     cat_counts: dict[str, int] = {}
     for item in display_pool:
@@ -219,17 +221,6 @@ def _format_items_digest_v1(
             meta += "  🔗 投資日報"
         lines.append(meta)
         lines.append("")
-        for s in items:
-            lines.append(_score_line(s))
-            summary_text = escape(_truncate(s.summary))
-            lines.append(summary_text)
-            tag_str = _tags(s)
-            src_str = _source_link(s)
-            meta = f"{tag_str}  {src_str}"
-            if s.cross_ref:
-                meta += "  🔗 投資日報"
-            lines.append(meta)
-            lines.append("")
 
     if unscored:
         lines.append("*其他快訊*")
@@ -331,12 +322,21 @@ def format_items_digest(
     summaries: list[ArticleSummary],
     total_fetched: int,
     total_after_filter: int,
+    themes: Optional[list[str]] = None,
+    market_takeaway: Optional[str] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format digest with env-based version switch (v1 fallback / v2 opt-in)."""
     if os.getenv("DIGEST_FORMAT", "v1").lower() == "v2":
         return format_digest_v2(summaries, total_fetched, total_after_filter, now=now)
-    return _format_items_digest_v1(summaries, total_fetched, total_after_filter, now=now)
+    return _format_items_digest_v1(
+        summaries,
+        total_fetched,
+        total_after_filter,
+        themes=themes,
+        market_takeaway=market_takeaway,
+        now=now,
+    )
 
 
 def format_earnings(earnings: EarningsOutput) -> str:
