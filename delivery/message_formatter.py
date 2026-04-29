@@ -53,6 +53,20 @@ def _tags(summary: ArticleSummary) -> str:
     return " ".join(parts)
 
 
+
+
+def _compose_structured_summary(summary: ArticleSummary) -> str:
+    """Compose display summary using structured fields with backward-compatible fallback."""
+    fact = (getattr(summary, "what_happened", "") or "").strip()
+    impact = (getattr(summary, "why_it_matters", "") or "").strip()
+
+    if fact and impact:
+        return f"{fact} {impact}"
+    if fact and not impact:
+        return f"{fact}（資訊不足）"
+    return summary.summary
+
+
 def _source_link(summary: ArticleSummary) -> str:
     name = escape(summary.source_name or "source")
     url = summary.source_url or ""
@@ -91,7 +105,8 @@ def format_items_digest(
 
     for s in top:
         lines.append(_score_line(s))
-        summary_text = escape(_truncate(s.summary))
+        composed_summary = _compose_structured_summary(s)
+        summary_text = escape(_truncate(composed_summary))
         lines.append(summary_text)
         tag_str = _tags(s)
         src_str = _source_link(s)
