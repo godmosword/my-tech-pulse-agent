@@ -134,6 +134,7 @@ class Scorer:
             if result is None:
                 article.score = 0.0
                 article.score_status = "fallback"
+                unscored_count += 1
                 passed.append(article)
                 continue
 
