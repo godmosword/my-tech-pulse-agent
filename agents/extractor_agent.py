@@ -30,12 +30,20 @@ Extract the following fields from the article below and return a single JSON obj
 
 Fields:
 - entity: primary company or technology mentioned (string)
-- summary: 2–3 sentence factual summary, no editorializing (string)
+- summary: 2–3 sentence factual summary, no editorializing (string, fallback compatibility)
+- what_happened: first sentence with objective facts only (numbers, timing, concrete actions) (string)
+- why_it_matters: second sentence describing impact on industry/supply chain/valuation when supported; empty if insufficient info (string)
 - category: one of ["product_launch", "funding", "acquisition", "earnings", "regulation", "research", "other"]
 - key_facts: list of up to 5 specific factual claims (list of strings)
 - sentiment: one of ["positive", "negative", "neutral"]
 - confidence: one of ["high", "medium", "low"]
 - cross_ref: true if this story is likely relevant to investment decisions (bool)
+
+Formatting constraints for structured summary fields:
+- what_happened must be one sentence of objective facts only.
+- why_it_matters should be one sentence on implications for industry/supply chain/valuation only when the article supports it.
+- If implication evidence is insufficient, set why_it_matters to an empty string.
+- Keep summary as a compatible fallback narrative.
 
 Article title: {title}
 Article source: {source}
@@ -47,6 +55,8 @@ Article text:
 class ArticleSummary(BaseModel):
     entity: str
     summary: str
+    what_happened: str = ""
+    why_it_matters: str = ""
     category: Literal["product_launch", "funding", "acquisition", "earnings", "regulation", "research", "other"]
     key_facts: list[str] = Field(default_factory=list)
     sentiment: Literal["positive", "negative", "neutral"]
@@ -55,7 +65,8 @@ class ArticleSummary(BaseModel):
     source_url: str = ""
     source_name: str = ""
     title: str = ""
-    score: float = 0.0  # propagated from Scorer; 0.0 = unscored
+    score: float = 0.0
+    score_status: str = "scored"
 
 
 class ExtractorAgent:
@@ -103,6 +114,7 @@ class ExtractorAgent:
             )
             if result:
                 result.score = float(article.get("score", 0.0))
+                result.score_status = article.get("score_status", "unscored")
                 result.title = article.get("title", "")
                 self._postprocess_flags(result)
                 results.append(result)

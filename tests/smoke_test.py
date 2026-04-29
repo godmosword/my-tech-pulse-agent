@@ -618,6 +618,27 @@ def test_format_items_digest_sorted_by_score():
     assert text.index("High") < text.index("Low")
 
 
+def test_format_items_digest_v2_switch(monkeypatch):
+    monkeypatch.setenv("DIGEST_FORMAT", "v2")
+    sample = ArticleSummary(
+        entity="NVIDIA",
+        summary="AI server demand remains strong across hyperscalers.",
+        category="other",
+        sentiment="positive",
+        confidence="high",
+        title="NVIDIA AI Supply Chain Update",
+        source_name="Reuters",
+        source_url="https://example.com/reuters",
+        score=9.1,
+        cross_ref=True,
+    )
+
+    text = format_items_digest([sample], 20, 5)
+    assert "Digest v2" in text
+    assert "焦點追蹤" in text
+    assert "明日觀察指標" in text
+
+
 def test_format_earnings_markdownv2():
     earnings = _make_earnings()
     text = fmt_earnings(earnings)
@@ -661,4 +682,3 @@ def test_handle_save_callback(tmp_path):
     with sqlite3.connect(tmp_path / "dedup.sqlite") as conn:
         row = conn.execute("SELECT item_id FROM saved_items WHERE item_id='item-abc'").fetchone()
     assert row is not None
-
