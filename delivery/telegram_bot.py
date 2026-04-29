@@ -7,7 +7,7 @@ from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
-from agents.synthesizer_agent import DigestOutput
+from agents.synthesizer_agent import DigestOutput, Theme
 from delivery.feedback_handler import handle_callback
 from delivery.message_formatter import escape, format_earnings, format_items_digest
 
@@ -35,17 +35,20 @@ class TelegramBot:
         summaries: list[ArticleSummary],
         total_fetched: int,
         total_after_filter: int,
-        digest: Optional[DigestOutput] = None,
+        themes: Optional[list[Theme]] = None,
+        market_takeaway: Optional[str] = None,
     ) -> bool:
         """Send a ranked item digest built from ArticleSummary list."""
         if not self._bot:
             logger.info("Telegram bot not configured; skipping items digest delivery")
             return False
+        theme_labels = [t.theme for t in themes[:3]] if themes else None
         text = format_items_digest(
             summaries,
             total_fetched,
             total_after_filter,
-            digest=digest,
+            themes=theme_labels,
+            market_takeaway=market_takeaway,
         )
         return self._send(text)
 

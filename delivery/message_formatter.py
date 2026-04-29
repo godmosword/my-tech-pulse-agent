@@ -158,7 +158,8 @@ def _format_items_digest_v1(
     summaries: list[ArticleSummary],
     total_fetched: int,
     total_after_filter: int,
-    digest: Optional[DigestOutput] = None,
+    themes: Optional[list[str]] = None,
+    market_takeaway: Optional[str] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format a ranked digest of ArticleSummary items."""
@@ -190,6 +191,17 @@ def _format_items_digest_v1(
         header,
         "",
     ]
+
+    if themes:
+        lines.append("*🧭 今日主線*")
+        for theme in themes[:3]:
+            lines.append(f"• {escape(theme)}")
+        lines.append("")
+
+    if market_takeaway:
+        lines.append("*📈 市場含義*")
+        lines.append(escape(market_takeaway))
+        lines.append("")
 
     for s in top:
         lines.append(_score_line(s))
