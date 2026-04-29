@@ -1,6 +1,7 @@
 """MarkdownV2 message formatter for #科技脈搏 Telegram channel."""
 
 import os
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -8,7 +9,8 @@ from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "10"))
-MAX_SUMMARY_CHARS = 100
+MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "150"))
+MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
 
 # All MarkdownV2 special characters that must be escaped
 _MV2_SPECIAL = r"\_*[]()~`>#+-=|{}.!"
@@ -21,7 +23,11 @@ def escape(text: str) -> str:
 
 def _truncate(text: str, max_chars: int = MAX_SUMMARY_CHARS) -> str:
     if len(text) > max_chars:
-        return text[:max_chars].rstrip() + "…"
+        cut = text[:max_chars]
+        last_space = cut.rfind(" ")
+        if last_space > max_chars * 0.6:
+            cut = cut[:last_space]
+        return cut.rstrip(" ,.;:-") + "…"
     return text
 
 
@@ -40,7 +46,8 @@ def _tags(summary: ArticleSummary) -> str:
     parts: list[str] = []
     cat = summary.category.replace("_", "\\_")
     parts.append(f"\\#{cat}")
-    entity_tag = summary.entity.replace(" ", "").replace(".", "")[:20]
+    raw_tag = summary.entity.replace(" ", "")
+    entity_tag = re.sub(r"[^A-Za-z0-9]", "", raw_tag)[:20]
     if entity_tag:
         parts.append(f"\\#{escape(entity_tag)}")
     return " ".join(parts)
@@ -65,7 +72,17 @@ def format_items_digest(
         now = datetime.now(timezone.utc)
     date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
 
-    top = sorted(summaries, key=lambda s: s.score, reverse=True)[:MAX_ITEMS_PER_DIGEST]
+    ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
+    top: list[ArticleSummary] = []
+    cat_counts: dict[str, int] = {}
+    for item in ranked:
+        cat = item.category
+        if cat_counts.get(cat, 0) >= MAX_PER_CATEGORY:
+            continue
+        top.append(item)
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+        if len(top) >= MAX_ITEMS_PER_DIGEST:
+            break
 
     lines: list[str] = [
         f"📡 *科技脈搏 · {date_str}*",

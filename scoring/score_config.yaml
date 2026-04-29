@@ -1,5 +1,5 @@
 thresholds:
-  default: 6.0        # general news items
+  default: 6.9        # general news items (raised for higher signal)
   earnings: 7.5       # stricter — financial facts require higher quality
   social_signal: 4.0  # looser — social is signal-only, not content
 
@@ -7,3 +7,10 @@ weights:
   relevance: 0.4      # Is this meaningful tech/business news?
   novelty: 0.3        # Is this new information, not a rehash?
   depth: 0.3          # Does it contain specific facts, not just headlines?
+
+source_weights:
+  bloomberg_rss: 1.1
+  techcrunch_rss: 1.0
+  theverge_rss: 1.0
+  ars_technica_rss: 1.05
+  wired_rss: 1.0
