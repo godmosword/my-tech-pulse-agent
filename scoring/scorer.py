@@ -118,20 +118,20 @@ class Scorer:
             )
 
     def filter_articles(self, articles: list, item_type: str = "default") -> list:
-        """Score all articles, attach score, and return those meeting threshold.
+        """Score all articles and keep threshold-passing + unscored fallback items.
 
-        If scoring fails for an item, it is included with score=0.0 to avoid
-        over-filtering due to transient API errors.
+        Scored items below threshold are dropped from main digest candidates.
+        Unscored items are tagged for tail placement in delivery formatting.
         """
         thresh = self.threshold(item_type)
         passed: list = []
+        unscored_count = 0
 
         for article in articles:
             text = article.content or article.summary or ""
             result = self.score_item(article.title, text, item_type)
 
             if result is None:
-                # API error: include with score 0.0 (fail-open)
                 article.score = 0.0
                 article.score_status = "fallback"
                 passed.append(article)
@@ -141,16 +141,19 @@ class Scorer:
             article.score = weighted_score
             article.score_status = "ok"
             if weighted_score >= thresh:
+                article.score_status = "scored"
                 passed.append(article)
             else:
+                article.score_status = "filtered_out"
                 logger.debug(
                     "Filtered out '%s' (score=%.1f < %.1f)",
                     article.title[:60], weighted_score, thresh,
                 )
 
+        unscored_ratio = (unscored_count / len(articles)) if articles else 0.0
         logger.info(
-            "Scoring: %d/%d articles passed threshold %.1f",
-            len(passed), len(articles), thresh,
+            "Scoring: %d/%d articles passed+unscored threshold %.1f | unscored=%d (%.1f%%)",
+            len(passed), len(articles), thresh, unscored_count, unscored_ratio * 100,
         )
         return passed
 
