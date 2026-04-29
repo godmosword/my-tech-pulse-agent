@@ -167,13 +167,16 @@ def _format_items_digest_v1(
         now = datetime.now(timezone.utc)
     date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
 
-    scored = [s for s in summaries if getattr(s, "score_status", "scored") == "scored"]
-    unscored = [s for s in summaries if getattr(s, "score_status", "scored") == "unscored"]
+    ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
+    valid_ranked = [
+        s for s in ranked
+        if s.score > 0 and getattr(s, "score_status", "ok") != "fallback"
+    ]
+    display_pool = valid_ranked if len(valid_ranked) >= 5 else ranked
 
-    ranked = sorted(scored, key=lambda s: s.score, reverse=True)
     top: list[ArticleSummary] = []
     cat_counts: dict[str, int] = {}
-    for item in ranked:
+    for item in display_pool:
         cat = item.category
         if cat_counts.get(cat, 0) >= MAX_PER_CATEGORY:
             continue
@@ -205,8 +208,9 @@ def _format_items_digest_v1(
 
     for s in top:
         lines.append(_score_line(s))
-        composed_summary = _compose_structured_summary(s)
-        summary_text = escape(_truncate(composed_summary))
+        if s.score <= 0 or getattr(s, "score_status", "ok") == "fallback":
+            lines.append("⚠️ 資料待確認")
+        summary_text = escape(_truncate(s.summary))
         lines.append(summary_text)
         tag_str = _tags(s)
         src_str = _source_link(s)
