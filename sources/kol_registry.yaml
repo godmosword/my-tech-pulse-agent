@@ -1,0 +1,49 @@
+kol_sources:
+  - name: stratechery
+    author: Ben Thompson
+    url: https://stratechery.com/feed/
+    focus: [tech_strategy, platform, aggregation_theory]
+    priority: 1
+    enabled: true
+
+  - name: import_ai
+    author: Jack Clark
+    url: https://importai.substack.com/feed
+    focus: [AI_research, safety, policy]
+    priority: 1
+    enabled: true
+
+  - name: pragmatic_engineer
+    author: Gergely Orosz
+    url: https://newsletter.pragmaticengineer.com/feed
+    focus: [engineering, big_tech_internals]
+    priority: 2
+    enabled: true
+
+  - name: platformer
+    author: Casey Newton
+    url: https://www.platformer.news/feed
+    focus: [platform_policy, social_media, AI_policy]
+    priority: 2
+    enabled: true
+
+  - name: a16z_blog
+    author: a16z
+    url: https://a16z.com/feed/
+    focus: [VC_thesis, emerging_tech, crypto]
+    priority: 2
+    enabled: true
+
+  - name: sequoia_blog
+    author: Sequoia Capital
+    url: https://www.sequoiacap.com/feed/
+    focus: [VC_thesis, market_maps]
+    priority: 3
+    enabled: true
+
+  - name: lenny_newsletter
+    author: Lenny Rachitsky
+    url: https://www.lennysnewsletter.com/feed
+    focus: [product, growth, SaaS]
+    priority: 3
+    enabled: true

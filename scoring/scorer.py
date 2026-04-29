@@ -41,6 +41,22 @@ Title: {title}
 Text: {text}
 """
 
+_KOL_PROMPT = """\
+Score this tech analysis/newsletter piece 0–10 on three dimensions:
+- relevance (0-10): Is this meaningful tech/business analysis? Not pure opinion/fluff.
+- novelty   (0-10): Does it offer a distinct perspective or framework (may be older)?
+- depth     (0-10): Does it contain specific analysis, frameworks, or data points?
+
+Final score = relevance × {w_rel} + novelty × {w_nov} + depth × {w_dep}
+
+Reply ONLY with valid JSON:
+{{"relevance": N, "novelty": N, "depth": N, "score": N}}
+
+Author: {author}
+Title: {title}
+Text: {text}
+"""
+
 
 class ScoreResult(BaseModel):
     relevance: float
@@ -73,24 +89,35 @@ class Scorer:
     # ------------------------------------------------------------------
 
     def score_item(
-        self, title: str, text: str, item_type: str = "default"
+        self, title: str, text: str, item_type: str = "default", author: str = ""
     ) -> Optional[ScoreResult]:
         """Score a single item. Returns None on API/parse failure (caller decides fallback)."""
-        outcome = self._score_item_with_status(title, text, item_type)
+        outcome = self._score_item_with_status(title, text, item_type, author=author)
         return outcome.result
 
     def _score_item_with_status(
-        self, title: str, text: str, item_type: str = "default"
+        self, title: str, text: str, item_type: str = "default", author: str = ""
     ) -> ScoreOutcome:
         """Score item and include explicit error kind for downstream fallback policies."""
-        w = self._config["weights"]
-        prompt = _PROMPT.format(
-            w_rel=w["relevance"],
-            w_nov=w["novelty"],
-            w_dep=w["depth"],
-            title=title[:200],
-            text=text[:800],
-        )
+        if item_type == "kol":
+            w = self._config.get("kol_weights", self._config["weights"])
+            prompt = _KOL_PROMPT.format(
+                w_rel=w["relevance"],
+                w_nov=w["novelty"],
+                w_dep=w["depth"],
+                author=author or "unknown",
+                title=title[:200],
+                text=text[:800],
+            )
+        else:
+            w = self._config["weights"]
+            prompt = _PROMPT.format(
+                w_rel=w["relevance"],
+                w_nov=w["novelty"],
+                w_dep=w["depth"],
+                title=title[:200],
+                text=text[:800],
+            )
         try:
             data, raw = generate_json(
                 self._client,
@@ -137,7 +164,7 @@ class Scorer:
         Scored items below threshold are dropped from main digest candidates.
         Unscored items are tagged for tail placement in delivery formatting.
         """
-        thresh = self.threshold(item_type)
+        default_thresh = self.threshold(item_type)
         passed: list = []
         unscored_count = 0
         max_articles = int(os.getenv("MAX_SCORING_ARTICLES", "24"))
@@ -150,7 +177,11 @@ class Scorer:
 
         for article in candidates:
             text = article.content or article.summary or ""
-            outcome = self._score_item_with_status(article.title, text, item_type)
+            article_type = getattr(article, "label", "news")
+            effective_type = "kol" if article_type == "kol" else item_type
+            author = getattr(article, "author", "")
+            thresh = self.threshold(effective_type) if effective_type != item_type else default_thresh
+            outcome = self._score_item_with_status(article.title, text, effective_type, author=author)
             result = outcome.result
 
             if result is None:
@@ -176,8 +207,8 @@ class Scorer:
 
         unscored_ratio = (unscored_count / len(candidates)) if candidates else 0.0
         logger.info(
-            "Scoring: %d/%d articles passed+unscored threshold %.1f | unscored=%d (%.1f%%)",
-            len(passed), len(candidates), thresh, unscored_count, unscored_ratio * 100,
+            "Scoring: %d/%d articles passed+unscored | unscored=%d (%.1f%%)",
+            len(passed), len(candidates), unscored_count, unscored_ratio * 100,
         )
         return passed
 
