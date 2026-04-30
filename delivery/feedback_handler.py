@@ -2,31 +2,24 @@
 
 Callbacks:
   useful:{source_name}   → weight += 0.1 (capped at 2.0) in source_registry.yaml
-  save:{item_id}         → insert into saved_items table in dedup.sqlite
+  save:{item_id}         → insert into configured state store
   block_source:{name}    → set enabled: false in source_registry.yaml
 """
 
 import logging
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
+from scoring.state_store import make_state_store
+
 logger = logging.getLogger(__name__)
 
 REGISTRY_PATH = Path(__file__).parent.parent / "sources" / "source_registry.yaml"
 MAX_WEIGHT = 2.0
 WEIGHT_INCREMENT = 0.1
-
-_SAVED_SCHEMA = """
-CREATE TABLE IF NOT EXISTS saved_items (
-    item_id   TEXT PRIMARY KEY,
-    saved_at  TEXT NOT NULL
-);
-"""
-
 
 def build_keyboard(item_id: str, source_name: str) -> dict:
     """Return an InlineKeyboardMarkup-compatible dict with feedback buttons.
@@ -78,18 +71,8 @@ def _handle_useful(source_name: str) -> str:
 
 
 def _handle_save(item_id: str, db_path: Optional[Path] = None) -> str:
-    if db_path is None:
-        import os
-        db_path = Path(os.getenv("OUTPUT_DIR", "output")) / "dedup.sqlite"
-    db_path = Path(db_path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(_SAVED_SCHEMA)
-        conn.execute(
-            "INSERT OR IGNORE INTO saved_items (item_id, saved_at) VALUES (?, ?)",
-            (item_id, datetime.now(timezone.utc).isoformat()),
-        )
-        conn.commit()
+    store = make_state_store(Path(db_path) if db_path is not None else None)
+    store.save_item(item_id, datetime.now(timezone.utc))
     return f"Item '{item_id}' saved."
 
 

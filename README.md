@@ -47,10 +47,13 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `TELEGRAM_CHANNEL_ID` | ✅       | Target channel (`#科技脈搏`)  |
 | `APIFY_API_KEY`       | ❌       | Social trending (optional)    |
 | `NEWSAPI_KEY`         | ❌       | Supplemental news (optional)  |
+| `MIN_BASE_SCORE_THRESHOLD` | ❌ | Cheap pre-LLM heuristic gate (`0.35`) |
 | `MAX_SCORING_ARTICLES` | ❌      | Max articles scored per run (`24`) |
 | `MAX_EXTRACTION_ARTICLES` | ❌   | Max articles extracted per run (`8`) |
 | `MAX_EARNINGS_FILINGS` | ❌      | Max earnings filings processed per run (`2`) |
 | `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
+| `STATE_BACKEND`        | ❌       | Persistent state backend: `sqlite` for local/dev, `firestore` for Cloud Run |
+| `FIRESTORE_COLLECTION_PREFIX` | ❌ | Collection prefix for production state (`tech_pulse`) |
 
 ## Deployment
 
@@ -87,6 +90,32 @@ The Artifact Registry repo and Cloud Run Job must already exist (the workflow up
 existing job's image; it does not create resources). If you prefer to deploy as a
 Cloud Run Service instead of a Job, swap `gcloud run jobs update` for
 `gcloud run deploy` in the workflow.
+
+### Production state on Firestore
+
+Local runs default to `output/dedup.sqlite`. Cloud Run should use Firestore so the dedup
+state survives stateless container restarts:
+
+```bash
+gcloud services enable firestore.googleapis.com --project "$GCP_PROJECT_ID"
+
+gcloud run jobs update "$CLOUD_RUN_SERVICE" \
+  --region "$GCP_REGION" \
+  --project "$GCP_PROJECT_ID" \
+  --set-env-vars STATE_BACKEND=firestore,FIRESTORE_COLLECTION_PREFIX=tech_pulse
+```
+
+Grant the Cloud Run runtime service account Firestore access:
+
+```bash
+gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
+  --member="serviceAccount:$RUNTIME_SERVICE_ACCOUNT" \
+  --role="roles/datastore.user"
+```
+
+The Firestore backend writes `tech_pulse_seen_items` and `tech_pulse_saved_items`.
+Configure a Firestore TTL policy on the `expires_at` field of `tech_pulse_seen_items`
+to let GCP expire old dedup records automatically.
 
 ## Project Structure
 

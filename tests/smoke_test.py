@@ -533,8 +533,18 @@ def test_scorer_returns_none_on_invalid_json():
 
 def test_scorer_filter_articles_passes_above_threshold():
     articles = [
-        Article(title="High quality story", url="https://example.com/1", source="test"),
-        Article(title="Low quality story", url="https://example.com/2", source="test"),
+        Article(
+            title="OpenAI launches new enterprise AI model",
+            url="https://example.com/1",
+            source="test",
+            summary="OpenAI announced a new enterprise AI model with benchmark details.",
+        ),
+        Article(
+            title="Google cloud AI update",
+            url="https://example.com/2",
+            source="test",
+            summary="Google reported a cloud AI product update with pricing details.",
+        ),
     ]
     with _mock_gemini_client([MOCK_SCORE_RESPONSE, MOCK_LOW_SCORE_RESPONSE]):
         scorer = Scorer()
@@ -542,14 +552,19 @@ def test_scorer_filter_articles_passes_above_threshold():
         result = scorer.filter_articles(articles)
 
     assert len(result) == 1
-    assert result[0].title == "High quality story"
+    assert result[0].title == "OpenAI launches new enterprise AI model"
     assert result[0].score == pytest.approx(8.5)
 
 
 def test_scorer_filter_articles_respects_runtime_cap(monkeypatch):
     monkeypatch.setenv("MAX_SCORING_ARTICLES", "2")
     articles = [
-        Article(title=f"Story {idx}", url=f"https://example.com/{idx}", source="test")
+        Article(
+            title=f"Nvidia AI chip story {idx}",
+            url=f"https://example.com/{idx}",
+            source="test",
+            summary="Nvidia announced an AI chip for data center infrastructure.",
+        )
         for idx in range(4)
     ]
 
@@ -561,9 +576,62 @@ def test_scorer_filter_articles_respects_runtime_cap(monkeypatch):
     assert mock_client.models.generate_content.call_count == 2
 
 
+def test_scorer_prefilter_drops_obvious_low_signal_article():
+    articles = [
+        Article(
+            title="Best streaming deals",
+            url="https://example.com/deals",
+            source="test",
+            summary="Coupon promo code discount gift guide.",
+        ),
+        Article(
+            title="Nvidia launches new AI data center GPU",
+            url="https://example.com/gpu",
+            source="test",
+            summary="Nvidia announced a new AI data center GPU with 30% faster inference.",
+        ),
+    ]
+
+    with _mock_gemini_client(MOCK_SCORE_RESPONSE) as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert len(result) == 1
+    assert result[0].title == "Nvidia launches new AI data center GPU"
+    assert articles[0].score_status == "prefiltered_out"
+    assert mock_client.models.generate_content.call_count == 1
+
+
+def test_scorer_prefilter_bypasses_kol_articles():
+    kol_article = Article(
+        title="Platform strategy",
+        url="https://example.com/kol",
+        source="stratechery",
+        summary="Essay.",
+        label="kol",
+        author="Ben Thompson",
+    )
+
+    with _mock_gemini_client(MOCK_SCORE_RESPONSE) as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles([kol_article])
+
+    assert len(result) == 1
+    assert result[0].base_score == 1.0
+    assert result[0].base_score_status == "kol_bypass"
+    assert mock_client.models.generate_content.call_count == 1
+
+
 def test_scorer_fail_open_on_api_error():
     """If scoring fails, include the article (fail-open to avoid over-filtering)."""
-    articles = [Article(title="Story", url="https://example.com/1", source="test")]
+    articles = [
+        Article(
+            title="Microsoft launches AI cloud security service",
+            url="https://example.com/1",
+            source="test",
+            summary="Microsoft announced an AI security service for enterprise cloud customers.",
+        )
+    ]
     with _mock_gemini_client(raise_error=True):
         scorer = Scorer()
         result = scorer.filter_articles(articles)

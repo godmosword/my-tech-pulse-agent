@@ -15,6 +15,7 @@ import yaml
 from pydantic import BaseModel
 
 from llm.gemini_client import GEMINI_FLASH_MODEL, generate_json, make_client
+from scoring.heuristic_filter import HeuristicFilter
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ class Scorer:
         self._client = make_client()
         self._config = self._load_config(config_path)
         self._source_weights = self._config.get("source_weights", {})
+        self._heuristic_filter = HeuristicFilter()
         self._warn_if_threshold_too_low()
 
     def _load_config(self, path: Path) -> dict:
@@ -167,12 +169,19 @@ class Scorer:
         default_thresh = self.threshold(item_type)
         passed: list = []
         unscored_count = 0
+        prefiltered, dropped = self._heuristic_filter.filter_articles(articles)
+        if dropped:
+            logger.info(
+                "Heuristic prefilter: %d/%d passed before Gemini scoring (%d dropped)",
+                len(prefiltered), len(articles), len(dropped),
+            )
+
         max_articles = int(os.getenv("MAX_SCORING_ARTICLES", "24"))
-        candidates = articles[:max_articles]
-        if len(articles) > len(candidates):
+        candidates = prefiltered[:max_articles]
+        if len(prefiltered) > len(candidates):
             logger.info(
                 "Scoring capped at %d/%d articles to stay within runtime budget",
-                len(candidates), len(articles),
+                len(candidates), len(prefiltered),
             )
 
         for article in candidates:

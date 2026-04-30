@@ -47,3 +47,38 @@ kol_sources:
     focus: [product, growth, SaaS]
     priority: 3
     enabled: true
+
+  - name: simon_willison
+    author: Simon Willison
+    url: https://simonwillison.net/atom/entries/
+    focus: [LLM_engineering, open_source, developer_tools]
+    priority: 2
+    enabled: true
+
+  - name: latent_space
+    author: Latent Space
+    url: https://www.latent.space/feed
+    focus: [AI_engineering, frontier_models, developer_tools]
+    priority: 2
+    enabled: true
+
+  - name: interconnects_ai
+    author: Nathan Lambert
+    url: https://www.interconnects.ai/feed
+    focus: [open_models, AI_research, policy]
+    priority: 2
+    enabled: true
+
+  - name: semianalysis
+    author: SemiAnalysis
+    url: https://semianalysis.com/feed/
+    focus: [semiconductors, AI_infrastructure, data_centers]
+    priority: 2
+    enabled: true
+
+  - name: high_scalability
+    author: High Scalability
+    url: https://highscalability.com/rss/
+    focus: [architecture, infrastructure, distributed_systems]
+    priority: 3
+    enabled: true

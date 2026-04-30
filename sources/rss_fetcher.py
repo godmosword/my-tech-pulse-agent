@@ -34,6 +34,8 @@ class Article(BaseModel):
     summary: str = ""
     content: str = ""
     cross_ref: bool = False
+    base_score: float = 0.0  # cheap pre-LLM heuristic score, 0.0-1.0
+    base_score_status: str = "not_run"
     score: float = 0.0  # set by Scorer; 0.0 = unscored or below-threshold fallback
     score_status: str = "ok"  # "ok" or "fallback" when scorer fails open
     label: str = "news"   # "news" | "kol" — controls Telegram rendering prefix
