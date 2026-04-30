@@ -68,7 +68,7 @@ class SynthesizerAgent:
     """Wraps the Gemini API for cross-article digest synthesis."""
 
     def __init__(self):
-        self._client = make_client()
+        self._client = None
 
     def synthesize(self, summaries: list[ArticleSummary]) -> Optional[DigestOutput]:
         if not summaries:
@@ -82,9 +82,9 @@ class SynthesizerAgent:
 
         try:
             data, raw = generate_json(
-                self._client,
+                self._gemini_client,
                 model=MODEL,
-                max_output_tokens=2048,
+                max_output_tokens=1536,
                 system_instruction=SYSTEM_PROMPT,
                 prompt=prompt,
                 response_schema=DigestOutput,
@@ -110,3 +110,9 @@ class SynthesizerAgent:
         if digest.themes:
             return "；".join(theme.theme for theme in digest.themes[:2])
         return ""
+
+    @property
+    def _gemini_client(self):
+        if self._client is None:
+            self._client = make_client()
+        return self._client

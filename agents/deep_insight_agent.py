@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+from pathlib import Path
 from typing import Literal, Optional
 
+import yaml
 from pydantic import BaseModel, Field, model_validator
 
 from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
@@ -14,6 +17,7 @@ from sources.deep_scraper import count_mixed_words
 logger = logging.getLogger(__name__)
 
 MODEL = GEMINI_MODEL
+DOMAIN_LEXICON_PATH = Path(__file__).parent.parent / "sources" / "domain_lexicon.yaml"
 
 DEEP_EXTRACTOR_SYSTEM = """\
 You are an academic argument analyst. Your task is not to summarize.
@@ -44,6 +48,7 @@ Author: {author}
 Source: {source_name}
 URL: {url}
 Domain hints: {domain_hints}
+High-signal lexicon terms to prefer when present in the source: {lexicon_terms}
 Score: {score}
 Item ID: {item_id}
 
@@ -70,6 +75,9 @@ Requirements:
 
 ArgumentMap JSON:
 {argument_json}
+
+High-signal lexicon terms expected for this domain when supported by evidence:
+{lexicon_terms}
 """
 
 
@@ -115,8 +123,9 @@ class InsightBrief(BaseModel):
 class DeepInsightAgent:
     """Runs the deep article chain: ArgumentMap -> review -> InsightBrief."""
 
-    def __init__(self):
-        self._client = make_client()
+    def __init__(self, domain_lexicon_path: Path = DOMAIN_LEXICON_PATH):
+        self._client = None
+        self._domain_lexicon = self._load_lexicon(domain_lexicon_path)
 
     def extract_argument_map(
         self,
@@ -136,13 +145,14 @@ class DeepInsightAgent:
             source_name=source_name,
             url=url,
             domain_hints=", ".join(domain_hints or []),
+            lexicon_terms=", ".join(self._lexicon_terms_for_hints(domain_hints or [])),
             score=f"{score:.1f}",
             item_id=item_id,
-            text=text[:10000],
+            text=self._select_relevant_excerpt(text, domain_hints or []),
         )
         try:
             data, _ = generate_json(
-                self._client,
+                self._gemini_client,
                 model=MODEL,
                 max_output_tokens=1536,
                 system_instruction=DEEP_EXTRACTOR_SYSTEM,
@@ -158,16 +168,25 @@ class DeepInsightAgent:
         if not argument.evidence:
             logger.warning("Deep article rejected: no evidence for '%s'", argument.title[:80])
             return None
+        if not self._has_domain_signal(argument):
+            logger.warning(
+                "Deep article confidence downgraded: low domain lexicon density for '%s'",
+                argument.title[:80],
+            )
+            argument.confidence = "low"
         if not argument.assumption or not argument.counter_ignored:
             argument.confidence = "low"
         return argument
 
     def synthesize_brief(self, argument: ArgumentMap) -> Optional[InsightBrief]:
         argument_json = json.dumps(argument.model_dump(), ensure_ascii=False, indent=2)
-        prompt = BRIEF_PROMPT.format(argument_json=argument_json[:6000])
+        prompt = BRIEF_PROMPT.format(
+            argument_json=argument_json[:6000],
+            lexicon_terms=", ".join(self._lexicon_terms_for_hints([argument.domain])),
+        )
         try:
             data, _ = generate_json(
-                self._client,
+                self._gemini_client,
                 model=MODEL,
                 max_output_tokens=1024,
                 system_instruction=BRIEF_SYSTEM,
@@ -213,3 +232,85 @@ class DeepInsightAgent:
             if reviewed.confidence == "low":
                 brief.confidence = "low"
         return brief
+
+    @property
+    def _gemini_client(self):
+        if self._client is None:
+            self._client = make_client()
+        return self._client
+
+    def _has_domain_signal(self, argument: ArgumentMap) -> bool:
+        terms = self._lexicon_terms_for_hints([argument.domain])
+        if not terms:
+            return True
+        corpus = " ".join([
+            argument.core_thesis,
+            " ".join(argument.evidence),
+            argument.assumption or "",
+            argument.counter_ignored or "",
+        ]).lower()
+        return any(self._contains_term(corpus, term) for term in terms)
+
+    def _lexicon_terms_for_hints(self, hints: list[str]) -> list[str]:
+        normalized = {h.lower() for h in hints}
+        domain_map = {
+            "ai": "ai",
+            "ai_research": "ai",
+            "llm_engineering": "ai",
+            "frontier_models": "ai",
+            "semiconductor": "semiconductor",
+            "semiconductors": "semiconductor",
+            "computer_architecture": "semiconductor",
+            "ai_infrastructure": "semiconductor",
+            "crypto": "crypto",
+            "cryptography": "crypto",
+            "zk": "crypto",
+            "protocol_design": "crypto",
+        }
+        domains = {domain_map[h] for h in normalized if h in domain_map}
+        terms: list[str] = []
+        for domain in sorted(domains):
+            signals = self._domain_lexicon.get(domain, {})
+            terms.extend(signals.get("high_signal", []))
+        return terms[:24]
+
+    def _select_relevant_excerpt(self, text: str, domain_hints: list[str]) -> str:
+        """Keep prompt cost bounded while preserving thesis + technical evidence."""
+        normalized = re.sub(r"\s+", " ", text).strip()
+        if len(normalized) <= 6500:
+            return normalized
+
+        terms = self._lexicon_terms_for_hints(domain_hints)
+        chunks = [normalized[:2200]]
+        lower = normalized.lower()
+        used_ranges = [(0, 2200)]
+
+        for term in terms:
+            if len(" ".join(chunks)) >= 6500:
+                break
+            match = re.search(re.escape(term.lower()), lower)
+            if not match:
+                continue
+            start = max(0, match.start() - 700)
+            end = min(len(normalized), match.end() + 900)
+            if any(start < used_end and end > used_start for used_start, used_end in used_ranges):
+                continue
+            chunks.append(normalized[start:end])
+            used_ranges.append((start, end))
+
+        excerpt = "\n\n...\n\n".join(chunks)
+        return excerpt[:6500]
+
+    @staticmethod
+    def _load_lexicon(path: Path) -> dict:
+        try:
+            with open(path) as f:
+                return yaml.safe_load(f) or {}
+        except Exception as exc:
+            logger.warning("Failed to load domain lexicon from %s: %s", path, exc)
+            return {}
+
+    @staticmethod
+    def _contains_term(haystack: str, term: str) -> bool:
+        escaped = re.escape(term.lower())
+        return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", haystack) is not None

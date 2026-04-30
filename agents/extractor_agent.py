@@ -77,7 +77,7 @@ class ExtractorAgent:
     """Wraps the Gemini API for per-article structured extraction."""
 
     def __init__(self):
-        self._client = make_client()
+        self._client = None
 
     def extract(self, title: str, text: str, source_name: str = "", source_url: str = "") -> Optional[ArticleSummary]:
         prompt = EXTRACTION_PROMPT.format(
@@ -87,9 +87,9 @@ class ExtractorAgent:
         )
         try:
             data, raw = generate_json(
-                self._client,
+                self._gemini_client,
                 model=MODEL,
-                max_output_tokens=1024,
+                max_output_tokens=768,
                 system_instruction=SYSTEM_PROMPT,
                 prompt=prompt,
                 response_schema=ArticleSummary,
@@ -134,6 +134,12 @@ class ExtractorAgent:
                 self._postprocess_flags(result)
                 results.append(result)
         return results
+
+    @property
+    def _gemini_client(self):
+        if self._client is None:
+            self._client = make_client()
+        return self._client
 
     def _postprocess_flags(self, summary: ArticleSummary) -> None:
         corpus = " ".join([

@@ -18,7 +18,7 @@ Current production baseline:
 - LLM provider: Gemini wrappers in `llm/gemini_client.py`
 - State backend: `STATE_BACKEND=auto` uses sqlite locally and Firestore on Cloud Run
 - KOL/source discovery: RSS/Atom feeds from `sources/source_registry.yaml` and `sources/kol_registry.yaml`
-- Deep public full-text extraction: `sources/deep_scraper.py`
+- Deep public full-text extraction: `sources/deep_scraper.py` delegates scraping to Apify only
 
 Target vNext direction:
 - Two content tiers with separate agent chains: **Deep**, **Instant**, and the separate **Earnings** path.
@@ -150,6 +150,7 @@ Deduplication contract:
 
 Feedback callback state:
 - `save:{item_id}` writes to the configured state store, not directly to sqlite.
+- Firestore dedup claims must use transaction blocks so concurrent Cloud Run Jobs do not process the same item twice.
 
 ## Key Design Constraints
 
@@ -160,10 +161,12 @@ Current v1:
 - `sources/domain_lexicon.yaml` is the source of truth for AI, semiconductor, and crypto signals.
 - `scoring/scorer.py` annotates each item with `lexicon_score` and `matched_signals`.
 - `scoring/scorer.py` uses Gemini Flash as a cheap score gate.
+- `agents/deep_insight_agent.py` loads `sources/domain_lexicon.yaml` and downgrades low-density deep insights.
 - Runtime cap: `MAX_SCORING_ARTICLES`.
 - Deep runtime cap: `MAX_DEEP_ARTICLES`.
 - Deep full-text minimum: `MIN_DEEP_WORDS`.
 - Heuristic threshold: `MIN_BASE_SCORE_THRESHOLD`.
+- Domain lexicon floor: `MIN_LEXICON_SCORE`.
 - KOL/deep items must not be accidentally dropped by shallow-news rules.
 
 Target vNext:
@@ -391,6 +394,7 @@ Required:
 
 Optional:
 - `APIFY_API_KEY`
+- `APIFY_ARTICLE_ACTOR`
 - `NEWSAPI_KEY`
 - `GEMINI_MODEL`
 - `GEMINI_FLASH_MODEL`
@@ -401,6 +405,7 @@ Optional:
 - `FIRESTORE_COLLECTION_PREFIX`
 - `DEDUP_TTL_HOURS`
 - `MIN_BASE_SCORE_THRESHOLD`
+- `MIN_LEXICON_SCORE`
 - `MAX_SCORING_ARTICLES`
 - `MAX_EXTRACTION_ARTICLES`
 - `MAX_DEEP_ARTICLES`

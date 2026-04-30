@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 SCORE_CONFIG_PATH = Path(__file__).parent / "score_config.yaml"
 DOMAIN_LEXICON_PATH = Path(__file__).parent.parent / "sources" / "domain_lexicon.yaml"
 FLASH_MODEL = GEMINI_FLASH_MODEL
+MIN_LEXICON_SCORE = float(os.getenv("MIN_LEXICON_SCORE", "3.0"))
 
 _SYSTEM = (
     "You are a tech news quality filter. "
@@ -88,7 +89,7 @@ class Scorer:
         config_path: Path = SCORE_CONFIG_PATH,
         domain_lexicon_path: Path = DOMAIN_LEXICON_PATH,
     ):
-        self._client = make_client()
+        self._client = None
         self._config = self._load_config(config_path)
         self._domain_lexicon = self._load_config(domain_lexicon_path)
         self._source_weights = self._config.get("source_weights", {})
@@ -153,9 +154,9 @@ class Scorer:
             )
         try:
             data, raw = generate_json(
-                self._client,
+                self._gemini_client,
                 model=FLASH_MODEL,
-                max_output_tokens=512,
+                max_output_tokens=128,
                 system_instruction=_SYSTEM,
                 prompt=prompt,
                 response_schema=ScoreResult,
@@ -204,7 +205,22 @@ class Scorer:
         for article in articles:
             self._annotate_lexicon_match(article)
 
-        prefiltered, dropped = self._heuristic_filter.filter_articles(articles)
+        lexicon_passed = []
+        lexicon_dropped = []
+        for article in articles:
+            if getattr(article, "lexicon_score", 5.0) < MIN_LEXICON_SCORE:
+                article.score_status = "lexicon_filtered_out"
+                lexicon_dropped.append(article)
+            else:
+                lexicon_passed.append(article)
+
+        if lexicon_dropped:
+            logger.info(
+                "Lexicon filter: %d/%d passed before Gemini scoring (%d dropped)",
+                len(lexicon_passed), len(articles), len(lexicon_dropped),
+            )
+
+        prefiltered, dropped = self._heuristic_filter.filter_articles(lexicon_passed)
         if dropped:
             logger.info(
                 "Heuristic prefilter: %d/%d passed before Gemini scoring (%d dropped)",
@@ -260,6 +276,12 @@ class Scorer:
         weight = float(self._source_weights.get(source_name, 1.0))
         weighted = max(0.0, min(10.0, score * weight))
         return round(weighted, 2)
+
+    @property
+    def _gemini_client(self):
+        if self._client is None:
+            self._client = make_client()
+        return self._client
 
     def _annotate_lexicon_match(self, article) -> None:
         lede_text = (getattr(article, "summary", "") or getattr(article, "content", "") or "")[:800]

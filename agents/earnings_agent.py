@@ -86,7 +86,7 @@ class EarningsAgent:
     """Extracts structured earnings facts from raw filing text."""
 
     def __init__(self):
-        self._client = make_client()
+        self._client = None
 
     def extract(self, filing: EarningsFiling) -> Optional[EarningsOutput]:
         if not filing.raw_text:
@@ -101,7 +101,7 @@ class EarningsAgent:
 
         try:
             data, raw = generate_json(
-                self._client,
+                self._gemini_client,
                 model=MODEL,
                 max_output_tokens=1536,
                 system_instruction=SYSTEM_PROMPT,
@@ -168,3 +168,9 @@ class EarningsAgent:
             output.confidence = "low"
 
         return output
+
+    @property
+    def _gemini_client(self):
+        if self._client is None:
+            self._client = make_client()
+        return self._client
