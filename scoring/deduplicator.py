@@ -71,8 +71,17 @@ class Deduplicator:
         new_articles = []
         for article in articles:
             body = f"{article.title}{(article.summary or '')[:500]}"
-            if not self.is_duplicate(article.url, body):
-                self.mark_seen(article.url, body)
+            url_hash = self._url_hash(article.url)
+            content_hash = self._content_hash(body)
+            seen_at = datetime.now(timezone.utc)
+            if self._store.claim_seen(
+                url_hash=url_hash,
+                content_hash=content_hash,
+                cutoff_iso=self._cutoff_iso(),
+                seen_at=seen_at,
+                url=article.url,
+                expires_at=seen_at + self._ttl,
+            ):
                 new_articles.append(article)
 
         dropped = len(articles) - len(new_articles)

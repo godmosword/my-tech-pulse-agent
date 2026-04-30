@@ -31,3 +31,10 @@ def test_state_backend_firestore_falls_back_to_sqlite(monkeypatch):
         store = make_state_store()
 
     assert isinstance(store, SQLiteStateStore)
+
+
+def test_sqlite_is_processed_and_store_is_atomic_claim(tmp_path):
+    store = SQLiteStateStore(tmp_path / "dedup.sqlite")
+
+    assert store.is_processed_and_store("article-1") is False
+    assert store.is_processed_and_store("article-1") is True

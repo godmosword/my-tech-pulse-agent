@@ -288,14 +288,3 @@ class RSSFetcher:
             return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
         except Exception:
             return None
-
-    def fetch_full_text(self, url: str) -> str:
-        """Best-effort HTTP fetch of article body for thin RSS summaries."""
-        try:
-            with httpx.Client(timeout=10, follow_redirects=True) as client:
-                response = client.get(url, headers={"User-Agent": "tech-pulse/0.1"})
-                response.raise_for_status()
-                return response.text[:10000]
-        except Exception as exc:
-            logger.warning("Full-text fetch failed for %s: %s", url, exc)
-            return ""

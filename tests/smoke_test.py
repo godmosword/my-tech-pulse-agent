@@ -116,29 +116,56 @@ def test_article_model_rejects_missing_url():
         Article(title="Test", source="test_rss")  # url is required
 
 
-def test_deep_scraper_extracts_article_text():
-    html = """
-    <html><body><nav>menu</nav><article>
-      <h1>Title</h1><p>First paragraph about KV cache.</p>
-      <p>Second paragraph about memory bandwidth.</p>
-    </article><script>ignore()</script></body></html>
-    """
+def test_deep_scraper_requires_apify_key(monkeypatch):
+    monkeypatch.delenv("APIFY_API_KEY", raising=False)
 
-    text = DeepScraper.extract_text(html)
+    result = DeepScraper().fetch("https://example.com/post")
 
-    assert "First paragraph about KV cache." in text
-    assert "Second paragraph about memory bandwidth." in text
-    assert "menu" not in text
+    assert result.status == "missing_apify_key"
+
+
+def test_deep_scraper_fetches_text_from_apify_dataset():
+    run_response = MagicMock()
+    run_response.json.return_value = {"data": {"id": "run-1"}}
+    run_response.raise_for_status.return_value = None
+
+    status_response = MagicMock()
+    status_response.json.return_value = {"data": {"status": "SUCCEEDED"}}
+    status_response.raise_for_status.return_value = None
+
+    dataset_response = MagicMock()
+    dataset_response.json.return_value = [{"text": "KV cache " * 20}]
+    dataset_response.raise_for_status.return_value = None
+
+    with patch("httpx.Client") as client_cls:
+        client = client_cls.return_value.__enter__.return_value
+        client.post.return_value = run_response
+        client.get.side_effect = [status_response, dataset_response]
+        result = DeepScraper(min_words=10, apify_key="key").fetch("https://example.com/post")
+
+    assert result.status == "ok"
+    assert result.word_count >= 10
+    assert "KV cache" in result.text
 
 
 def test_deep_scraper_fetch_marks_too_short():
-    response = MagicMock()
-    response.text = "<article><p>Short public post.</p></article>"
-    response.raise_for_status.return_value = None
+    run_response = MagicMock()
+    run_response.json.return_value = {"data": {"id": "run-1"}}
+    run_response.raise_for_status.return_value = None
+
+    status_response = MagicMock()
+    status_response.json.return_value = {"data": {"status": "SUCCEEDED"}}
+    status_response.raise_for_status.return_value = None
+
+    dataset_response = MagicMock()
+    dataset_response.json.return_value = [{"text": "Short public post."}]
+    dataset_response.raise_for_status.return_value = None
 
     with patch("httpx.Client") as client_cls:
-        client_cls.return_value.__enter__.return_value.get.return_value = response
-        result = DeepScraper(min_words=10).fetch("https://example.com/post")
+        client = client_cls.return_value.__enter__.return_value
+        client.post.return_value = run_response
+        client.get.side_effect = [status_response, dataset_response]
+        result = DeepScraper(min_words=10, apify_key="key").fetch("https://example.com/post")
 
     assert result.status == "too_short"
     assert result.word_count < 10
@@ -146,10 +173,27 @@ def test_deep_scraper_fetch_marks_too_short():
 
 def test_deep_scraper_fetch_handles_failure():
     with patch("httpx.Client") as client_cls:
-        client_cls.return_value.__enter__.return_value.get.side_effect = RuntimeError("network")
-        result = DeepScraper().fetch("https://example.com/post")
+        client_cls.return_value.__enter__.return_value.post.side_effect = RuntimeError("network")
+        result = DeepScraper(apify_key="key").fetch("https://example.com/post")
 
     assert result.status == "fetch_failed"
+
+
+def test_deep_scraper_handles_apify_rate_limit():
+    import httpx
+
+    request = httpx.Request("POST", "https://api.apify.com")
+    response = httpx.Response(429, request=request)
+
+    with patch("httpx.Client") as client_cls:
+        client_cls.return_value.__enter__.return_value.post.side_effect = httpx.HTTPStatusError(
+            "rate limited",
+            request=request,
+            response=response,
+        )
+        result = DeepScraper(apify_key="key").fetch("https://example.com/post")
+
+    assert result.status == "rate_limited"
 
 
 def test_tier_detection_marks_kol_and_paper_deep():
@@ -318,6 +362,56 @@ def test_argument_map_schema_validates():
 
     assert output.tier == "deep"
     assert output.evidence
+
+
+def test_deep_agent_downgrades_low_lexicon_density():
+    with _mock_gemini_client():
+        agent = __import__("agents.deep_insight_agent", fromlist=["DeepInsightAgent"]).DeepInsightAgent()
+
+    argument = ArgumentMap(
+        title="Generic AI strategy",
+        author="Analyst",
+        source_name="test_source",
+        url="https://example.com/deep",
+        domain="ai",
+        core_thesis="The author believes the market will change.",
+        evidence=["The article says adoption is increasing."],
+        assumption="Customers keep buying.",
+        counter_ignored="Competition could respond.",
+        score=8.0,
+        confidence="high",
+        item_id="abc12345",
+    )
+
+    reviewed = agent.review_argument_map(argument)
+
+    assert reviewed is not None
+    assert reviewed.confidence == "low"
+
+
+def test_deep_agent_keeps_confidence_with_domain_lexicon_signal():
+    with _mock_gemini_client():
+        agent = __import__("agents.deep_insight_agent", fromlist=["DeepInsightAgent"]).DeepInsightAgent()
+
+    argument = ArgumentMap(
+        title="KV cache economics",
+        author="Analyst",
+        source_name="test_source",
+        url="https://example.com/deep",
+        domain="ai",
+        core_thesis="KV cache pressure changes inference economics.",
+        evidence=["The source says KV cache and memory bandwidth constrain inference latency."],
+        assumption="Inference workloads remain memory-bound.",
+        counter_ignored="Compiler optimizations may reduce pressure.",
+        score=8.0,
+        confidence="high",
+        item_id="abc12345",
+    )
+
+    reviewed = agent.review_argument_map(argument)
+
+    assert reviewed is not None
+    assert reviewed.confidence == "high"
 
 
 def test_insight_brief_enforces_100_to_200_chars():
@@ -668,6 +762,17 @@ def test_deduplicator_cleanup_expired(tmp_path):
     dedup.mark_seen("https://example.com/x", "body")
     removed = dedup.cleanup_expired()
     assert removed == 0  # record is within TTL
+
+
+def test_deduplicator_filter_new_claims_atomically(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    article = Article(title="Same", url="https://example.com/same", source="test", summary="Body")
+
+    first = dedup.filter_new([article])
+    second = dedup.filter_new([article])
+
+    assert first == [article]
+    assert second == []
 
 
 # ---------- Scorer ----------

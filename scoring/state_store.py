@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Protocol
 
@@ -24,7 +24,14 @@ CREATE TABLE IF NOT EXISTS saved_items (
     item_id  TEXT PRIMARY KEY,
     saved_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS processed_articles (
+    article_id  TEXT PRIMARY KEY,
+    processed_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
 """
+
+DEFAULT_PROCESSED_TTL_DAYS = int(os.getenv("STATE_TTL_DAYS", "30"))
 
 
 class StateStore(Protocol):
@@ -43,7 +50,21 @@ class StateStore(Protocol):
     ) -> None:
         ...
 
+    def claim_seen(
+        self,
+        url_hash: str,
+        content_hash: str,
+        cutoff_iso: str,
+        seen_at: datetime,
+        url: str,
+        expires_at: datetime,
+    ) -> bool:
+        ...
+
     def cleanup_seen(self, cutoff_iso: str) -> int:
+        ...
+
+    def is_processed_and_store(self, article_id: str) -> bool:
         ...
 
     def save_item(self, item_id: str, saved_at: datetime) -> None:
@@ -91,11 +112,58 @@ class SQLiteStateStore:
             )
             conn.commit()
 
+    def claim_seen(
+        self,
+        url_hash: str,
+        content_hash: str,
+        cutoff_iso: str,
+        seen_at: datetime,
+        url: str,
+        expires_at: datetime,
+    ) -> bool:
+        del expires_at
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT 1 FROM seen_items "
+                "WHERE (url_hash = ? OR content_hash = ?) AND seen_at > ?",
+                (url_hash, content_hash, cutoff_iso),
+            ).fetchone()
+            if row is not None:
+                conn.commit()
+                return False
+            conn.execute(
+                "INSERT OR REPLACE INTO seen_items "
+                "(url_hash, content_hash, seen_at, url) VALUES (?, ?, ?, ?)",
+                (url_hash, content_hash, seen_at.isoformat(), url),
+            )
+            conn.commit()
+            return True
+
     def cleanup_seen(self, cutoff_iso: str) -> int:
         with sqlite3.connect(self._db_path) as conn:
             cursor = conn.execute("DELETE FROM seen_items WHERE seen_at <= ?", (cutoff_iso,))
             conn.commit()
         return cursor.rowcount
+
+    def is_processed_and_store(self, article_id: str) -> bool:
+        processed_at = datetime.now(timezone.utc)
+        expires_at = processed_at + timedelta(days=DEFAULT_PROCESSED_TTL_DAYS)
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT 1 FROM processed_articles WHERE article_id = ?",
+                (article_id,),
+            ).fetchone()
+            if row is not None:
+                conn.commit()
+                return True
+            conn.execute(
+                "INSERT INTO processed_articles (article_id, processed_at, expires_at) VALUES (?, ?, ?)",
+                (article_id, processed_at.isoformat(), expires_at.isoformat()),
+            )
+            conn.commit()
+            return False
 
     def save_item(self, item_id: str, saved_at: datetime) -> None:
         with sqlite3.connect(self._db_path) as conn:
@@ -117,6 +185,7 @@ class FirestoreStateStore:
     ):
         try:
             from google.cloud import firestore
+            from google.cloud.firestore_v1 import transactional
         except ImportError as exc:
             raise RuntimeError(
                 "STATE_BACKEND=firestore requires google-cloud-firestore to be installed."
@@ -129,9 +198,14 @@ class FirestoreStateStore:
             self._client = firestore.Client(project=project_id, database=database)
         else:
             self._client = firestore.Client(project=project_id)
+        self._transactional = transactional
 
     def _collection(self, name: str):
         return self._client.collection(f"{self._prefix}_{name}")
+
+    def _processed_articles_collection(self):
+        collection_name = os.getenv("FIRESTORE_PROCESSED_COLLECTION", "processed_articles")
+        return self._client.collection(collection_name)
 
     def has_seen(self, url_hash: str, content_hash: str, cutoff_iso: str) -> bool:
         cutoff = datetime.fromisoformat(cutoff_iso)
@@ -168,9 +242,83 @@ class FirestoreStateStore:
             merge=True,
         )
 
+    def claim_seen(
+        self,
+        url_hash: str,
+        content_hash: str,
+        cutoff_iso: str,
+        seen_at: datetime,
+        url: str,
+        expires_at: datetime,
+    ) -> bool:
+        cutoff = datetime.fromisoformat(cutoff_iso)
+        doc_ref = self._collection("seen_items").document(url_hash)
+        transaction = self._client.transaction()
+
+        @self._transactional
+        def _claim(txn) -> bool:
+            doc = doc_ref.get(transaction=txn)
+            if doc.exists:
+                data = doc.to_dict() or {}
+                existing_seen_at = data.get("seen_at")
+                if isinstance(existing_seen_at, datetime) and existing_seen_at > cutoff:
+                    return False
+
+            query = (
+                self._collection("seen_items")
+                .where("content_hash", "==", content_hash)
+                .where("seen_at", ">", cutoff)
+                .limit(1)
+            )
+            if any(query.stream(transaction=txn)):
+                return False
+
+            txn.set(
+                doc_ref,
+                {
+                    "content_hash": content_hash,
+                    "seen_at": seen_at,
+                    "expires_at": expires_at,
+                    "url": url,
+                },
+                merge=True,
+            )
+            return True
+
+        return _claim(transaction)
+
     def cleanup_seen(self, cutoff_iso: str) -> int:
         del cutoff_iso
         return 0
+
+    def is_processed_and_store(self, article_id: str) -> bool:
+        """Atomically claim a processed article id.
+
+        Returns True when the article was already processed, False when this
+        call created the registry document. Enable Firestore TTL in GCP Console
+        for the `expires_at` field on the `processed_articles` collection.
+        """
+        processed_at = datetime.now(timezone.utc)
+        expires_at = processed_at + timedelta(days=DEFAULT_PROCESSED_TTL_DAYS)
+        doc_ref = self._processed_articles_collection().document(article_id)
+        transaction = self._client.transaction()
+
+        @self._transactional
+        def _claim(txn) -> bool:
+            doc = doc_ref.get(transaction=txn)
+            if doc.exists:
+                return True
+            txn.set(
+                doc_ref,
+                {
+                    "article_id": article_id,
+                    "processed_at": processed_at,
+                    "expires_at": expires_at,
+                },
+            )
+            return False
+
+        return _claim(transaction)
 
     def save_item(self, item_id: str, saved_at: datetime) -> None:
         self._collection("saved_items").document(item_id).set(

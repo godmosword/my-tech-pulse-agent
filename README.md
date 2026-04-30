@@ -44,9 +44,11 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `GEMINI_REQUEST_TIMEOUT_MS` | ❌ | Per Gemini request timeout (`45000`) |
 | `TELEGRAM_BOT_TOKEN`  | ✅       | Telegram bot token            |
 | `TELEGRAM_CHANNEL_ID` | ✅       | Target channel (`#科技脈搏`)  |
-| `APIFY_API_KEY`       | ❌       | Social trending (optional)    |
+| `APIFY_API_KEY`       | ❌       | Social trending and deep article extraction (optional) |
+| `APIFY_ARTICLE_ACTOR` | ❌       | Apify actor for deep article extraction (`apify/website-content-crawler`) |
 | `NEWSAPI_KEY`         | ❌       | Supplemental news (optional)  |
 | `MIN_BASE_SCORE_THRESHOLD` | ❌ | Cheap pre-LLM heuristic gate (`0.35`) |
+| `MIN_LEXICON_SCORE` | ❌       | Domain lexicon score floor before Gemini scoring (`3.0`) |
 | `MAX_SCORING_ARTICLES` | ❌      | Max articles scored per run (`24`) |
 | `MAX_EXTRACTION_ARTICLES` | ❌   | Max articles extracted per run (`8`) |
 | `MAX_DEEP_ARTICLES` | ❌       | Max KOL/paper deep briefs generated per run (`3`) |

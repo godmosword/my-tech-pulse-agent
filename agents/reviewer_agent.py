@@ -82,7 +82,7 @@ class ReviewerAgent:
     """Reviews ArticleSummary outputs for hallucination and quality before synthesis."""
 
     def __init__(self):
-        self._client = make_client()
+        self._client = None
         self._extractor = ExtractorAgent()
 
     def review(self, summary: ArticleSummary, retry_count: int = 0) -> ReviewerOutput:
@@ -171,7 +171,7 @@ class ReviewerAgent:
         )
         try:
             data, _ = generate_json(
-                self._client,
+                self._gemini_client,
                 model=MODEL,
                 max_output_tokens=256,
                 system_instruction=SYSTEM_PROMPT,
@@ -225,3 +225,9 @@ class ReviewerAgent:
     def _make_id(url: str) -> str:
         import hashlib
         return hashlib.sha256(url.encode()).hexdigest()[:8]
+
+    @property
+    def _gemini_client(self):
+        if self._client is None:
+            self._client = make_client()
+        return self._client
