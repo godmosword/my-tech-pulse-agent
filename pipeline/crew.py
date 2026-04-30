@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "output"))
-ITEM_DIGEST_THEME_MIN_SUMMARIES = int(os.getenv("ITEM_DIGEST_THEME_MIN_SUMMARIES", "8"))
+ITEM_DIGEST_THEME_MIN_SUMMARIES = int(os.getenv("ITEM_DIGEST_THEME_MIN_SUMMARIES", "5"))
+SEND_LEGACY_DIGEST = os.getenv("SEND_LEGACY_DIGEST", "0") == "1"
 PIPELINE_TIMEOUT_SECONDS = int(os.getenv("PIPELINE_TIMEOUT_SECONDS", "540"))
 MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "2"))
 
@@ -149,6 +150,12 @@ class TechPulseCrew:
                     signal.signal(signal.SIGALRM, previous_handler)
 
         # Delivery — each send independently guarded
+        narrative_excerpt: str | None = None
+        if digest and digest.narrative:
+            paragraphs = [p.strip() for p in digest.narrative.split("\n\n") if p.strip()]
+            if paragraphs:
+                narrative_excerpt = paragraphs[0][:600]
+
         try:
             self.telegram.send_items_digest(
                 summaries,
@@ -156,11 +163,13 @@ class TechPulseCrew:
                 total_after_filter=len(scored_articles),
                 themes=digest.themes if digest else None,
                 market_takeaway=self.synthesizer.build_market_takeaway(digest) if digest else None,
+                headline=digest.headline if digest else None,
+                narrative_excerpt=narrative_excerpt,
             )
         except Exception as exc:
             logger.error("Telegram items digest delivery failed: %s", exc, exc_info=True)
 
-        if digest:
+        if digest and SEND_LEGACY_DIGEST:
             try:
                 self.telegram.send_digest(digest)
             except Exception as exc:

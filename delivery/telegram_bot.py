@@ -37,6 +37,8 @@ class TelegramBot:
         total_after_filter: int,
         themes: Optional[list[Theme]] = None,
         market_takeaway: Optional[str] = None,
+        headline: Optional[str] = None,
+        narrative_excerpt: Optional[str] = None,
     ) -> bool:
         """Send a ranked item digest built from ArticleSummary list."""
         if not self._bot:
@@ -49,6 +51,8 @@ class TelegramBot:
             total_after_filter,
             themes=theme_labels,
             market_takeaway=market_takeaway,
+            headline=headline,
+            narrative_excerpt=narrative_excerpt,
         )
         return self._send(text)
 

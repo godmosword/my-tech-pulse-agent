@@ -10,7 +10,7 @@ from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput
 
-MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "10"))
+MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "6"))
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "150"))
 MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
 UNSCORED_ALERT_RATIO = float(os.getenv("UNSCORED_ALERT_RATIO", "0.2"))
@@ -109,16 +109,13 @@ def _truncate(text: str, max_chars: int = MAX_SUMMARY_CHARS) -> str:
 
 
 def _score_line(summary: ArticleSummary) -> str:
-    """Return `⭐ 8.3 *Title*` or `📊 *Title*` for earnings."""
-    if summary.category == "earnings":
-        prefix = "📊"
-        title_part = f"*{escape(summary.entity)} — {escape(summary.summary[:60])}*"
-        return f"{prefix} {title_part}"
+    """Return `⭐ 8.3 *Title*` or `📊 8.3 *Title*` for earnings."""
     title = escape(getattr(summary, "title", "") or summary.entity)
     if getattr(summary, "score_status", "scored") == "unscored":
         return f"⚪ 未評分 *{title}*"
     score_str = escape(f"{summary.score:.1f}")
-    return f"⭐ {score_str} *{title}*"
+    prefix = "📊" if summary.category == "earnings" else "⭐"
+    return f"{prefix} {score_str} *{title}*"
 
 
 def _tags(summary: ArticleSummary) -> str:
@@ -160,9 +157,11 @@ def _format_items_digest_v1(
     total_after_filter: int,
     themes: Optional[list[str]] = None,
     market_takeaway: Optional[str] = None,
+    headline: Optional[str] = None,
+    narrative_excerpt: Optional[str] = None,
     now: Optional[datetime] = None,
 ) -> str:
-    """Format a ranked digest of ArticleSummary items."""
+    """Format a curated digest of ArticleSummary items grouped by theme."""
     if now is None:
         now = datetime.now(timezone.utc)
     date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
@@ -173,29 +172,25 @@ def _format_items_digest_v1(
         if s.score > 0 and getattr(s, "score_status", "ok") != "fallback"
     ]
     display_pool = valid_ranked if len(valid_ranked) >= 5 else ranked
+    display_pool = display_pool[:MAX_ITEMS_PER_DIGEST * 2]
 
     unscored = [s for s in ranked if getattr(s, "score_status", "ok") == "fallback"]
 
-    top: list[ArticleSummary] = []
-    cat_counts: dict[str, int] = {}
-    for item in display_pool:
-        cat = item.category
-        if cat_counts.get(cat, 0) >= MAX_PER_CATEGORY:
-            continue
-        top.append(item)
-        cat_counts[cat] = cat_counts.get(cat, 0) + 1
-        if len(top) >= MAX_ITEMS_PER_DIGEST:
-            break
+    groups = _select_by_theme(display_pool) if display_pool else []
 
     degradation = (len(unscored) / len(summaries)) if summaries else 0.0
     header = f"📡 *科技脈搏 · {date_str}*"
     if degradation > UNSCORED_ALERT_RATIO:
         header += "\n⚠️ 模型評分降級"
 
-    lines: list[str] = [
-        header,
-        "",
-    ]
+    lines: list[str] = [header, ""]
+
+    if headline:
+        lines.append(f"*🗞️ {escape(headline)}*")
+        lines.append("")
+    if narrative_excerpt:
+        lines.append(escape(narrative_excerpt))
+        lines.append("")
 
     if themes:
         lines.append("*🧭 今日主線*")
@@ -208,31 +203,40 @@ def _format_items_digest_v1(
         lines.append(escape(market_takeaway))
         lines.append("")
 
-    for s in top:
-        lines.append(_score_line(s))
-        if s.score <= 0 or getattr(s, "score_status", "ok") == "fallback":
-            lines.append("⚠️ 資料待確認")
-        summary_text = escape(_truncate(s.summary))
-        lines.append(summary_text)
-        tag_str = _tags(s)
-        src_str = _source_link(s)
-        meta = f"{tag_str}  {src_str}"
-        if s.cross_ref:
-            meta += "  🔗 投資日報"
-        lines.append(meta)
-        lines.append("")
+    shown_items: list[ArticleSummary] = []
+    for theme, items in groups:
+        lines.append(f"*{escape(theme)}*")
+        for s in items:
+            lines.append(_score_line(s))
+            if s.score <= 0 or getattr(s, "score_status", "ok") == "fallback":
+                lines.append("⚠️ 資料待確認")
+            lines.append(escape(_truncate(_compose_structured_summary(s))))
+            meta = f"{_tags(s)}  {_source_link(s)}"
+            if s.cross_ref:
+                meta += "  🔗 投資日報"
+            lines.append(meta)
+            lines.append("")
+            shown_items.append(s)
 
     if unscored:
         lines.append("*其他快訊*")
         for s in unscored[:MAX_UNSCORED_TAIL]:
             lines.append(_score_line(s))
-            lines.append(escape(_truncate(s.summary, max_chars=90)))
+            lines.append(escape(_truncate(_compose_structured_summary(s), max_chars=90)))
             lines.append(_source_link(s))
             lines.append("")
 
-    fetched_esc = escape(str(total_fetched))
-    filtered_esc = escape(str(total_after_filter))
-    lines.append(f"_今日 {fetched_esc} 篇 → 過濾後 {filtered_esc} 篇_")
+    if shown_items:
+        avg = mean(s.score for s in shown_items)
+        avg_str = escape(f"{avg:.1f}")
+        n_themes = len(groups)
+        lines.append(
+            f"_精選 {escape(str(len(shown_items)))} 則 · 平均評分 {avg_str} · 涵蓋 {escape(str(n_themes))} 個主題_"
+        )
+    else:
+        fetched_esc = escape(str(total_fetched))
+        filtered_esc = escape(str(total_after_filter))
+        lines.append(f"_今日 {fetched_esc} 篇 → 過濾後 {filtered_esc} 篇_")
 
     return "\n".join(lines)
 
@@ -324,6 +328,8 @@ def format_items_digest(
     total_after_filter: int,
     themes: Optional[list[str]] = None,
     market_takeaway: Optional[str] = None,
+    headline: Optional[str] = None,
+    narrative_excerpt: Optional[str] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format digest with env-based version switch (v1 fallback / v2 opt-in)."""
@@ -335,6 +341,8 @@ def format_items_digest(
         total_after_filter,
         themes=themes,
         market_takeaway=market_takeaway,
+        headline=headline,
+        narrative_excerpt=narrative_excerpt,
         now=now,
     )
 

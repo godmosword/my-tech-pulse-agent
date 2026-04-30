@@ -1,5 +1,5 @@
 thresholds:
-  default: 6.9        # general news items (raised for higher signal)
+  default: 7.2        # general news items (raised for higher signal)
   earnings: 7.5       # stricter — financial facts require higher quality
   social_signal: 4.0  # looser — social is signal-only, not content
   kol: 5.5            # looser — older analysis pieces still carry value

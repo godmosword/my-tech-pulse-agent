@@ -507,7 +507,7 @@ def test_deduplicator_cleanup_expired(tmp_path):
 
 # ---------- Scorer ----------
 
-MOCK_SCORE_RESPONSE = json.dumps({"relevance": 8.0, "novelty": 7.0, "depth": 6.0, "score": 7.1})
+MOCK_SCORE_RESPONSE = json.dumps({"relevance": 9.0, "novelty": 8.0, "depth": 8.0, "score": 8.5})
 MOCK_LOW_SCORE_RESPONSE = json.dumps({"relevance": 3.0, "novelty": 2.0, "depth": 2.0, "score": 2.3})
 
 
@@ -517,8 +517,8 @@ def test_scorer_parses_valid_response():
         result = scorer.score_item("OpenAI launches GPT-5", "Full article text here")
 
     assert result is not None
-    assert result.score == pytest.approx(7.1)
-    assert result.relevance == 8.0
+    assert result.score == pytest.approx(8.5)
+    assert result.relevance == 9.0
 
 
 def test_scorer_returns_none_on_invalid_json():
@@ -538,12 +538,12 @@ def test_scorer_filter_articles_passes_above_threshold():
     ]
     with _mock_gemini_client([MOCK_SCORE_RESPONSE, MOCK_LOW_SCORE_RESPONSE]):
         scorer = Scorer()
-        # default threshold is 6.0; score 7.1 passes, 2.3 fails
+        # default threshold is 7.2; score 8.5 passes, 2.3 fails
         result = scorer.filter_articles(articles)
 
     assert len(result) == 1
     assert result[0].title == "High quality story"
-    assert result[0].score == pytest.approx(7.1)
+    assert result[0].score == pytest.approx(8.5)
 
 
 def test_scorer_filter_articles_respects_runtime_cap(monkeypatch):
@@ -649,8 +649,8 @@ def test_format_items_digest_structure():
     assert "8" in text          # score
     assert "OpenAI" in text
     assert "投資日報" in text   # cross_ref indicator
-    assert "50" in text         # total_fetched
-    assert "2" in text          # total_after_filter
+    assert "精選" in text       # new quality-signal footer
+    assert "平均評分" in text
 
 
 def test_format_items_digest_sorted_by_score():
