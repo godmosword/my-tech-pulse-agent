@@ -63,30 +63,25 @@ python -m pipeline.crew
 
 ### Continuous deployment (GitHub Actions → Cloud Run Job)
 
-Pushes to `main` automatically build and deploy the Cloud Run Job via
-`.github/workflows/deploy.yml`. Configure the following in the GitHub repository
-settings before relying on it:
+Pushes to `main` (when Python, Dockerfile, or relevant config files change) automatically
+build and deploy the Cloud Run Job via `.github/workflows/deploy.yml`. The workflow uses
+the same JSON-key auth pattern as `my-investment-ai-agent`.
 
-**Repository variables** (Settings → Secrets and variables → Actions → Variables):
+Configure the following **secrets** under Settings → Secrets and variables → Actions:
 
-| Variable | Example |
-|----------|---------|
-| `GCP_PROJECT_ID` | `my-gcp-project` |
-| `GCP_REGION` | `asia-east1` |
-| `ARTIFACT_REGISTRY_REPO` | `tech-pulse-images` |
-| `CLOUD_RUN_SERVICE` | `tech-pulse` (Cloud Run Job name) |
+| Secret | Description / where to find it |
+|--------|-------------------------------|
+| `GCP_PROJECT_ID` | GCP project ID, e.g. `my-tech-pulse-prod` |
+| `GCP_SA_KEY` | Full JSON of a service account key with `roles/run.developer`, `roles/artifactregistry.writer`, and `roles/iam.serviceAccountUser` on the Cloud Run runtime SA. Generate with `gcloud iam service-accounts keys create key.json --iam-account=...`. |
+| `GAR_REPOSITORY` | Artifact Registry repo short name, e.g. `tech-pulse-images` |
+| `CLOUD_RUN_SERVICE` | Cloud Run Job name. Optional — defaults to `tech-pulse`. |
 
-**Repository secrets** (Workload Identity Federation — no JSON key needed):
+Region is hardcoded to `asia-east1` in the workflow. Edit `GCP_REGION` in
+`deploy.yml` if you use a different region.
 
-| Secret | Description |
-|--------|-------------|
-| `WIF_PROVIDER` | Full WIF provider resource name, e.g. `projects/123/locations/global/workloadIdentityPools/github/providers/github-actions` |
-| `WIF_SERVICE_ACCOUNT` | Service account email with `roles/run.developer` and `roles/artifactregistry.writer` |
-
-The Artifact Registry repo and Cloud Run Job must already exist (the workflow updates the
-existing job's image; it does not create resources). If you prefer to deploy as a
-Cloud Run Service instead of a Job, swap `gcloud run jobs update` for
-`gcloud run deploy` in the workflow.
+The Artifact Registry repo and Cloud Run Job must already exist; the workflow only
+builds/pushes the image and updates the job. To deploy as a Cloud Run Service instead,
+swap `gcloud run jobs deploy` for `gcloud run deploy` in `deploy.yml`.
 
 ## Project Structure
 
