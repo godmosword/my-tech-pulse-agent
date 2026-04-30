@@ -61,6 +61,33 @@ the same environment before the first production run, then start the one-shot co
 python -m pipeline.crew
 ```
 
+### Continuous deployment (GitHub Actions → Cloud Run Job)
+
+Pushes to `main` automatically build and deploy the Cloud Run Job via
+`.github/workflows/deploy.yml`. Configure the following in the GitHub repository
+settings before relying on it:
+
+**Repository variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Example |
+|----------|---------|
+| `GCP_PROJECT_ID` | `my-gcp-project` |
+| `GCP_REGION` | `asia-east1` |
+| `ARTIFACT_REGISTRY_REPO` | `tech-pulse-images` |
+| `CLOUD_RUN_SERVICE` | `tech-pulse` (Cloud Run Job name) |
+
+**Repository secrets** (Workload Identity Federation — no JSON key needed):
+
+| Secret | Description |
+|--------|-------------|
+| `WIF_PROVIDER` | Full WIF provider resource name, e.g. `projects/123/locations/global/workloadIdentityPools/github/providers/github-actions` |
+| `WIF_SERVICE_ACCOUNT` | Service account email with `roles/run.developer` and `roles/artifactregistry.writer` |
+
+The Artifact Registry repo and Cloud Run Job must already exist (the workflow updates the
+existing job's image; it does not create resources). If you prefer to deploy as a
+Cloud Run Service instead of a Job, swap `gcloud run jobs update` for
+`gcloud run deploy` in the workflow.
+
 ## Project Structure
 
 ```
