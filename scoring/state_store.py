@@ -184,11 +184,18 @@ def make_state_store(db_path: Path | None = None) -> StateStore:
     if db_path is not None:
         return SQLiteStateStore(db_path)
 
-    backend = os.getenv("STATE_BACKEND", "sqlite").strip().lower()
+    backend = os.getenv("STATE_BACKEND", "auto").strip().lower()
+    if backend == "auto":
+        backend = "firestore" if os.getenv("K_SERVICE") or os.getenv("CLOUD_RUN_JOB") else "sqlite"
+
     if backend in {"sqlite", "sqlite3", ""}:
         return SQLiteStateStore()
     if backend == "firestore":
-        return FirestoreStateStore()
+        try:
+            return FirestoreStateStore()
+        except Exception:
+            logger.exception("Firestore state backend unavailable; falling back to sqlite")
+            return SQLiteStateStore()
 
     logger.warning("Unknown STATE_BACKEND=%r; falling back to sqlite", backend)
     return SQLiteStateStore()

@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import httpx
 import yaml
@@ -36,10 +36,17 @@ class Article(BaseModel):
     cross_ref: bool = False
     base_score: float = 0.0  # cheap pre-LLM heuristic score, 0.0-1.0
     base_score_status: str = "not_run"
+    lexicon_score: float = 5.0  # deterministic domain lexicon score, 0.0-10.0
+    matched_signals: list[str] = Field(default_factory=list)
     score: float = 0.0  # set by Scorer; 0.0 = unscored or below-threshold fallback
     score_status: str = "ok"  # "ok" or "fallback" when scorer fails open
-    label: str = "news"   # "news" | "kol" — controls Telegram rendering prefix
+    label: str = "news"   # "news" | "kol" | "paper" — controls Telegram rendering prefix
     author: str = ""      # populated for KOL items from kol_registry.yaml
+    tier: Literal["instant", "deep", "earnings"] = "instant"
+    domain: list[str] = Field(default_factory=list)
+    min_words: int = 800
+    word_count: int = 0
+    deep_status: str = "not_run"
 
 
 class SourceConfig(BaseModel):
@@ -59,6 +66,9 @@ class KOLConfig(BaseModel):
     author: str
     url: str
     focus: list[str] = Field(default_factory=list)
+    tier: Literal["deep", "instant"] = "deep"
+    domain: list[str] = Field(default_factory=list)
+    min_words: int = 800
     priority: int = 99
     enabled: bool = True
 
@@ -148,8 +158,11 @@ class RSSFetcher:
 
             articles = self._parse_feed(resp.text, kol.name)
             for article in articles:
-                article.label = "kol"
+                article.label = "paper" if "paper" in kol.domain or "research" in kol.domain else "kol"
                 article.author = kol.author
+                article.tier = kol.tier
+                article.domain = kol.domain or kol.focus
+                article.min_words = kol.min_words
             logger.info("Fetched %d KOL articles from %s (%s)", len(articles), kol.name, kol.author)
             return articles
 
@@ -228,6 +241,7 @@ class RSSFetcher:
                     source=source_name,
                     published_at=published_at,
                     summary=summary[:2000],
+                    content=summary[:4000],
                 ))
         return articles
 
@@ -247,6 +261,7 @@ class RSSFetcher:
                     break
 
             summary = (entry.findtext(f"{prefix}summary") or "").strip()
+            content = (entry.findtext(f"{{{NS['content']}}}encoded") or "").strip()
             published_at = self._parse_date(
                 entry.findtext(f"{prefix}published") or entry.findtext(f"{prefix}updated")
             )
@@ -257,7 +272,8 @@ class RSSFetcher:
                     url=url,
                     source=source_name,
                     published_at=published_at,
-                    summary=summary[:2000],
+                    summary=(summary or content)[:2000],
+                    content=content[:4000],
                 ))
         return articles
 

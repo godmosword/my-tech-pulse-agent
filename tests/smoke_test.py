@@ -7,15 +7,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import pipeline.crew as crew_module
 from agents.earnings_agent import EarningsAgent, EarningsOutput, EPSData, RevenueData
+from agents.deep_insight_agent import ArgumentMap, InsightBrief
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
+from delivery.message_formatter import format_insight_brief
 from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
 from scoring.scorer import ScoreResult, Scorer
+from sources.deep_scraper import DeepScraper
 from sources.rss_fetcher import Article, RSSFetcher
 from scripts.preflight import _failures as preflight_failures
 from llm.gemini_client import _extract_json_object
+from pipeline.crew import TechPulseCrew
 
 
 def _gemini_response(text: str) -> MagicMock:
@@ -48,6 +53,7 @@ def _mock_gemini_client(response_text: str | list[str] | None = None, raise_erro
         def __enter__(self):
             self._stack = ExitStack()
             self._stack.enter_context(patch("agents.extractor_agent.make_client", new=_mock_make_client))
+            self._stack.enter_context(patch("agents.deep_insight_agent.make_client", new=_mock_make_client))
             self._stack.enter_context(patch("agents.synthesizer_agent.make_client", new=_mock_make_client))
             self._stack.enter_context(patch("scoring.scorer.make_client", new=_mock_make_client))
             return mock_client
@@ -101,11 +107,111 @@ def test_rss_fetcher_loads_registry():
 def test_article_model_validates():
     article = Article(title="Test", url="https://example.com", source="test_rss")
     assert article.cross_ref is False
+    assert article.tier == "instant"
+    assert article.domain == []
 
 
 def test_article_model_rejects_missing_url():
     with pytest.raises(Exception):
         Article(title="Test", source="test_rss")  # url is required
+
+
+def test_deep_scraper_extracts_article_text():
+    html = """
+    <html><body><nav>menu</nav><article>
+      <h1>Title</h1><p>First paragraph about KV cache.</p>
+      <p>Second paragraph about memory bandwidth.</p>
+    </article><script>ignore()</script></body></html>
+    """
+
+    text = DeepScraper.extract_text(html)
+
+    assert "First paragraph about KV cache." in text
+    assert "Second paragraph about memory bandwidth." in text
+    assert "menu" not in text
+
+
+def test_deep_scraper_fetch_marks_too_short():
+    response = MagicMock()
+    response.text = "<article><p>Short public post.</p></article>"
+    response.raise_for_status.return_value = None
+
+    with patch("httpx.Client") as client_cls:
+        client_cls.return_value.__enter__.return_value.get.return_value = response
+        result = DeepScraper(min_words=10).fetch("https://example.com/post")
+
+    assert result.status == "too_short"
+    assert result.word_count < 10
+
+
+def test_deep_scraper_fetch_handles_failure():
+    with patch("httpx.Client") as client_cls:
+        client_cls.return_value.__enter__.return_value.get.side_effect = RuntimeError("network")
+        result = DeepScraper().fetch("https://example.com/post")
+
+    assert result.status == "fetch_failed"
+
+
+def test_tier_detection_marks_kol_and_paper_deep():
+    assert TechPulseCrew._is_deep_candidate(
+        Article(title="KOL", url="https://example.com/kol", source="x", label="kol")
+    )
+    assert TechPulseCrew._is_deep_candidate(
+        Article(title="Paper", url="https://example.com/paper", source="x", label="paper")
+    )
+    assert not TechPulseCrew._is_deep_candidate(
+        Article(title="News", url="https://example.com/news", source="x")
+    )
+
+
+def test_deep_pipeline_respects_cap_and_fallback(monkeypatch):
+    class FakeScraper:
+        def fetch(self, url, min_words=None):
+            from sources.deep_scraper import DeepScrapeResult
+            return DeepScrapeResult(url=url, text="技術" * 500, word_count=1000, status="ok")
+
+    class FakeDeepAgent:
+        def create_brief(self, **kwargs):
+            return _valid_brief(title=kwargs["title"], url=kwargs["url"], item_id=kwargs["item_id"])
+
+    monkeypatch.setattr(crew_module, "MAX_DEEP_ARTICLES", 1)
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.deep_scraper = FakeScraper()
+    crew.deep_agent = FakeDeepAgent()
+    crew._save_json = lambda *args, **kwargs: None
+    articles = [
+        Article(title="Deep 1", url="https://example.com/1", source="kol", tier="deep", score=9.0),
+        Article(title="Deep 2", url="https://example.com/2", source="kol", tier="deep", score=8.0),
+    ]
+
+    briefs, fallbacks, consumed = crew._run_deep_pipeline(articles, "20260101")
+
+    assert len(briefs) == 1
+    assert len(fallbacks) == 1
+    assert fallbacks[0].deep_status == "over_deep_cap"
+    assert consumed == {"https://example.com/1"}
+
+
+def test_short_deep_article_downgrades_to_instant(monkeypatch):
+    class FakeScraper:
+        def fetch(self, url, min_words=None):
+            from sources.deep_scraper import DeepScrapeResult
+            return DeepScrapeResult(url=url, text="short", word_count=1, status="too_short")
+
+    monkeypatch.setattr(crew_module, "MAX_DEEP_ARTICLES", 3)
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.deep_scraper = FakeScraper()
+    crew.deep_agent = MagicMock()
+    crew._save_json = lambda *args, **kwargs: None
+    article = Article(title="Short KOL", url="https://example.com/short", source="kol", tier="deep")
+
+    briefs, fallbacks, consumed = crew._run_deep_pipeline([article], "20260101")
+
+    assert briefs == []
+    assert fallbacks == [article]
+    assert consumed == set()
+    assert article.deep_status == "too_short"
+    crew.deep_agent.create_brief.assert_not_called()
 
 
 # ---------- Extractor Agent ----------
@@ -173,6 +279,65 @@ def test_extractor_no_hallucination_field_present():
         confidence="low",
     )
     assert summary.confidence in ("high", "medium", "low")
+
+
+# ---------- Deep Insight Agent Schemas ----------
+
+def _valid_brief(**kwargs) -> InsightBrief:
+    defaults = {
+        "item_id": "abc12345",
+        "title": "KV cache changes inference economics",
+        "author": "Analyst",
+        "source_name": "test_source",
+        "url": "https://example.com/deep",
+        "domain": "ai",
+        "insight": "洞見" * 25,
+        "tech_rationale": "技術底層" * 20,
+        "implication": "產業影響" * 15,
+        "confidence": "high",
+    }
+    defaults.update(kwargs)
+    return InsightBrief(**defaults)
+
+
+def test_argument_map_schema_validates():
+    output = ArgumentMap(
+        title="MoE routing analysis",
+        author="Researcher",
+        source_name="arxiv_cs_ai",
+        url="https://example.com/paper",
+        domain="ai",
+        core_thesis="Routing capacity, not parameter count, drives the result.",
+        evidence=["The paper reports a KV cache bottleneck."],
+        assumption="Inference workloads remain memory-bound.",
+        counter_ignored="Hardware scheduler overhead may dominate.",
+        score=8.1,
+        confidence="high",
+        item_id="deadbeef",
+    )
+
+    assert output.tier == "deep"
+    assert output.evidence
+
+
+def test_insight_brief_enforces_100_to_200_chars():
+    brief = _valid_brief()
+    assert 100 <= brief.word_count <= 200
+
+    with pytest.raises(ValueError):
+        _valid_brief(insight="太短", tech_rationale="不足", implication="不足")
+
+
+def test_format_insight_brief_markdownv2():
+    brief = _valid_brief(confidence="low", cross_ref=True)
+
+    text = format_insight_brief(brief)
+
+    assert "🧠" in text
+    assert "低信心度" in text
+    assert "洞見" in text
+    assert "[原文](https://example.com/deep)" in text
+    assert "投資日報" in text
 
 
 # ---------- Synthesizer Agent ----------
@@ -531,6 +696,21 @@ def test_scorer_returns_none_on_invalid_json():
     assert result is None
 
 
+def test_scorer_lexicon_match_scores_title_and_lede():
+    with _mock_gemini_client(MOCK_SCORE_RESPONSE):
+        scorer = Scorer()
+        result = scorer.match_lexicon(
+            "KV cache and memory bandwidth bottlenecks",
+            "This is not just a powerful AI breakthrough story.",
+        )
+
+    assert result.lexicon_score == pytest.approx(5.2)
+    assert "ai.high:KV cache" in result.matched_signals
+    assert "ai.high:memory bandwidth" in result.matched_signals
+    assert "ai.low:powerful AI" in result.matched_signals
+    assert "ai.low:breakthrough" in result.matched_signals
+
+
 def test_scorer_filter_articles_passes_above_threshold():
     articles = [
         Article(
@@ -602,6 +782,29 @@ def test_scorer_prefilter_drops_obvious_low_signal_article():
     assert mock_client.models.generate_content.call_count == 1
 
 
+def test_scorer_annotates_lexicon_match_before_prefilter_drop():
+    articles = [
+        Article(
+            title="Powerful AI breakthrough deal",
+            url="https://example.com/ai-deal",
+            source="test",
+            summary="Coupon promo code discount gift guide.",
+        )
+    ]
+
+    with _mock_gemini_client(MOCK_SCORE_RESPONSE):
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert result == []
+    assert articles[0].score_status == "prefiltered_out"
+    assert articles[0].lexicon_score == pytest.approx(4.4)
+    assert articles[0].matched_signals == [
+        "ai.low:powerful AI",
+        "ai.low:breakthrough",
+    ]
+
+
 def test_scorer_prefilter_bypasses_kol_articles():
     kol_article = Article(
         title="Platform strategy",
@@ -645,6 +848,8 @@ def test_article_score_field_default():
     article = Article(title="Test", url="https://example.com", source="test")
     assert article.score == 0.0
     assert article.score_status == "ok"
+    assert article.lexicon_score == 5.0
+    assert article.matched_signals == []
 
 
 def test_article_summary_carries_score():

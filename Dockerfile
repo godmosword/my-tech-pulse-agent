@@ -10,5 +10,5 @@ COPY . .
 # 安裝專案及其依賴套件
 RUN pip install -e .
 
-# 設定容器啟動時執行的預設指令 (單次執行管線)
-CMD ["python", "-m", "pipeline.crew"]
+# 設定容器啟動時執行的預設指令 (Cloud Run Job 單次執行)
+CMD ["python", "main.py"]

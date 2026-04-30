@@ -7,6 +7,7 @@ Gemini Pro agent calls so only high-signal items reach the extraction agents.
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional
@@ -20,6 +21,7 @@ from scoring.heuristic_filter import HeuristicFilter
 logger = logging.getLogger(__name__)
 
 SCORE_CONFIG_PATH = Path(__file__).parent / "score_config.yaml"
+DOMAIN_LEXICON_PATH = Path(__file__).parent.parent / "sources" / "domain_lexicon.yaml"
 FLASH_MODEL = GEMINI_FLASH_MODEL
 
 _SYSTEM = (
@@ -72,12 +74,23 @@ class ScoreOutcome:
     error_kind: Literal["none", "parse", "api"]
 
 
+@dataclass(frozen=True)
+class LexiconMatch:
+    lexicon_score: float
+    matched_signals: list[str]
+
+
 class Scorer:
     """Scores news articles using Gemini Flash before expensive Gemini Pro calls."""
 
-    def __init__(self, config_path: Path = SCORE_CONFIG_PATH):
+    def __init__(
+        self,
+        config_path: Path = SCORE_CONFIG_PATH,
+        domain_lexicon_path: Path = DOMAIN_LEXICON_PATH,
+    ):
         self._client = make_client()
         self._config = self._load_config(config_path)
+        self._domain_lexicon = self._load_config(domain_lexicon_path)
         self._source_weights = self._config.get("source_weights", {})
         self._heuristic_filter = HeuristicFilter()
         self._warn_if_threshold_too_low()
@@ -96,6 +109,24 @@ class Scorer:
         """Score a single item. Returns None on API/parse failure (caller decides fallback)."""
         outcome = self._score_item_with_status(title, text, item_type, author=author)
         return outcome.result
+
+    def match_lexicon(self, title: str, lede_text: str = "") -> LexiconMatch:
+        """Run deterministic domain lexicon scoring on title + lede text."""
+        haystack = f"{title} {lede_text}".lower()
+        score = 5.0
+        matched: list[str] = []
+
+        for domain, signals in self._domain_lexicon.items():
+            for term in signals.get("high_signal", []):
+                if self._contains_term(haystack, term):
+                    score += 0.4
+                    matched.append(f"{domain}.high:{term}")
+            for term in signals.get("low_signal", []):
+                if self._contains_term(haystack, term):
+                    score -= 0.3
+                    matched.append(f"{domain}.low:{term}")
+
+        return LexiconMatch(lexicon_score=round(max(0.0, min(10.0, score)), 2), matched_signals=matched)
 
     def _score_item_with_status(
         self, title: str, text: str, item_type: str = "default", author: str = ""
@@ -169,6 +200,10 @@ class Scorer:
         default_thresh = self.threshold(item_type)
         passed: list = []
         unscored_count = 0
+
+        for article in articles:
+            self._annotate_lexicon_match(article)
+
         prefiltered, dropped = self._heuristic_filter.filter_articles(articles)
         if dropped:
             logger.info(
@@ -225,3 +260,14 @@ class Scorer:
         weight = float(self._source_weights.get(source_name, 1.0))
         weighted = max(0.0, min(10.0, score * weight))
         return round(weighted, 2)
+
+    def _annotate_lexicon_match(self, article) -> None:
+        lede_text = (getattr(article, "summary", "") or getattr(article, "content", "") or "")[:800]
+        lexicon_match = self.match_lexicon(getattr(article, "title", ""), lede_text)
+        article.lexicon_score = lexicon_match.lexicon_score
+        article.matched_signals = lexicon_match.matched_signals
+
+    @staticmethod
+    def _contains_term(haystack: str, term: str) -> bool:
+        escaped = re.escape(term.lower())
+        return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", haystack) is not None

@@ -16,7 +16,7 @@ EXPECTED_MODELS = {
     "GEMINI_MODEL": "gemini-3.1-pro-preview",
     "GEMINI_FLASH_MODEL": "gemini-3-flash-preview",
 }
-STATE_BACKENDS = {"sqlite", "firestore"}
+STATE_BACKENDS = {"auto", "sqlite", "firestore"}
 
 
 def _failures() -> list[str]:
@@ -32,16 +32,16 @@ def _failures() -> list[str]:
         if value != expected:
             failures.append(f"{key} must be {expected!r}, got {value!r}")
 
-    state_backend = os.getenv("STATE_BACKEND", "sqlite").strip().lower()
+    state_backend = os.getenv("STATE_BACKEND", "auto").strip().lower()
     if state_backend not in STATE_BACKENDS:
         failures.append(
             f"STATE_BACKEND must be one of {sorted(STATE_BACKENDS)!r}, got {state_backend!r}"
         )
 
-    if state_backend == "firestore":
+    if state_backend in {"auto", "firestore"}:
         prefix = os.getenv("FIRESTORE_COLLECTION_PREFIX", "tech_pulse").strip()
         if not prefix:
-            failures.append("FIRESTORE_COLLECTION_PREFIX must not be empty when STATE_BACKEND=firestore")
+            failures.append("FIRESTORE_COLLECTION_PREFIX must not be empty for Firestore state")
 
     if not (ROOT / ".env.example").exists():
         failures.append("Missing .env.example")

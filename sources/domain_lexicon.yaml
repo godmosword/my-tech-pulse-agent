@@ -1,0 +1,80 @@
+semiconductor:
+  high_signal:
+    - advanced packaging
+    - CoWoS
+    - HBM
+    - chiplet
+    - PFAS-free
+    - wafer bump
+    - stress analysis
+    - thermal resistance
+    - 3D IC
+    - monolithic
+    - yield
+    - EUV
+    - GAA
+    - backside power
+    - hybrid bonding
+    - die-to-die interconnect
+  low_signal:
+    - new chip
+    - performance boost
+    - next generation
+    - unveiled
+    - announced
+    - faster
+    - cheaper
+    - best in class
+
+ai:
+  high_signal:
+    - attention mechanism
+    - KV cache
+    - MoE
+    - quantization
+    - RLHF
+    - inference latency
+    - memory bandwidth
+    - sparsity
+    - transformer
+    - fine-tuning
+    - RAG
+    - context window
+    - activation function
+    - gradient
+  low_signal:
+    - powerful AI
+    - breakthrough
+    - outperforms GPT
+    - revolutionary
+    - game-changing
+    - leading AI
+    - cutting-edge
+
+crypto:
+  high_signal:
+    - consensus mechanism
+    - ZK proof
+    - ZK-SNARK
+    - ZK-STARK
+    - sequencer
+    - data availability
+    - MEV
+    - state channel
+    - validator slashing
+    - L2 finality
+    - rollup
+    - blob
+    - EIP
+    - precompile
+    - restaking
+    - AVS
+  low_signal:
+    - price prediction
+    - bull run
+    - altcoin
+    - WAGMI
+    - to the moon
+    - next Bitcoin
+    - passive income
+    - gem

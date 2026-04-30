@@ -6,10 +6,11 @@ import os
 from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
+from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput, Theme
 from delivery.feedback_handler import handle_callback
-from delivery.message_formatter import escape, format_earnings, format_items_digest
+from delivery.message_formatter import escape, format_earnings, format_insight_brief, format_items_digest
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,12 @@ class TelegramBot:
             return False
         text = format_earnings(earnings)
         return self._send(text)
+
+    def send_deep_brief(self, brief: InsightBrief) -> bool:
+        if not self._bot:
+            logger.info("Telegram bot not configured; skipping deep brief delivery")
+            return False
+        return self._send(format_insight_brief(brief))
 
     def start_polling(self) -> None:
         """Start long-polling for callback queries (feedback buttons).

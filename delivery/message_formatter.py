@@ -7,6 +7,7 @@ from statistics import mean
 from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
+from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput
 
@@ -149,6 +150,35 @@ def _source_link(summary: ArticleSummary) -> str:
     if url:
         return f"[{name}]({url})"
     return name
+
+
+def format_insight_brief(brief: InsightBrief) -> str:
+    """Format one deep-tier InsightBrief as a standalone Telegram message."""
+    confidence = " _\\(低信心度\\)_" if brief.confidence == "low" else ""
+    title = escape(brief.title)
+    author = escape(brief.author or "unknown")
+    source = escape(brief.source_name)
+    domain = escape(brief.domain)
+    word_count = escape(str(brief.word_count))
+
+    lines = [
+        f"🧠 *{title}*{confidence}",
+        f"_{author} · {source}_",
+        "",
+        "*💡 洞見*",
+        escape(brief.insight),
+        "",
+        "*⚙️ 技術底層*",
+        escape(brief.tech_rationale),
+        "",
+        "*🔁 產業影響*",
+        escape(brief.implication),
+        "",
+        f"\\#{domain}  [原文]({brief.url})  _{word_count}字_",
+    ]
+    if brief.cross_ref:
+        lines.append("🔗 投資日報")
+    return "\n".join(lines)
 
 
 def _format_items_digest_v1(

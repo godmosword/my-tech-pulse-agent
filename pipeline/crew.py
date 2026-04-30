@@ -4,11 +4,13 @@ import json
 import logging
 import os
 import signal
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+from agents.deep_insight_agent import DeepInsightAgent, InsightBrief
 from agents.earnings_agent import EarningsAgent, EarningsOutput
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.reviewer_agent import ReviewerAgent
@@ -16,8 +18,10 @@ from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
 from scoring.scorer import Scorer
+from sources.deep_scraper import DeepScraper
 from sources.earnings_fetcher import EarningsFetcher
 from sources.ir_scraper import IRScraper
+from sources.rss_fetcher import Article
 from sources.rss_fetcher import RSSFetcher
 from sources.social_tracker import SocialTracker
 
@@ -31,6 +35,8 @@ ITEM_DIGEST_THEME_MIN_SUMMARIES = int(os.getenv("ITEM_DIGEST_THEME_MIN_SUMMARIES
 SEND_LEGACY_DIGEST = os.getenv("SEND_LEGACY_DIGEST", "0") == "1"
 PIPELINE_TIMEOUT_SECONDS = int(os.getenv("PIPELINE_TIMEOUT_SECONDS", "540"))
 MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "2"))
+MAX_DEEP_ARTICLES = int(os.getenv("MAX_DEEP_ARTICLES", "3"))
+MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
 
 
 class PipelineDeadlineExceeded(BaseException):
@@ -45,6 +51,8 @@ class TechPulseCrew:
         self.ir_scraper = IRScraper()
         self.deduplicator = Deduplicator()
         self.scorer = Scorer()
+        self.deep_scraper = DeepScraper(min_words=MIN_DEEP_WORDS)
+        self.deep_agent = DeepInsightAgent()
         self.extractor = ExtractorAgent()
         self.reviewer = ReviewerAgent()
         self.synthesizer = SynthesizerAgent()
@@ -65,9 +73,12 @@ class TechPulseCrew:
         raw_articles = []
         articles = []
         scored_articles = []
+        instant_scored_articles = []
+        deep_briefs: list[InsightBrief] = []
         summaries: list[ArticleSummary] = []
         digest: DigestOutput | None = None
         earnings_outputs: list[EarningsOutput] = []
+        critical_errors: list[str] = []
 
         try:
             # Stage 0 — Ingest & Deduplicate
@@ -76,6 +87,7 @@ class TechPulseCrew:
                 logger.info("Fetched %d raw articles", len(raw_articles))
             except Exception as exc:
                 logger.error("RSS fetch failed: %s", exc, exc_info=True)
+                critical_errors.append("ingestion:rss")
 
             try:
                 trending = self.social.fetch_trending()
@@ -95,11 +107,28 @@ class TechPulseCrew:
                 scored_articles = self.scorer.filter_articles(articles)
             except Exception as exc:
                 logger.error("Scoring stage failed: %s", exc, exc_info=True)
+                critical_errors.append("llm:scoring")
                 scored_articles = articles  # fallback: pass everything through unscored
+
+            # Deep tier — full-text KOL/paper analysis.
+            try:
+                deep_candidates = [a for a in scored_articles if self._is_deep_candidate(a)]
+                deep_briefs, deep_fallbacks, deep_consumed_urls = self._run_deep_pipeline(
+                    deep_candidates,
+                    timestamp,
+                )
+                instant_scored_articles = [
+                    a for a in scored_articles
+                    if a.url not in deep_consumed_urls and not self._is_deep_candidate(a)
+                ] + deep_fallbacks
+            except Exception as exc:
+                logger.error("Deep pipeline failed: %s", exc, exc_info=True)
+                critical_errors.append("llm:deep")
+                instant_scored_articles = scored_articles
 
             # Stage 2 — Extract (Gemini Pro)
             try:
-                article_dicts = [a.model_dump() for a in scored_articles]
+                article_dicts = [a.model_dump() for a in instant_scored_articles]
                 summaries = self.extractor.extract_batch(article_dicts)
                 logger.info("Extracted %d article summaries", len(summaries))
                 self._save_json(
@@ -108,6 +137,7 @@ class TechPulseCrew:
                 )
             except Exception as exc:
                 logger.error("Extraction stage failed: %s", exc, exc_info=True)
+                critical_errors.append("llm:extraction")
 
             # Stage 2.5 — Reviewer (fact-grounding check + quality gate)
             if summaries:
@@ -123,6 +153,7 @@ class TechPulseCrew:
                     summaries = approved
                 except Exception as exc:
                     logger.error("Reviewer stage failed: %s", exc, exc_info=True)
+                    critical_errors.append("llm:reviewer")
                     # fail-open: continue with original summaries
 
             should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
@@ -135,12 +166,14 @@ class TechPulseCrew:
                         logger.info("Digest headline: %s", digest.headline)
                 except Exception as exc:
                     logger.error("Synthesis stage failed: %s", exc, exc_info=True)
+                    critical_errors.append("llm:synthesis")
 
             # Earnings sub-pipeline (separate path, not scored — always high-value)
             try:
                 earnings_outputs = self._run_earnings_pipeline(timestamp)
             except Exception as exc:
                 logger.error("Earnings pipeline failed: %s", exc, exc_info=True)
+                critical_errors.append("llm:earnings")
         except PipelineDeadlineExceeded as exc:
             logger.warning("%s; delivering partial results", exc)
         finally:
@@ -156,40 +189,147 @@ class TechPulseCrew:
             if paragraphs:
                 narrative_excerpt = paragraphs[0][:600]
 
+        delivery_attempted = 0
+        delivery_succeeded = 0
         try:
-            self.telegram.send_items_digest(
+            delivery_attempted += 1
+            if self.telegram.send_items_digest(
                 summaries,
                 total_fetched=len(raw_articles),
-                total_after_filter=len(scored_articles),
+                total_after_filter=len(instant_scored_articles),
                 themes=digest.themes if digest else None,
                 market_takeaway=self.synthesizer.build_market_takeaway(digest) if digest else None,
                 headline=digest.headline if digest else None,
                 narrative_excerpt=narrative_excerpt,
-            )
+            ):
+                delivery_succeeded += 1
         except Exception as exc:
             logger.error("Telegram items digest delivery failed: %s", exc, exc_info=True)
+            critical_errors.append("delivery:items_digest")
 
         if digest and SEND_LEGACY_DIGEST:
             try:
-                self.telegram.send_digest(digest)
+                delivery_attempted += 1
+                if self.telegram.send_digest(digest):
+                    delivery_succeeded += 1
             except Exception as exc:
                 logger.error("Telegram digest delivery failed: %s", exc, exc_info=True)
+                critical_errors.append("delivery:legacy_digest")
 
         for earnings in earnings_outputs:
             try:
-                self.telegram.send_earnings(earnings)
+                delivery_attempted += 1
+                if self.telegram.send_earnings(earnings):
+                    delivery_succeeded += 1
             except Exception as exc:
                 logger.error("Telegram earnings delivery failed: %s", exc, exc_info=True)
+                critical_errors.append("delivery:earnings")
 
+        deep_delivered = 0
+        for brief in deep_briefs:
+            try:
+                delivery_attempted += 1
+                if self.telegram.send_deep_brief(brief):
+                    delivery_succeeded += 1
+                    deep_delivered += 1
+            except Exception as exc:
+                logger.error("Telegram deep brief delivery failed: %s", exc, exc_info=True)
+                critical_errors.append("delivery:deep_brief")
+
+        logger.info(
+            "Pipeline run summary: fetched=%d after_dedup=%d after_scoring=%d "
+            "instant=%d deep=%d earnings=%d delivery_attempted=%d delivery_succeeded=%d",
+            len(raw_articles),
+            len(articles),
+            len(scored_articles),
+            len(summaries),
+            len(deep_briefs),
+            len(earnings_outputs),
+            delivery_attempted,
+            delivery_succeeded,
+        )
         logger.info("=== tech-pulse pipeline complete ===")
         return {
             "articles_fetched": len(raw_articles),
             "articles_after_dedup": len(articles),
             "articles_after_scoring": len(scored_articles),
             "summaries_extracted": len(summaries),
+            "instant_processed": len(summaries),
+            "deep_processed": len(deep_briefs),
+            "deep_delivered": deep_delivered,
             "digest": digest.model_dump() if digest else None,
             "earnings": [e.model_dump() for e in earnings_outputs],
+            "delivery_attempted": delivery_attempted,
+            "delivery_succeeded": delivery_succeeded,
+            "critical_errors": critical_errors,
         }
+
+    def _run_deep_pipeline(
+        self,
+        candidates: list[Article],
+        timestamp: str,
+    ) -> tuple[list[InsightBrief], list[Article], set[str]]:
+        if not candidates:
+            return [], [], set()
+
+        briefs: list[InsightBrief] = []
+        instant_fallbacks: list[Article] = []
+        consumed_urls: set[str] = set()
+
+        ordered = sorted(candidates, key=lambda a: getattr(a, "score", 0.0), reverse=True)
+        for article in ordered:
+            if len(briefs) >= MAX_DEEP_ARTICLES:
+                article.deep_status = "over_deep_cap"
+                instant_fallbacks.append(article)
+                continue
+
+            min_words = max(MIN_DEEP_WORDS, int(getattr(article, "min_words", MIN_DEEP_WORDS) or MIN_DEEP_WORDS))
+            scrape = self.deep_scraper.fetch(article.url, min_words=min_words)
+            article.word_count = scrape.word_count
+            article.deep_status = scrape.status
+            if scrape.status != "ok":
+                logger.info(
+                    "Deep candidate downgraded to instant: %s status=%s words=%d",
+                    article.title[:80],
+                    scrape.status,
+                    scrape.word_count,
+                )
+                instant_fallbacks.append(article)
+                continue
+
+            consumed_urls.add(article.url)
+            brief = self.deep_agent.create_brief(
+                title=article.title,
+                text=scrape.text,
+                source_name=article.source,
+                url=article.url,
+                author=article.author,
+                domain_hints=article.domain,
+                score=article.score,
+                item_id=self._item_id(article.url),
+                cross_ref=article.cross_ref,
+            )
+            if brief:
+                article.deep_status = "brief_created"
+                briefs.append(brief)
+            else:
+                article.deep_status = "deep_llm_failed"
+
+        if briefs:
+            self._save_json(
+                OUTPUT_DIR / f"deep_briefs_{timestamp}.json",
+                [b.model_dump() for b in briefs],
+            )
+        logger.info("Deep pipeline: %d brief(s), %d fallback(s)", len(briefs), len(instant_fallbacks))
+        return briefs, instant_fallbacks, consumed_urls
+
+    @staticmethod
+    def _is_deep_candidate(article: Article) -> bool:
+        return getattr(article, "tier", "instant") == "deep" or getattr(article, "label", "") in {"kol", "paper"}
+
+    @staticmethod
+    def _item_id(url: str) -> str:
+        return hashlib.sha256(url.encode()).hexdigest()[:8]
 
     def _run_earnings_pipeline(self, timestamp: str) -> list[EarningsOutput]:
         filings = self.earnings_fetcher.fetch_recent_filings()

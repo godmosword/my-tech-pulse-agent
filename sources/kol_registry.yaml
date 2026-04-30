@@ -2,83 +2,161 @@ kol_sources:
   - name: stratechery
     author: Ben Thompson
     url: https://stratechery.com/feed/
+    tier: deep
+    domain: [tech_strategy, platform, semiconductors]
     focus: [tech_strategy, platform, aggregation_theory]
+    min_words: 800
     priority: 1
     enabled: true
 
   - name: import_ai
     author: Jack Clark
     url: https://importai.substack.com/feed
+    tier: deep
+    domain: [ai, ai_research, safety, policy]
     focus: [AI_research, safety, policy]
+    min_words: 800
     priority: 1
     enabled: true
 
   - name: pragmatic_engineer
     author: Gergely Orosz
     url: https://newsletter.pragmaticengineer.com/feed
+    tier: deep
+    domain: [engineering, big_tech_internals]
     focus: [engineering, big_tech_internals]
+    min_words: 800
     priority: 2
     enabled: true
 
   - name: platformer
     author: Casey Newton
     url: https://www.platformer.news/feed
+    tier: deep
+    domain: [platform_policy, social_media, ai_policy]
     focus: [platform_policy, social_media, AI_policy]
+    min_words: 800
     priority: 2
     enabled: true
 
   - name: a16z_blog
     author: a16z
     url: https://a16z.com/feed/
+    tier: deep
+    domain: [vc_thesis, emerging_tech, crypto]
     focus: [VC_thesis, emerging_tech, crypto]
+    min_words: 800
     priority: 2
     enabled: true
 
   - name: sequoia_blog
     author: Sequoia Capital
     url: https://www.sequoiacap.com/feed/
+    tier: deep
+    domain: [vc_thesis, market_maps]
     focus: [VC_thesis, market_maps]
+    min_words: 800
     priority: 3
     enabled: true
 
   - name: lenny_newsletter
     author: Lenny Rachitsky
     url: https://www.lennysnewsletter.com/feed
+    tier: deep
+    domain: [product, growth, saas]
     focus: [product, growth, SaaS]
+    min_words: 800
     priority: 3
     enabled: true
 
   - name: simon_willison
     author: Simon Willison
     url: https://simonwillison.net/atom/entries/
+    tier: deep
+    domain: [ai, llm_engineering, open_source, developer_tools]
     focus: [LLM_engineering, open_source, developer_tools]
+    min_words: 800
     priority: 2
     enabled: true
 
   - name: latent_space
     author: Latent Space
     url: https://www.latent.space/feed
+    tier: deep
+    domain: [ai, ai_engineering, frontier_models, developer_tools]
     focus: [AI_engineering, frontier_models, developer_tools]
+    min_words: 800
     priority: 2
     enabled: true
 
   - name: interconnects_ai
     author: Nathan Lambert
     url: https://www.interconnects.ai/feed
+    tier: deep
+    domain: [ai, open_models, ai_research, policy]
     focus: [open_models, AI_research, policy]
+    min_words: 800
     priority: 2
     enabled: true
 
   - name: semianalysis
     author: SemiAnalysis
     url: https://semianalysis.com/feed/
+    tier: deep
+    domain: [semiconductor, ai_infrastructure, data_centers]
     focus: [semiconductors, AI_infrastructure, data_centers]
+    min_words: 800
     priority: 2
     enabled: true
 
   - name: high_scalability
     author: High Scalability
     url: https://highscalability.com/rss/
+    tier: deep
+    domain: [architecture, infrastructure, distributed_systems]
     focus: [architecture, infrastructure, distributed_systems]
+    min_words: 800
     priority: 3
     enabled: true
+
+  - name: arxiv_cs_ai
+    author: arXiv
+    url: https://rss.arxiv.org/rss/cs.AI
+    tier: deep
+    domain: [paper, ai, ai_research]
+    focus: [ai_research, papers]
+    min_words: 400
+    priority: 2
+    enabled: true
+
+  - name: arxiv_cs_ar
+    author: arXiv
+    url: https://rss.arxiv.org/rss/cs.AR
+    tier: deep
+    domain: [paper, semiconductor, computer_architecture]
+    focus: [semiconductor, computer_architecture, papers]
+    min_words: 400
+    priority: 2
+    enabled: true
+
+  - name: iacr_eprint
+    author: IACR ePrint
+    url: https://eprint.iacr.org/rss/rss.xml
+    tier: deep
+    domain: [paper, crypto, cryptography, zk]
+    focus: [crypto_research, protocol_design, cryptography]
+    min_words: 400
+    priority: 2
+    enabled: true
+
+  # Ethereum Foundation cryptography research has no RSS feed. Keep this disabled
+  # until a connector exists for its research index.
+  - name: ethereum_crypto_research
+    author: Ethereum Foundation
+    url: https://crypto.ethereum.org/posts-research
+    tier: deep
+    domain: [crypto, ethereum, cryptography, protocol_design]
+    focus: [ethereum, cryptography, protocol_design]
+    min_words: 800
+    priority: 2
+    enabled: false
