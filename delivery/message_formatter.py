@@ -9,7 +9,7 @@ from typing import Optional
 from agents.earnings_agent import EarningsOutput
 from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
-from agents.synthesizer_agent import DigestOutput
+from agents.synthesizer_agent import DigestOutput, StoryInsight
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "6"))
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "260"))
@@ -21,6 +21,7 @@ MAX_THEMES_PER_DIGEST = int(os.getenv("MAX_THEMES_PER_DIGEST", "4"))
 MAX_ITEMS_PER_THEME = int(os.getenv("MAX_ITEMS_PER_THEME", "3"))
 MIN_ITEMS_PER_THEME = int(os.getenv("MIN_ITEMS_PER_THEME", "2"))
 EARNINGS_THEME_RATIO_CAP = float(os.getenv("EARNINGS_THEME_RATIO_CAP", "0.4"))
+TRANSLATION_TAG = "[📝 原文為英文，已由 Q-Silicon 深度編譯]"
 
 _THEME_KEYWORDS: dict[str, list[str]] = {
     "AI 基礎設施": ["ai", "gpu", "chip", "晶片", "資料中心", "datacenter", "nvidia", "amd", "hbm"],
@@ -152,11 +153,60 @@ def _compose_structured_summary(summary: ArticleSummary) -> str:
 
 
 def _source_link(summary: ArticleSummary) -> str:
-    name = escape(summary.source_name or "source")
+    name = escape(getattr(summary, "source_display_name", "") or summary.source_name or "source")
     url = summary.source_url or ""
     if url:
         return f"[{name}]({url})"
     return name
+
+
+def _is_english_source(language: str) -> bool:
+    return (language or "en").lower().startswith("en")
+
+
+def _translation_tag_line(language: str) -> str:
+    return escape(TRANSLATION_TAG) if _is_english_source(language) else ""
+
+
+def _format_three_part_insight(
+    *,
+    insight: str,
+    tech_rationale: str,
+    implication: str,
+    source_language: str = "en",
+) -> list[str]:
+    lines = [
+        "*【核心洞見】*",
+        escape(insight),
+        "",
+        "*【底層邏輯】*",
+        escape(tech_rationale),
+        "",
+        "*【生態影響】*",
+        escape(implication),
+    ]
+    tag = _translation_tag_line(source_language)
+    if tag:
+        lines.extend(["", tag])
+    return lines
+
+
+def _format_story_insight(story: StoryInsight) -> list[str]:
+    title = escape(story.title or story.entity or "Untitled")
+    source_name = escape(story.source_display_name or story.source_name or "source")
+    source_url = story.source_url or ""
+    source = f"[{source_name}]({source_url})" if source_url else source_name
+    return [
+        f"🧠 *{title}*",
+        source,
+        "",
+        *_format_three_part_insight(
+            insight=story.insight or story.summary,
+            tech_rationale=story.tech_rationale,
+            implication=story.implication,
+            source_language=story.source_language,
+        ),
+    ]
 
 
 def format_insight_brief(brief: InsightBrief) -> str:
@@ -164,7 +214,7 @@ def format_insight_brief(brief: InsightBrief) -> str:
     confidence = " _\\(低信心度\\)_" if brief.confidence == "low" else ""
     title = escape(brief.title)
     author = escape(brief.author or "unknown")
-    source = escape(brief.source_name)
+    source = escape(getattr(brief, "source_display_name", "") or brief.source_name)
     domain = escape(brief.domain)
     word_count = escape(str(brief.word_count))
 
@@ -172,14 +222,12 @@ def format_insight_brief(brief: InsightBrief) -> str:
         f"🧠 *{title}*{confidence}",
         f"_{author} · {source}_",
         "",
-        "*💡 洞見*",
-        escape(brief.insight),
-        "",
-        "*⚙️ 技術底層*",
-        escape(brief.tech_rationale),
-        "",
-        "*🔁 產業影響*",
-        escape(brief.implication),
+        *_format_three_part_insight(
+            insight=brief.insight,
+            tech_rationale=brief.tech_rationale,
+            implication=brief.implication,
+            source_language=getattr(brief, "source_language", "en"),
+        ),
         "",
         f"\\#{domain}  [原文]({brief.url})  _{word_count}字_",
     ]
@@ -196,6 +244,7 @@ def _format_items_digest_v1(
     market_takeaway: Optional[str] = None,
     headline: Optional[str] = None,
     narrative_excerpt: Optional[str] = None,
+    story_insights: Optional[list[StoryInsight]] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format a curated digest of ArticleSummary items grouped by theme."""
@@ -237,6 +286,13 @@ def _format_items_digest_v1(
         lines.append("*📈 市場含義*")
         lines.append(escape(market_takeaway))
         lines.append("")
+
+    if story_insights:
+        lines.append("*🧠 深度洞察*")
+        lines.append("")
+        for story in story_insights[:3]:
+            lines.extend(_format_story_insight(story))
+            lines.append("")
 
     shown_items: list[ArticleSummary] = []
     for theme, items in groups:
@@ -289,6 +345,7 @@ def format_digest_v2(
     summaries: list[ArticleSummary],
     total_fetched: int,
     total_after_filter: int,
+    story_insights: Optional[list[StoryInsight]] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format digest in fixed v2 layout for Telegram MarkdownV2."""
@@ -355,9 +412,17 @@ def format_digest_v2(
         "• 政策節點：追蹤監管與出口政策更新。",
     ]
 
+    deep_lines: list[str] = []
+    if story_insights:
+        deep_lines.extend(["*深度洞察*", ""])
+        for story in story_insights[:3]:
+            deep_lines.extend(_format_story_insight(story))
+            deep_lines.append("")
+
     return "\n".join(
         header
         + [r"*1\) Header*", "", r"*2\) 今日總覽*", headline, *takeaways, ""]
+        + deep_lines
         + theme_lines
         + [""]
         + focus_lines
@@ -374,11 +439,18 @@ def format_items_digest(
     market_takeaway: Optional[str] = None,
     headline: Optional[str] = None,
     narrative_excerpt: Optional[str] = None,
+    story_insights: Optional[list[StoryInsight]] = None,
     now: Optional[datetime] = None,
 ) -> str:
     """Format digest with env-based version switch (v1 fallback / v2 opt-in)."""
     if os.getenv("DIGEST_FORMAT", "v1").lower() == "v2":
-        return format_digest_v2(summaries, total_fetched, total_after_filter, now=now)
+        return format_digest_v2(
+            summaries,
+            total_fetched,
+            total_after_filter,
+            story_insights=story_insights,
+            now=now,
+        )
     return _format_items_digest_v1(
         summaries,
         total_fetched,
@@ -387,6 +459,7 @@ def format_items_digest(
         market_takeaway=market_takeaway,
         headline=headline,
         narrative_excerpt=narrative_excerpt,
+        story_insights=story_insights,
         now=now,
     )
 
