@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from scoring.state_store import FirestoreStateStore, SQLiteStateStore, make_state_store
+from scoring.state_store import FirestoreStateStore, SQLiteStateStore, _cosine_similarity, make_state_store
 
 
 class _FailingFirestoreQuery:
@@ -60,3 +60,31 @@ def test_firestore_content_hash_dedup_skips_missing_index(caplog):
 
     assert store._content_hash_seen("content-hash", cutoff=object()) is False
     assert "required composite index is missing" in caplog.text
+
+
+def test_cosine_similarity_identical_vectors():
+    v = [1.0, 0.0, 0.5, -0.3]
+    assert abs(_cosine_similarity(v, v) - 1.0) < 1e-6
+
+
+def test_sqlite_semantic_duplicate_detected(tmp_path):
+    store = SQLiteStateStore(tmp_path / "dedup.sqlite")
+    # Store a reference embedding
+    ref = [1.0, 0.0, 0.0, 0.0]
+    store.store_embedding("article-ref", "https://example.com/ref", ref)
+    # A near-identical vector — same direction
+    near = [0.99, 0.01, 0.0, 0.0]
+    is_dup, sim = store.is_semantically_duplicate(near, threshold=0.85, window_days=7)
+    assert is_dup is True
+    assert sim >= 0.85
+
+
+def test_sqlite_semantic_novel_article_passes(tmp_path):
+    store = SQLiteStateStore(tmp_path / "dedup.sqlite")
+    ref = [1.0, 0.0, 0.0, 0.0]
+    store.store_embedding("article-ref", "https://example.com/ref", ref)
+    # Orthogonal vector — completely different topic
+    orthogonal = [0.0, 1.0, 0.0, 0.0]
+    is_dup, sim = store.is_semantically_duplicate(orthogonal, threshold=0.85, window_days=7)
+    assert is_dup is False
+    assert sim < 0.85

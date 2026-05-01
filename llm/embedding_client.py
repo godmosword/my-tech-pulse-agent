@@ -40,6 +40,10 @@ class GeminiEmbedder:
         """Embed a query for retrieval."""
         return self._embed(text=self._prepare_text("", text), task_type="RETRIEVAL_QUERY")
 
+    def generate_embedding(self, text: str) -> list[float]:
+        """Convenience alias for embed_query — use when task context is generic."""
+        return self.embed_query(text)
+
     def _embed(self, *, text: str, task_type: str, title: str = "") -> list[float]:
         if not text:
             return []

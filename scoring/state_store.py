@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sqlite3
@@ -10,6 +11,22 @@ from pathlib import Path
 from typing import Protocol
 
 logger = logging.getLogger(__name__)
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Local cosine similarity — numpy if available, pure Python fallback."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    try:
+        import numpy as np  # noqa: PLC0415
+        va, vb = np.array(a, dtype=np.float32), np.array(b, dtype=np.float32)
+        denom = float(np.linalg.norm(va) * np.linalg.norm(vb))
+        return float(np.dot(va, vb) / denom) if denom > 0 else 0.0
+    except ImportError:
+        dot = sum(x * y for x, y in zip(a, b))
+        mag_a = sum(x * x for x in a) ** 0.5
+        mag_b = sum(x * x for x in b) ** 0.5
+        return dot / (mag_a * mag_b) if mag_a * mag_b > 0 else 0.0
 
 _SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS seen_items (
@@ -29,6 +46,13 @@ CREATE TABLE IF NOT EXISTS processed_articles (
     processed_at TEXT NOT NULL,
     expires_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS article_embeddings (
+    article_id  TEXT PRIMARY KEY,
+    url         TEXT,
+    embedding   TEXT NOT NULL,
+    stored_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_emb_stored_at ON article_embeddings (stored_at);
 """
 
 DEFAULT_PROCESSED_TTL_DAYS = int(os.getenv("STATE_TTL_DAYS", "30"))
@@ -68,6 +92,17 @@ class StateStore(Protocol):
         ...
 
     def save_item(self, item_id: str, saved_at: datetime) -> None:
+        ...
+
+    def store_embedding(self, article_id: str, url: str, embedding: list[float]) -> None:
+        ...
+
+    def is_semantically_duplicate(
+        self,
+        new_embedding: list[float],
+        threshold: float = 0.85,
+        window_days: int = 7,
+    ) -> tuple[bool, float]:
         ...
 
 
@@ -172,6 +207,44 @@ class SQLiteStateStore:
                 (item_id, saved_at.isoformat()),
             )
             conn.commit()
+
+    def store_embedding(self, article_id: str, url: str, embedding: list[float]) -> None:
+        if not embedding:
+            return
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO article_embeddings (article_id, url, embedding, stored_at) "
+                "VALUES (?, ?, ?, ?)",
+                (article_id, url, json.dumps(embedding), datetime.now(timezone.utc).isoformat()),
+            )
+            conn.commit()
+
+    def is_semantically_duplicate(
+        self,
+        new_embedding: list[float],
+        threshold: float = 0.85,
+        window_days: int = 7,
+    ) -> tuple[bool, float]:
+        if not new_embedding:
+            return False, 0.0
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+        with sqlite3.connect(self._db_path) as conn:
+            rows = conn.execute(
+                "SELECT embedding FROM article_embeddings WHERE stored_at >= ?",
+                (cutoff,),
+            ).fetchall()
+        best = 0.0
+        for (emb_json,) in rows:
+            try:
+                stored = json.loads(emb_json)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            sim = _cosine_similarity(new_embedding, stored)
+            if sim > best:
+                best = sim
+            if sim >= threshold:
+                return True, sim
+        return False, best
 
 
 class FirestoreStateStore:
@@ -339,6 +412,50 @@ class FirestoreStateStore:
             {"item_id": item_id, "saved_at": saved_at},
             merge=True,
         )
+
+    def store_embedding(self, article_id: str, url: str, embedding: list[float]) -> None:
+        if not embedding:
+            return
+        now = datetime.now(timezone.utc)
+        self._collection("article_embeddings").document(article_id).set(
+            {
+                "article_id": article_id,
+                "url": url,
+                "embedding": embedding,
+                "stored_at": now,
+                "expires_at": now + timedelta(days=DEFAULT_PROCESSED_TTL_DAYS),
+            },
+            merge=True,
+        )
+
+    def is_semantically_duplicate(
+        self,
+        new_embedding: list[float],
+        threshold: float = 0.85,
+        window_days: int = 7,
+    ) -> tuple[bool, float]:
+        if not new_embedding:
+            return False, 0.0
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+        try:
+            query = self._collection("article_embeddings").where("stored_at", ">=", cutoff).stream()
+            best = 0.0
+            for doc in query:
+                data = doc.to_dict() or {}
+                stored = data.get("embedding") or []
+                if not stored:
+                    continue
+                # Firestore may return a list or a google.cloud.firestore_v1.base_vector.Vector
+                stored_list = list(stored) if not isinstance(stored, list) else stored
+                sim = _cosine_similarity(new_embedding, stored_list)
+                if sim > best:
+                    best = sim
+                if sim >= threshold:
+                    return True, sim
+            return False, best
+        except Exception as exc:
+            logger.warning("Firestore semantic dedup query failed; allowing article: %s", exc)
+            return False, 0.0
 
 
 def make_state_store(db_path: Path | None = None) -> StateStore:

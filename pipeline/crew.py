@@ -11,6 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from agents.deep_insight_agent import DeepInsightAgent, InsightBrief
+from llm.embedding_client import GeminiEmbedder
 from agents.earnings_agent import EarningsAgent, EarningsOutput
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.reviewer_agent import ReviewerAgent
@@ -46,6 +47,8 @@ MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
 MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "3"))
 SEMANTIC_DUP_DROP_ENABLED = os.getenv("SEMANTIC_DUP_DROP_ENABLED", "0") == "1"
 MEMORY_CONTEXT_MAX_DISTANCE = float(os.getenv("MEMORY_CONTEXT_MAX_DISTANCE", "0.35"))
+SEMANTIC_PREFILTER_ENABLED = os.getenv("SEMANTIC_PREFILTER_ENABLED", "0") == "1"
+SEMANTIC_PREFILTER_THRESHOLD = float(os.getenv("SEMANTIC_PREFILTER_THRESHOLD", "0.85"))
 
 
 class PipelineDeadlineExceeded(BaseException):
@@ -68,6 +71,7 @@ class TechPulseCrew:
         self.earnings_agent = EarningsAgent()
         self.telegram = TelegramBot()
         self.memory = make_memory_service()
+        self._embedder = GeminiEmbedder()
 
     def run(self) -> dict:
         OUTPUT_DIR.mkdir(exist_ok=True)
@@ -124,6 +128,10 @@ class TechPulseCrew:
                         a.score = 0.0
                         a.score_status = "fallback"
                 scored_articles = articles
+
+            # Semantic pre-extraction dedup — drops same-story duplicates before LLM calls.
+            if SEMANTIC_PREFILTER_ENABLED and scored_articles:
+                scored_articles = self._semantic_prefilter(scored_articles)
 
             # Deep tier — full-text KOL/paper analysis.
             try:
@@ -505,6 +513,50 @@ class TechPulseCrew:
         source = f"（{match.source_name}）" if match.source_name else ""
         distance = f"，距離 {match.distance:.2f}" if match.distance is not None else ""
         return f"相關歷史：{match.title}{source}{distance}"
+
+    def _semantic_prefilter(self, articles: list[Article]) -> list[Article]:
+        """Drop scored articles that are semantically duplicate of an article already in this batch.
+
+        Uses local cosine similarity against embeddings stored in state_store (7-day window).
+        Operates BEFORE extractor/reviewer LLM calls to save tokens when multiple sources
+        cover the same paper or announcement.
+        """
+        kept: list[Article] = []
+        dropped = 0
+        for article in articles:
+            text = f"{article.title} {article.summary or ''}".strip()
+            embedding = self._embedder.generate_embedding(text)
+            if not embedding:
+                # Embedding API failure — fail open, keep the article
+                kept.append(article)
+                continue
+            try:
+                is_dup, sim = self.deduplicator._store.is_semantically_duplicate(
+                    embedding, threshold=SEMANTIC_PREFILTER_THRESHOLD
+                )
+            except Exception as exc:
+                logger.warning("Semantic prefilter check failed for '%s': %s", article.title[:60], exc)
+                kept.append(article)
+                continue
+            if is_dup:
+                logger.info(
+                    "Semantic duplicate detected (similarity %.2f): '%s' — skipping pre-extraction",
+                    sim, article.title[:80],
+                )
+                dropped += 1
+                continue
+            try:
+                self.deduplicator._store.store_embedding(
+                    article_id=article.url,
+                    url=article.url,
+                    embedding=embedding,
+                )
+            except Exception as exc:
+                logger.warning("Failed to store embedding for '%s': %s", article.title[:60], exc)
+            kept.append(article)
+        if dropped:
+            logger.info("Semantic prefilter dropped %d duplicate article(s)", dropped)
+        return kept
 
     def _claim_deliverable_summaries(
         self,
