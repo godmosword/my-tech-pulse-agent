@@ -32,7 +32,10 @@ _SYSTEM = (
 
 _PROMPT = """\
 Score this news item 0–10 on three dimensions:
-- relevance (0-10): Is this meaningful tech/business news? Not opinion or fluff.
+- relevance (0-10): Is AI, semiconductors, or crypto the PRIMARY subject of this article?
+  Score 8-10 only when the technical domain is the core story.
+  Score ≤ 6 when AI/chips/crypto is merely the demand driver or backdrop for a financial event
+  (e.g. a VC fundraise, a stock move, capex guidance, or equipment sales benefiting from AI).
 - novelty   (0-10): Is this new information, not a rehash of known facts?
 - depth     (0-10): Does it contain specific facts, data, or quotes — not just headlines?
 
@@ -290,7 +293,7 @@ class Scorer:
 
         # Append unscored items at the end so they form the fallback tail in delivery.
         # Capped so they never crowd out scored content.
-        max_unscored_tail = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
+        max_unscored_tail = int(os.getenv("MAX_UNSCORED_TAIL", "1"))
         passed.extend(unscored[:max_unscored_tail])
 
         unscored_ratio = (unscored_count / len(candidates)) if candidates else 0.0

@@ -45,6 +45,7 @@ MAX_DEEP_ARTICLES = int(os.getenv("MAX_DEEP_ARTICLES", "3"))
 MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
 MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "3"))
 SEMANTIC_DUP_DROP_ENABLED = os.getenv("SEMANTIC_DUP_DROP_ENABLED", "0") == "1"
+MEMORY_CONTEXT_MAX_DISTANCE = float(os.getenv("MEMORY_CONTEXT_MAX_DISTANCE", "0.35"))
 
 
 class PipelineDeadlineExceeded(BaseException):
@@ -473,9 +474,11 @@ class TechPulseCrew:
                         dropped += 1
                         continue
 
-            context = self._memory_context_line(matches)
-            if context:
-                summary.history_context = context
+            # Only attach history context for close matches; distant matches add noise.
+            if nearest and nearest.distance is not None and nearest.distance <= MEMORY_CONTEXT_MAX_DISTANCE:
+                context = self._memory_context_line(matches)
+                if context:
+                    summary.history_context = context
             retained.append(summary)
 
         if dropped:

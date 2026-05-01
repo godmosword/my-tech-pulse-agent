@@ -146,6 +146,37 @@ def test_memory_context_near_match_is_retained_and_displayed():
     assert "相關歷史" in msg
 
 
+def test_memory_context_distant_match_is_suppressed(monkeypatch):
+    monkeypatch.setattr("pipeline.crew.MEMORY_CONTEXT_MAX_DISTANCE", 0.35)
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.memory = _FakeMemory(matches=[
+        MemorySearchResult(
+            item_id="old",
+            title="Loosely related story",
+            summary="Some other context",
+            source_url="https://example.com/old",
+            source_name="Example",
+            distance=0.44,
+        )
+    ])
+    summary = crew._fallback_summaries([
+        Article(
+            title="Caterpillar stock rises on AI power demand",
+            url="https://example.com/cat",
+            source="Bloomberg",
+            summary="Caterpillar shares rose as AI power demand boosted generator sales.",
+            score=7.5,
+        )
+    ])[0]
+
+    retained = crew._apply_memory_context([summary])
+    msg = format_items_digest(retained, total_fetched=3, total_after_filter=1)
+
+    assert retained == [summary]
+    assert not getattr(summary, "history_context", "")
+    assert "相關歷史" not in msg
+
+
 def test_memory_semantic_duplicate_can_be_filtered(monkeypatch):
     monkeypatch.setattr("pipeline.crew.SEMANTIC_DUP_DROP_ENABLED", True)
     monkeypatch.setattr("pipeline.crew.SEMANTIC_DUP_DISTANCE_THRESHOLD", 0.12)
