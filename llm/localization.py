@@ -18,14 +18,17 @@ _FALLBACK_REPLACEMENTS = {
     "认": "認",
     "为": "為",
     "认为": "認為",
+    "報道": "報導",
     "报道": "報導",
     "报导": "報導",
     "数据": "資料",
     "质量": "品質",
+    "內存": "記憶體",
     "内存": "記憶體",
     "带宽": "頻寬",
     "网络": "網路",
     "协议": "協議",
+    "通過": "透過",
     "通过": "透過",
     "产业": "產業",
     "生态": "生態",
@@ -48,10 +51,7 @@ def to_traditional_zh_tw(text: str) -> str:
     """Convert text to Traditional Chinese with a tiny fallback when OpenCC is absent."""
     if not text:
         return text
-    if _OPENCC:
-        return _OPENCC.convert(text)
-
-    converted = text
+    converted = _OPENCC.convert(text) if _OPENCC else text
     ordered_replacements = sorted(
         _FALLBACK_REPLACEMENTS.items(),
         key=lambda item: len(item[0]),
