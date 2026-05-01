@@ -160,11 +160,28 @@ class Scorer:
                 system_instruction=_SYSTEM,
                 prompt=prompt,
                 response_schema=ScoreResult,
+                log_parse_errors=False,
             )
             return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
         except json.JSONDecodeError as exc:
-            logger.warning("Scorer JSON parse error: %s", exc)
-            return ScoreOutcome(result=None, error_kind="parse")
+            retry_prompt = (
+                f"{prompt}\n\n"
+                "Your previous response was not parseable JSON. Return exactly this shape and nothing else: "
+                '{"relevance": 0, "novelty": 0, "depth": 0, "score": 0}'
+            )
+            try:
+                data, raw = generate_json(
+                    self._gemini_client,
+                    model=FLASH_MODEL,
+                    max_output_tokens=256,
+                    system_instruction=_SYSTEM,
+                    prompt=retry_prompt,
+                    response_schema=ScoreResult,
+                )
+                return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
+            except json.JSONDecodeError:
+                logger.warning("Scorer JSON parse error after retry: %s", exc)
+                return ScoreOutcome(result=None, error_kind="parse")
         except Exception as exc:
             logger.warning("Scorer failed for '%s': %s", title[:60], exc)
             return ScoreOutcome(result=None, error_kind="api")

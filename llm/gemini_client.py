@@ -38,6 +38,7 @@ def generate_json(
     prompt: str,
     max_output_tokens: int,
     response_schema: type[BaseModel] | None = None,
+    log_parse_errors: bool = True,
 ) -> tuple[dict[str, Any], str]:
     """Generate a JSON object with Gemini and return parsed data plus raw text."""
     from google.genai import types  # noqa: PLC0415 — lazy import
@@ -67,21 +68,34 @@ def generate_json(
     if isinstance(parsed, dict):
         return parsed, json.dumps(parsed, ensure_ascii=False)
 
-    raw_obj = getattr(response, "text", "")
-    if isinstance(raw_obj, str):
-        raw = raw_obj.strip()
-    elif isinstance(raw_obj, (bytes, bytearray)):
-        raw = raw_obj.decode("utf-8", errors="ignore").strip()
-    else:
-        raw = ""
+    raw = _response_text(response)
     try:
         return json.loads(raw), raw
     except json.JSONDecodeError:
         extracted = _extract_json_object(raw)
         if extracted:
             return json.loads(extracted), raw
-        logger.warning("Gemini JSON parse error | raw=%s", raw[:200])
+        if log_parse_errors:
+            logger.warning("Gemini JSON parse error | raw=%s", raw[:200])
         raise
+
+
+def _response_text(response: object) -> str:
+    """Return text from Gemini responses, including candidate parts when available."""
+    raw_obj = getattr(response, "text", "")
+    if isinstance(raw_obj, str) and raw_obj.strip():
+        return raw_obj.strip()
+    if isinstance(raw_obj, (bytes, bytearray)):
+        return raw_obj.decode("utf-8", errors="ignore").strip()
+
+    parts_text: list[str] = []
+    for candidate in getattr(response, "candidates", []) or []:
+        content = getattr(candidate, "content", None)
+        for part in getattr(content, "parts", []) or []:
+            text = getattr(part, "text", "")
+            if isinstance(text, str) and text:
+                parts_text.append(text)
+    return "".join(parts_text).strip()
 
 
 def _extract_json_object(text: str) -> str:

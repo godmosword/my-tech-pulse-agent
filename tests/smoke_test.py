@@ -949,6 +949,27 @@ def test_scorer_fail_open_on_api_error():
     assert result[0].score_status == "fallback"
 
 
+def test_scorer_retries_once_on_non_json_response():
+    article = Article(
+        title="Microsoft launches AI cloud security service",
+        url="https://example.com/1",
+        source="test",
+        summary="Microsoft announced an AI security service for enterprise cloud customers.",
+    )
+    responses = [
+        "Here is the",
+        '{"relevance": 8, "novelty": 7, "depth": 7, "score": 7.4}',
+    ]
+    with _mock_gemini_client(responses) as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles([article])
+
+    assert mock_client.models.generate_content.call_count == 2
+    assert len(result) == 1
+    assert result[0].score_status == "scored"
+    assert result[0].score == 7.4
+
+
 def test_article_score_field_default():
     article = Article(title="Test", url="https://example.com", source="test")
     assert article.score == 0.0

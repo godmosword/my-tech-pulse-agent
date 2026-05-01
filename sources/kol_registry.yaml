@@ -41,7 +41,7 @@ kol_sources:
 
   - name: a16z_blog
     author: a16z
-    url: https://a16z.com/feed/
+    url: https://future.com/feed
     tier: deep
     domain: [vc_thesis, emerging_tech, crypto]
     focus: [VC_thesis, emerging_tech, crypto]

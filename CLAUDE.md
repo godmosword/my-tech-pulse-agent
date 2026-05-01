@@ -487,3 +487,5 @@ Use these rules for Claude Code, Cursor, and other IDE agents:
 8. Do not write generic summaries starting with "The article discusses...".
 9. Do not hardcode source/domain policy once a YAML registry exists.
 10. Logs should include useful run/item context: stage, score, source, confidence, and failure reason.
+11. Default shipping path is direct `main`: do not open PRs unless the user explicitly asks. For production fixes, run tests, commit on `main`, and push to `origin/main`.
+12. CI and Cloud Run deployment live in one GitHub Actions workflow; tests must pass before the deploy job runs.

@@ -44,3 +44,29 @@ def test_generate_json_accepts_bytes_text():
         )
 
     assert data["score"] == 8.5
+
+
+def test_generate_json_reads_candidate_part_text_when_text_property_empty():
+    response = MagicMock()
+    response.parsed = None
+    response.text = ""
+    part = MagicMock()
+    part.text = '{"score": 7.5}'
+    content = MagicMock()
+    content.parts = [part]
+    candidate = MagicMock()
+    candidate.content = content
+    response.candidates = [candidate]
+
+    with patch("google.genai.types.GenerateContentConfig", side_effect=lambda **kw: kw):
+        data, raw = generate_json(
+            _client_with_response(response),
+            model="m",
+            system_instruction="s",
+            prompt="p",
+            max_output_tokens=64,
+            response_schema=None,
+        )
+
+    assert data["score"] == 7.5
+    assert raw == '{"score": 7.5}'
