@@ -120,6 +120,19 @@ The Firestore backend writes `tech_pulse_seen_items` and `tech_pulse_saved_items
 Configure a Firestore TTL policy on the `expires_at` field of `tech_pulse_seen_items`
 to let GCP expire old dedup records automatically.
 
+Content-hash deduplication also needs a composite Firestore index on
+`tech_pulse_seen_items` for `content_hash ASC, seen_at ASC`. Deploy
+`firestore.indexes.json`, or create it directly:
+
+```bash
+gcloud firestore indexes composite create \
+  --project "$GCP_PROJECT_ID" \
+  --collection-group tech_pulse_seen_items \
+  --query-scope COLLECTION \
+  --field-config field-path=content_hash,order=ascending \
+  --field-config field-path=seen_at,order=ascending
+```
+
 ## Project Structure
 
 ```
