@@ -237,6 +237,7 @@ class TechPulseCrew:
                 market_takeaway=self.synthesizer.build_market_takeaway(digest) if digest else None,
                 headline=digest.headline if digest else None,
                 narrative_excerpt=narrative_excerpt,
+                story_insights=digest.top_stories if digest else None,
             ):
                 delivery_succeeded += 1
         except Exception as exc:
@@ -340,6 +341,8 @@ class TechPulseCrew:
                 title=article.title,
                 text=scrape.text,
                 source_name=article.source,
+                source_display_name=article.source_display_name,
+                source_language=article.source_language,
                 url=article.url,
                 author=article.author,
                 domain_hints=article.domain,
@@ -422,6 +425,8 @@ class TechPulseCrew:
                     cross_ref=article.cross_ref,
                     source_url=article.url,
                     source_name=article.source,
+                    source_display_name=getattr(article, "source_display_name", ""),
+                    source_language=getattr(article, "source_language", "en") or "en",
                     score=float(getattr(article, "score", 0.0)),
                     score_status=str(getattr(article, "score_status", "fallback")),
                     label=str(getattr(article, "label", "news")),
@@ -625,6 +630,7 @@ class TechPulseCrew:
         market_takeaway=None,
         headline=None,
         narrative_excerpt=None,
+        story_insights=None,
     ) -> bool:
         sent = self.telegram.send_items_digest(
             summaries,
@@ -634,6 +640,7 @@ class TechPulseCrew:
             market_takeaway=market_takeaway,
             headline=headline,
             narrative_excerpt=narrative_excerpt,
+            story_insights=story_insights,
         )
         if sent:
             self._archive_delivered_summaries(summaries)

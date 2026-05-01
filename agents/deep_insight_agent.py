@@ -12,6 +12,7 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
+from llm.localization import normalize_llm_payload
 from sources.deep_scraper import count_mixed_words
 
 logger = logging.getLogger(__name__)
@@ -58,20 +59,24 @@ Article text:
 
 BRIEF_SYSTEM = """\
 You are a senior technology analyst writing Chinese reading guidance for #科技脈搏.
-Write clearly for a technical investor/operator audience.
-Keep English technical terms when translation would reduce precision.
+Absolute Directive:
+- You must output final JSON string values EXCLUSIVELY in fluent, professional Traditional Chinese (zh-TW), regardless of source language.
+- Keep English technical terms only when translation would reduce precision.
+- Do not start with weak summary phrases such as "這篇文章報導了", "本文指出", or "作者認為".
+- Start directly with the thesis, mechanism, or ecosystem consequence.
 Reply only with valid JSON.
 """
 
 BRIEF_PROMPT = """\
-Create a Chinese InsightBrief from this ArgumentMap.
+Create a Traditional Chinese InsightBrief from this ArgumentMap.
 
 Requirements:
 - Total length across insight + tech_rationale + implication must be 100-200 Chinese-readable characters/tokens.
-- insight: core thesis or contrarian point.
-- tech_rationale: explain the technical mechanism using only the evidence.
-- implication: who or what changes in the ecosystem.
+- insight maps to the display section 【核心洞見】: one sentence capturing the contrarian view, architectural breakthrough, or core thesis. Max 40 Chinese words.
+- tech_rationale maps to the display section 【底層邏輯】: explain how the mechanism works, why the bottleneck exists, or what makes the protocol sound. Use only the evidence. No fluff. 80-100 Chinese words.
+- implication maps to the display section 【生態影響】: explain what changes in the industry stack, who loses share, or the second-order effect. Max 50 Chinese words.
 - Do not cite facts that are absent from evidence.
+- Output JSON field values only; do not include Markdown section headings inside values.
 
 ArgumentMap JSON:
 {argument_json}
@@ -102,6 +107,8 @@ class InsightBrief(BaseModel):
     title: str
     author: Optional[str] = None
     source_name: str
+    source_display_name: str = ""
+    source_language: str = "en"
     url: str
     domain: Literal["ai", "semiconductor", "crypto", "other"] = "other"
     insight: str
@@ -193,6 +200,7 @@ class DeepInsightAgent:
                 prompt=prompt,
                 response_schema=InsightBrief,
             )
+            data = normalize_llm_payload(data)
             return InsightBrief(**data)
         except (json.JSONDecodeError, Exception) as exc:
             logger.error("Deep InsightBrief synthesis failed for '%s': %s", argument.title[:80], exc)
@@ -205,6 +213,8 @@ class DeepInsightAgent:
         text: str,
         source_name: str,
         url: str,
+        source_display_name: str = "",
+        source_language: str = "en",
         author: str = "",
         domain_hints: list[str] | None = None,
         score: float = 0.0,
@@ -228,6 +238,8 @@ class DeepInsightAgent:
             return None
         brief = self.synthesize_brief(reviewed)
         if brief:
+            brief.source_display_name = source_display_name
+            brief.source_language = source_language or "en"
             brief.cross_ref = cross_ref
             if reviewed.confidence == "low":
                 brief.confidence = "low"

@@ -65,6 +65,8 @@ class ArticleSummary(BaseModel):
     cross_ref: bool = False
     source_url: str = ""
     source_name: str = ""
+    source_display_name: str = ""
+    source_language: str = "en"
     title: str = ""
     score: float = 0.0  # propagated from Scorer; 0.0 = unscored
     score_status: str = "ok"  # propagated from Scorer; "fallback" means score unavailable
@@ -134,6 +136,8 @@ class ExtractorAgent:
                 result.title = article.get("title", "")
                 result.label = str(article.get("label", "news"))
                 result.author = str(article.get("author", ""))
+                result.source_display_name = str(article.get("source_display_name", ""))
+                result.source_language = str(article.get("source_language", "en") or "en")
                 published_at = article.get("published_at")
                 result.published_at = published_at.isoformat() if hasattr(published_at, "isoformat") else str(published_at or "")
                 result.source_text = text[:4000]

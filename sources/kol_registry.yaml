@@ -161,3 +161,76 @@ kol_sources:
     min_words: 800
     priority: 2
     enabled: false
+
+chinese_sources:
+  ai_and_semiconductor:
+    - name: manny_newsletter
+      display_name: "曼報 (Manny's Newsletter)"
+      author: Manny Li
+      url: https://manny-li.com/feed/
+      connector: rss
+      language: zh-TW
+      tier: deep
+      domain: [ai, tech_strategy, platform, business_models]
+      focus: [AI 商業邏輯, 軟硬體生態系解構, 商業模式拆解]
+      min_words: 800
+      priority: 1
+      weight: 1.5
+      enabled: true
+
+    - name: dr_chu_tech_classroom
+      display_name: "曲博科技教室 (Dr. Jeng-Chung Chu)"
+      author: Dr. J Class
+      url: https://www.youtube.com/@ansforce
+      connector: youtube_transcript
+      language: zh-TW
+      tier: deep
+      domain: [semiconductor, packaging, silicon_photonics]
+      focus: [半導體物理, 封裝製程, 矽光子底層技術]
+      min_words: 800
+      priority: 2
+      weight: 1.8
+      enabled: false
+
+    - name: semianalysis_zh_discussion
+      display_name: "SemiAnalysis (中文編譯版/討論區)"
+      author: SemiAnalysis community
+      url: ""
+      connector: manual_candidate
+      language: zh-TW
+      tier: deep
+      domain: [semiconductor, ai_infrastructure, supply_chain]
+      focus: [AI 晶片架構, 晶圓代工良率, 供應鏈深度分析]
+      min_words: 800
+      priority: 3
+      weight: 2.0
+      enabled: false
+
+  crypto_and_defi:
+    - name: blocktrend
+      display_name: "區塊勢 (BlockTrend)"
+      author: BlockTrend
+      url: https://www.blocktrend.today/feed
+      connector: rss
+      language: zh-TW
+      tier: deep
+      domain: [crypto, web3, defi, protocol_design]
+      focus: [Web3 底層機制, DeFi 協議運作邏輯]
+      min_words: 800
+      priority: 1
+      weight: 1.5
+      enabled: true
+
+    - name: blocktempo_opinion
+      display_name: "動區動趨 (BlockTempo) - 深度專欄區"
+      author: BlockTempo
+      url: https://www.blocktempo.com/category/opinion/feed/
+      connector: rss
+      language: zh-TW
+      tier: deep
+      domain: [crypto, l1_l2, defi, derivatives]
+      focus: [L1/L2 擴容技術, 全鏈衍生品, 流動性機制]
+      min_words: 800
+      priority: 2
+      weight: 1.2
+      enabled: true

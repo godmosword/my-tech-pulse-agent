@@ -8,7 +8,7 @@ from typing import Optional
 from agents.earnings_agent import EarningsOutput
 from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
-from agents.synthesizer_agent import DigestOutput, Theme
+from agents.synthesizer_agent import DigestOutput, StoryInsight, Theme
 from delivery.feedback_handler import handle_callback
 from delivery.message_formatter import escape, format_earnings, format_insight_brief, format_items_digest
 
@@ -40,6 +40,7 @@ class TelegramBot:
         market_takeaway: Optional[str] = None,
         headline: Optional[str] = None,
         narrative_excerpt: Optional[str] = None,
+        story_insights: Optional[list[StoryInsight]] = None,
     ) -> bool:
         """Send a ranked item digest built from ArticleSummary list."""
         if not self._bot:
@@ -54,6 +55,7 @@ class TelegramBot:
             market_takeaway=market_takeaway,
             headline=headline,
             narrative_excerpt=narrative_excerpt,
+            story_insights=story_insights,
         )
         return self._send(text)
 

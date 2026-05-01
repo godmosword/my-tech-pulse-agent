@@ -27,3 +27,6 @@ source_weights:
   interconnects_ai: 1.05
   semianalysis: 1.1
   high_scalability: 1.0
+  manny_newsletter: 1.5
+  blocktrend: 1.5
+  blocktempo_opinion: 1.2

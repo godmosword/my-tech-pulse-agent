@@ -56,6 +56,8 @@ class Article(BaseModel):
     title: str
     url: str
     source: str
+    source_display_name: str = ""
+    source_language: str = "en"
     published_at: Optional[datetime] = None
     summary: str = ""
     content: str = ""
@@ -79,6 +81,8 @@ class SourceConfig(BaseModel):
     name: str
     url: str
     priority: int
+    display_name: str = ""
+    language: str = "en"
     fallback: Optional[str] = None
     last_success: Optional[datetime] = None
     health_check: bool = True
@@ -90,7 +94,11 @@ class SourceConfig(BaseModel):
 class KOLConfig(BaseModel):
     name: str
     author: str
-    url: str
+    url: str = ""
+    display_name: str = ""
+    language: str = "en"
+    connector: str = "rss"
+    weight: float = 1.0
     focus: list[str] = Field(default_factory=list)
     tier: Literal["deep", "instant"] = "deep"
     domain: list[str] = Field(default_factory=list)
@@ -129,6 +137,34 @@ class RSSFetcher:
         for entry in data.get("kol_sources", []):
             cfg = KOLConfig(**entry)
             self._kol_registry[cfg.name] = cfg
+        for entry in self._iter_chinese_kol_entries(data.get("chinese_sources", {})):
+            cfg = KOLConfig(**entry)
+            self._kol_registry[cfg.name] = cfg
+
+    @staticmethod
+    def _iter_chinese_kol_entries(chinese_sources: dict) -> list[dict]:
+        entries: list[dict] = []
+        if not isinstance(chinese_sources, dict):
+            return entries
+        for group, sources in chinese_sources.items():
+            if not isinstance(sources, list):
+                continue
+            for source in sources:
+                if not isinstance(source, dict):
+                    continue
+                normalized = {
+                    "language": "zh-TW",
+                    "tier": "deep",
+                    "connector": "rss",
+                    "priority": 20,
+                    "enabled": True,
+                    "domain": [group],
+                    **source,
+                }
+                normalized.setdefault("display_name", str(normalized.get("name", "")))
+                normalized.setdefault("author", str(normalized.get("display_name", normalized.get("name", ""))))
+                entries.append(normalized)
+        return entries
 
     def fetch_all(self) -> list[Article]:
         """Fetch articles from all enabled news and KOL sources, sorted by priority."""
@@ -147,7 +183,7 @@ class RSSFetcher:
                     articles.append(article)
 
         kol_sources = sorted(
-            (k for k in self._kol_registry.values() if k.enabled),
+            (k for k in self._kol_registry.values() if k.enabled and k.connector == "rss"),
             key=lambda k: k.priority,
         )
         for kol in kol_sources:
@@ -161,6 +197,9 @@ class RSSFetcher:
 
     def _fetch_kol_source(self, kol: KOLConfig) -> list[Article]:
         """Fetch and label articles from a KOL Substack/blog feed."""
+        if kol.connector != "rss" or not kol.url:
+            logger.info("Skipping non-RSS KOL source %s connector=%s", kol.name, kol.connector)
+            return []
         try:
             headers = {"User-Agent": "tech-pulse/0.1"}
             if kol.name in self._etag_cache:
@@ -189,6 +228,8 @@ class RSSFetcher:
                 article.tier = kol.tier
                 article.domain = kol.domain or kol.focus
                 article.min_words = kol.min_words
+                article.source_display_name = kol.display_name or kol.name
+                article.source_language = kol.language
             logger.info("Fetched %d KOL articles from %s (%s)", len(articles), kol.name, kol.author)
             return articles
 
@@ -220,6 +261,9 @@ class RSSFetcher:
                 self._last_modified_cache[source.name] = lm
 
             articles = self._parse_feed(resp.text, source.name)
+            for article in articles:
+                article.source_display_name = source.display_name or source.name
+                article.source_language = source.language
             logger.info("Fetched %d articles from %s", len(articles), source.name)
             return articles
 
