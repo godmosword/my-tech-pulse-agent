@@ -60,6 +60,13 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `MAX_SUMMARY_CHARS` | ❌        | Max chars per item summary in Telegram digest (`260`) |
 | `STATE_BACKEND`        | ❌       | Persistent state backend: `auto`, `sqlite`, or `firestore` (`auto`) |
 | `FIRESTORE_COLLECTION_PREFIX` | ❌ | Collection prefix for production state (`tech_pulse`) |
+| `MEMORY_ENABLED`       | ❌       | Enable Firestore retrieval memory (`1`) |
+| `MEMORY_BACKEND`       | ❌       | Retrieval memory backend; currently `firestore` only |
+| `GEMINI_EMBEDDING_MODEL` | ❌     | Gemini embedding model (`gemini-embedding-001`) |
+| `MEMORY_EMBEDDING_DIM` | ❌       | Embedding dimension stored in Firestore (`768`) |
+| `MEMORY_TOP_K`         | ❌       | Similar historical items checked per summary (`3`) |
+| `SEMANTIC_DUP_DISTANCE_THRESHOLD` | ❌ | Cosine distance threshold for near-duplicate detection (`0.12`) |
+| `SEMANTIC_DUP_DROP_ENABLED` | ❌  | Drop semantic duplicates when `1`; rollout default is context-only (`0`) |
 
 ## Deployment
 
@@ -72,8 +79,8 @@ python main.py
 
 ### Continuous deployment (GitHub Actions → Cloud Run Job)
 
-Pushes to `main` automatically build and deploy the Cloud Run Job via
-`.github/workflows/deploy.yml`. Configure the following in the GitHub repository
+Pushes to `main` automatically run tests, build, and deploy the Cloud Run Job via
+`.github/workflows/ci.yml`. Configure the following in the GitHub repository
 settings before relying on it:
 
 **Repository variables** (Settings → Secrets and variables → Actions → Variables):
@@ -135,6 +142,27 @@ gcloud firestore indexes composite create \
   --field-config field-path=content_hash,order=ascending \
   --field-config field-path=seen_at,order=ascending
 ```
+
+### Firestore retrieval memory
+
+When `MEMORY_ENABLED=1`, delivered digest items, deep briefs, and earnings outputs are archived
+to `tech_pulse_memory_items` after Telegram delivery succeeds. Future runs use Firestore vector
+search to find related historical items, attach a short background hint to the digest, and mark
+near-duplicates. The rollout default is conservative: `SEMANTIC_DUP_DROP_ENABLED=0` archives and
+searches memory without suppressing items.
+
+Create the vector index before enabling duplicate dropping:
+
+```bash
+gcloud firestore indexes composite create \
+  --project "$GCP_PROJECT_ID" \
+  --collection-group tech_pulse_memory_items \
+  --query-scope COLLECTION \
+  --field-config field-path=embedding,vector-config='{"dimension":"768", "flat": "{}"}'
+```
+
+If the vector index is missing or still building, the pipeline logs a warning and continues
+without memory search for that run.
 
 ## Project Structure
 

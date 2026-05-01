@@ -17,6 +17,12 @@ from agents.reviewer_agent import ReviewerAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
+from scoring.memory_store import (
+    MEMORY_TOP_K,
+    SEMANTIC_DUP_DISTANCE_THRESHOLD,
+    MemorySearchResult,
+    make_memory_service,
+)
 from scoring.scorer import Scorer
 from sources.deep_scraper import DeepScraper
 from sources.earnings_fetcher import EarningsFetcher
@@ -38,6 +44,7 @@ MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "2"))
 MAX_DEEP_ARTICLES = int(os.getenv("MAX_DEEP_ARTICLES", "3"))
 MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
 MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "3"))
+SEMANTIC_DUP_DROP_ENABLED = os.getenv("SEMANTIC_DUP_DROP_ENABLED", "0") == "1"
 
 
 class PipelineDeadlineExceeded(BaseException):
@@ -59,6 +66,7 @@ class TechPulseCrew:
         self.synthesizer = SynthesizerAgent()
         self.earnings_agent = EarningsAgent()
         self.telegram = TelegramBot()
+        self.memory = make_memory_service()
 
     def run(self) -> dict:
         OUTPUT_DIR.mkdir(exist_ok=True)
@@ -163,6 +171,8 @@ class TechPulseCrew:
 
             summaries = self._ensure_minimum_summaries(summaries, instant_scored_articles)
             if summaries:
+                summaries = self._apply_memory_context(summaries)
+            if summaries:
                 summaries = self._claim_deliverable_summaries(summaries, instant_scored_articles)
 
             should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
@@ -205,7 +215,7 @@ class TechPulseCrew:
         delivery_succeeded = 0
         try:
             delivery_attempted += 1
-            if self.telegram.send_items_digest(
+            if self._send_items_digest_with_memory(
                 summaries,
                 total_fetched=len(raw_articles),
                 total_after_filter=len(instant_scored_articles),
@@ -233,6 +243,7 @@ class TechPulseCrew:
                 delivery_attempted += 1
                 if self.telegram.send_earnings(earnings):
                     delivery_succeeded += 1
+                    self._archive_delivered_earnings(earnings)
             except Exception as exc:
                 logger.error("Telegram earnings delivery failed: %s", exc, exc_info=True)
                 critical_errors.append("delivery:earnings")
@@ -244,6 +255,7 @@ class TechPulseCrew:
                 if self.telegram.send_deep_brief(brief):
                     delivery_succeeded += 1
                     deep_delivered += 1
+                    self._archive_delivered_deep_brief(brief)
             except Exception as exc:
                 logger.error("Telegram deep brief delivery failed: %s", exc, exc_info=True)
                 critical_errors.append("delivery:deep_brief")
@@ -396,6 +408,7 @@ class TechPulseCrew:
                     score_status=str(getattr(article, "score_status", "fallback")),
                     label=str(getattr(article, "label", "news")),
                     author=str(getattr(article, "author", "")),
+                    published_at=article.published_at.isoformat() if article.published_at else "",
                     source_text=(article.content or article.summary or "")[:4000],
                 )
             )
@@ -423,6 +436,63 @@ class TechPulseCrew:
             len(fallback_summaries),
         )
         return summaries + fallback_summaries
+
+    def _apply_memory_context(self, summaries: list[ArticleSummary]) -> list[ArticleSummary]:
+        """Attach retrieval-memory context and optionally drop semantic duplicates."""
+        retained: list[ArticleSummary] = []
+        dropped = 0
+        for summary in summaries:
+            query_summary = self._summary_memory_text(summary)
+            try:
+                matches = self.memory.search_similar(
+                    summary.title or summary.entity,
+                    query_summary,
+                    top_k=MEMORY_TOP_K,
+                    exclude_url=summary.source_url,
+                )
+            except Exception as exc:
+                logger.warning("Memory search failed for %s; continuing without context: %s", summary.title[:80], exc)
+                retained.append(summary)
+                continue
+
+            nearest = matches[0] if matches else None
+            if nearest and nearest.distance is not None:
+                summary.semantic_distance = nearest.distance
+                if nearest.distance <= SEMANTIC_DUP_DISTANCE_THRESHOLD:
+                    summary.semantic_duplicate = True
+                    if SEMANTIC_DUP_DROP_ENABLED:
+                        dropped += 1
+                        continue
+
+            context = self._memory_context_line(matches)
+            if context:
+                summary.history_context = context
+            retained.append(summary)
+
+        if dropped:
+            logger.info("Memory semantic dedup skipped %d near-duplicate summary item(s)", dropped)
+        return retained
+
+    @staticmethod
+    def _summary_memory_text(summary: ArticleSummary) -> str:
+        fact = (summary.what_happened or "").strip()
+        impact = (summary.why_it_matters or "").strip()
+        if fact and impact:
+            return f"{fact} {impact}"
+        if fact:
+            return fact
+        return (summary.summary or "").strip()
+
+    @staticmethod
+    def _memory_context_line(matches: list[MemorySearchResult]) -> str:
+        if not matches:
+            return ""
+        match = matches[0]
+        if not match.title:
+            return ""
+        source = f"（{match.source_name}）" if match.source_name else ""
+        distance = f"，距離 {match.distance:.2f}" if match.distance is not None else ""
+        return f"相關歷史：{match.title}{source}{distance}"
 
     def _claim_deliverable_summaries(
         self,
@@ -480,6 +550,48 @@ class TechPulseCrew:
         if skipped:
             logger.info("Final dedup claim skipped %d duplicate deep brief(s)", skipped)
         return claimed
+
+    def _send_items_digest_with_memory(
+        self,
+        summaries: list[ArticleSummary],
+        *,
+        total_fetched: int,
+        total_after_filter: int,
+        themes=None,
+        market_takeaway=None,
+        headline=None,
+        narrative_excerpt=None,
+    ) -> bool:
+        sent = self.telegram.send_items_digest(
+            summaries,
+            total_fetched=total_fetched,
+            total_after_filter=total_after_filter,
+            themes=themes,
+            market_takeaway=market_takeaway,
+            headline=headline,
+            narrative_excerpt=narrative_excerpt,
+        )
+        if sent:
+            self._archive_delivered_summaries(summaries)
+        return sent
+
+    def _archive_delivered_summaries(self, summaries: list[ArticleSummary]) -> None:
+        try:
+            self.memory.archive_summaries(summaries)
+        except Exception as exc:
+            logger.warning("Memory archive skipped for delivered summaries: %s", exc)
+
+    def _archive_delivered_deep_brief(self, brief: InsightBrief) -> None:
+        try:
+            self.memory.archive_deep_brief(brief)
+        except Exception as exc:
+            logger.warning("Memory archive skipped for delivered deep brief: %s", exc)
+
+    def _archive_delivered_earnings(self, earnings: EarningsOutput) -> None:
+        try:
+            self.memory.archive_earnings(earnings)
+        except Exception as exc:
+            logger.warning("Memory archive skipped for delivered earnings: %s", exc)
 
     def _handle_deadline(self, signum, frame):
         raise PipelineDeadlineExceeded(

@@ -13,11 +13,30 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "tech_pulse_memory_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 768,
+            "flat": {}
+          }
+        }
+      ]
     }
   ],
   "fieldOverrides": [
     {
       "collectionGroup": "tech_pulse_seen_items",
+      "fieldPath": "expires_at",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "tech_pulse_memory_items",
       "fieldPath": "expires_at",
       "ttl": true,
       "indexes": []

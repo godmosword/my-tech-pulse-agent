@@ -246,6 +246,8 @@ def _format_items_digest_v1(
             if s.score <= 0 or getattr(s, "score_status", "ok") == "fallback":
                 lines.append("⚠️ 資料待確認")
             lines.append(escape(_truncate(_compose_structured_summary(s))))
+            if getattr(s, "history_context", ""):
+                lines.append(f"↳ {escape(_truncate(s.history_context, 140))}")
             meta = f"{_tags(s)}  {_source_link(s)}"
             if s.cross_ref:
                 meta += "  🔗 投資日報"
@@ -261,6 +263,8 @@ def _format_items_digest_v1(
             lines.append(_score_line(s))
             lines.append("⚠️ 資料待確認")
             lines.append(escape(_truncate(_compose_structured_summary(s))))
+            if getattr(s, "history_context", ""):
+                lines.append(f"↳ {escape(_truncate(s.history_context, 140))}")
             lines.append(_source_link(s))
             lines.append("")
             shown_unscored.append(s)

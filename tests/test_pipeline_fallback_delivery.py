@@ -1,6 +1,7 @@
 from pipeline.crew import TechPulseCrew
 from sources.rss_fetcher import Article
 from delivery.message_formatter import format_items_digest
+from scoring.memory_store import MemorySearchResult
 
 
 def test_fallback_summaries_keep_single_item_digest_non_empty():
@@ -88,3 +89,105 @@ def test_final_claim_only_marks_deliverable_summaries():
 
     assert claimed == summaries
     assert crew.deduplicator.claimed == ["https://example.com/delivered"]
+
+
+class _FakeMemory:
+    def __init__(self, matches=None):
+        self.matches = matches or []
+        self.archived = []
+
+    def search_similar(self, title, summary, *, top_k, exclude_url):
+        del title, summary, top_k, exclude_url
+        return self.matches
+
+    def archive_summaries(self, summaries):
+        self.archived.extend(summaries)
+
+
+class _FakeTelegram:
+    def __init__(self, sent):
+        self.sent = sent
+
+    def send_items_digest(self, *args, **kwargs):
+        del args, kwargs
+        return self.sent
+
+
+def test_memory_context_near_match_is_retained_and_displayed():
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.memory = _FakeMemory(matches=[
+        MemorySearchResult(
+            item_id="old",
+            title="Earlier NVIDIA GPU supply story",
+            summary="Earlier context",
+            source_url="https://example.com/old",
+            source_name="Example",
+            distance=0.24,
+        )
+    ])
+    summary = crew._fallback_summaries([
+        Article(
+            title="NVIDIA expands GPU supply",
+            url="https://example.com/new",
+            source="Example News",
+            summary="NVIDIA expanded GPU supply for AI data centers.",
+            score=8.0,
+        )
+    ])[0]
+
+    retained = crew._apply_memory_context([summary])
+    msg = format_items_digest(retained, total_fetched=3, total_after_filter=1)
+
+    assert retained == [summary]
+    assert "Earlier NVIDIA GPU supply story" in summary.history_context
+    assert "相關歷史" in msg
+
+
+def test_memory_semantic_duplicate_can_be_filtered(monkeypatch):
+    monkeypatch.setattr("pipeline.crew.SEMANTIC_DUP_DROP_ENABLED", True)
+    monkeypatch.setattr("pipeline.crew.SEMANTIC_DUP_DISTANCE_THRESHOLD", 0.12)
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.memory = _FakeMemory(matches=[
+        MemorySearchResult(
+            item_id="old",
+            title="Same story",
+            summary="same",
+            source_url="https://example.com/old",
+            source_name="Example",
+            distance=0.05,
+        )
+    ])
+    summary = crew._fallback_summaries([
+        Article(
+            title="Same story rewritten",
+            url="https://example.com/new",
+            source="Example News",
+            summary="Same story with a different URL.",
+            score=8.0,
+        )
+    ])[0]
+
+    assert crew._apply_memory_context([summary]) == []
+    assert summary.semantic_duplicate is True
+    assert summary.semantic_distance == 0.05
+
+
+def test_items_digest_archives_memory_only_after_successful_delivery():
+    summary_1 = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+        Article(title="Delivered", url="https://example.com/ok", source="Example", summary="Delivered summary")
+    ])[0]
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.telegram = _FakeTelegram(sent=True)
+    crew.memory = _FakeMemory()
+
+    assert crew._send_items_digest_with_memory([summary_1], total_fetched=1, total_after_filter=1) is True
+    assert crew.memory.archived == [summary_1]
+
+    summary_2 = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+        Article(title="Failed", url="https://example.com/fail", source="Example", summary="Failed summary")
+    ])[0]
+    crew.telegram = _FakeTelegram(sent=False)
+    crew.memory = _FakeMemory()
+
+    assert crew._send_items_digest_with_memory([summary_2], total_fetched=1, total_after_filter=1) is False
+    assert crew.memory.archived == []

@@ -17,6 +17,7 @@ Current production baseline:
 - Orchestration: `pipeline/crew.py`
 - LLM provider: Gemini wrappers in `llm/gemini_client.py`
 - State backend: `STATE_BACKEND=auto` uses sqlite locally and Firestore on Cloud Run
+- Retrieval memory: `MEMORY_ENABLED=1` archives delivered items to Firestore vector search
 - KOL/source discovery: RSS/Atom feeds from `sources/source_registry.yaml` and `sources/kol_registry.yaml`
 - Deep public full-text extraction: `sources/deep_scraper.py` delegates scraping to Apify only
 
@@ -151,6 +152,14 @@ Deduplication contract:
 Feedback callback state:
 - `save:{item_id}` writes to the configured state store, not directly to sqlite.
 - Firestore dedup claims must use transaction blocks so concurrent Cloud Run Jobs do not process the same item twice.
+
+Retrieval memory:
+- Collection: `tech_pulse_memory_items` when `FIRESTORE_COLLECTION_PREFIX=tech_pulse`.
+- Store only delivered items after Telegram delivery succeeds.
+- Embeddings use `GEMINI_EMBEDDING_MODEL=gemini-embedding-001` with `MEMORY_EMBEDDING_DIM=768`.
+- Firestore vector index dimension must stay 768 unless both code and index are migrated together.
+- Missing/building vector indexes must fail open: send the digest normally and skip memory search.
+- `SEMANTIC_DUP_DROP_ENABLED=0` is the conservative rollout default; archive/search can run before aggressive dropping is enabled.
 
 ## Key Design Constraints
 
@@ -414,6 +423,14 @@ Optional:
 - `MAX_ITEMS_PER_DIGEST`
 - `MIN_DIGEST_ITEMS`
 - `MAX_SUMMARY_CHARS`
+- `MEMORY_ENABLED`
+- `MEMORY_BACKEND`
+- `GEMINI_EMBEDDING_MODEL`
+- `MEMORY_EMBEDDING_DIM`
+- `MEMORY_TOP_K`
+- `SEMANTIC_DUP_DISTANCE_THRESHOLD`
+- `SEMANTIC_DUP_DROP_ENABLED`
+- `MEMORY_TTL_DAYS`
 - `PIPELINE_TIMEOUT_SECONDS`
 - `GITHUB_PAGES_URL`
 
@@ -427,6 +444,7 @@ Optional:
 | LLM | Gemini API wrappers |
 | Score gate | Gemini Flash plus deterministic heuristic prefilter |
 | Persistent state | Firestore in Cloud Run, sqlite fallback for local/dev |
+| Retrieval memory | Firestore vector search over delivered digest/deep/earnings items |
 | RSS parsing | stdlib `xml.etree` + `httpx` |
 | PDF parsing | `pdfplumber` |
 | Delivery | `python-telegram-bot` |

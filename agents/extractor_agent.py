@@ -70,6 +70,10 @@ class ArticleSummary(BaseModel):
     score_status: str = "ok"  # propagated from Scorer; "fallback" means score unavailable
     label: str = "news"   # "news" | "kol" — propagated from Article
     author: str = ""      # KOL author name; empty for standard news
+    published_at: str = ""  # ISO timestamp propagated from source article when available
+    history_context: str = ""  # optional retrieval-memory hint for downstream synthesis/display
+    semantic_duplicate: bool = False
+    semantic_distance: Optional[float] = None
     source_text: str = Field(default="", exclude=True)  # raw article text for reviewer; not serialized
 
 
@@ -130,6 +134,8 @@ class ExtractorAgent:
                 result.title = article.get("title", "")
                 result.label = str(article.get("label", "news"))
                 result.author = str(article.get("author", ""))
+                published_at = article.get("published_at")
+                result.published_at = published_at.isoformat() if hasattr(published_at, "isoformat") else str(published_at or "")
                 result.source_text = text[:4000]
                 self._postprocess_flags(result)
                 results.append(result)
