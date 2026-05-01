@@ -139,8 +139,16 @@ class TechPulseCrew:
                 logger.error("Extraction stage failed: %s", exc, exc_info=True)
                 critical_errors.append("llm:extraction")
 
+            if not summaries and instant_scored_articles:
+                summaries = self._fallback_summaries(instant_scored_articles)
+                logger.warning(
+                    "Extraction produced no summaries; delivering %d fallback summary item(s)",
+                    len(summaries),
+                )
+
             # Stage 2.5 — Reviewer (fact-grounding check + quality gate)
             if summaries:
+                pre_review_summaries = summaries
                 try:
                     reviewed = self.reviewer.review_batch(summaries)
                     approved = [r.final_output for r in reviewed if r.approved and r.final_output]
@@ -151,6 +159,9 @@ class TechPulseCrew:
                         len(approved), len(reviewed), fact_errors, inferred,
                     )
                     summaries = approved
+                    if not summaries and pre_review_summaries:
+                        summaries = pre_review_summaries
+                        logger.warning("Reviewer rejected all summaries; delivering pre-review summaries")
                 except Exception as exc:
                     logger.error("Reviewer stage failed: %s", exc, exc_info=True)
                     critical_errors.append("llm:reviewer")
@@ -358,6 +369,36 @@ class TechPulseCrew:
             )
         logger.info("Processed %d earnings reports", len(results))
         return results
+
+    def _fallback_summaries(self, articles: list[Article]) -> list[ArticleSummary]:
+        max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "8"))
+        summaries: list[ArticleSummary] = []
+        for article in articles[:max_articles]:
+            text = (article.summary or article.content or "").strip()
+            if not text:
+                text = "原文摘要暫時無法取得，請點開來源查看完整內容。"
+            summaries.append(
+                ArticleSummary(
+                    entity=article.source or "Unknown",
+                    title=article.title,
+                    summary=text,
+                    what_happened=text,
+                    why_it_matters="",
+                    category="other",
+                    key_facts=[],
+                    sentiment="neutral",
+                    confidence="low",
+                    cross_ref=article.cross_ref,
+                    source_url=article.url,
+                    source_name=article.source,
+                    score=float(getattr(article, "score", 0.0)),
+                    score_status=str(getattr(article, "score_status", "fallback")),
+                    label=str(getattr(article, "label", "news")),
+                    author=str(getattr(article, "author", "")),
+                    source_text=(article.content or article.summary or "")[:4000],
+                )
+            )
+        return summaries
 
     def _handle_deadline(self, signum, frame):
         raise PipelineDeadlineExceeded(
