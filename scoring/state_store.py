@@ -185,6 +185,7 @@ class FirestoreStateStore:
     ):
         try:
             from google.cloud import firestore
+            from google.api_core import exceptions as google_exceptions
             from google.cloud.firestore_v1 import transactional
         except ImportError as exc:
             raise RuntimeError(
@@ -199,6 +200,31 @@ class FirestoreStateStore:
         else:
             self._client = firestore.Client(project=project_id)
         self._transactional = transactional
+        self._failed_precondition_error = google_exceptions.FailedPrecondition
+
+    def _is_missing_index_error(self, exc: Exception) -> bool:
+        return isinstance(exc, self._failed_precondition_error) and "requires an index" in str(exc)
+
+    def _content_hash_seen(self, content_hash: str, cutoff: datetime, transaction=None) -> bool:
+        query = (
+            self._collection("seen_items")
+            .where("content_hash", "==", content_hash)
+            .where("seen_at", ">", cutoff)
+            .limit(1)
+        )
+        try:
+            return any(query.stream(transaction=transaction))
+        except Exception as exc:
+            if not self._is_missing_index_error(exc):
+                raise
+            logger.warning(
+                "Firestore content-hash dedup query skipped because the required composite "
+                "index is missing. URL-based dedup will continue; create the index for "
+                "collection group %s_seen_items on content_hash ASC and seen_at ASC. Error: %s",
+                self._prefix,
+                exc,
+            )
+            return False
 
     def _collection(self, name: str):
         return self._client.collection(f"{self._prefix}_{name}")
@@ -216,13 +242,7 @@ class FirestoreStateStore:
             if isinstance(seen_at, datetime) and seen_at > cutoff:
                 return True
 
-        query = (
-            self._collection("seen_items")
-            .where("content_hash", "==", content_hash)
-            .where("seen_at", ">", cutoff)
-            .limit(1)
-        )
-        return any(query.stream())
+        return self._content_hash_seen(content_hash, cutoff)
 
     def mark_seen(
         self,
@@ -264,13 +284,7 @@ class FirestoreStateStore:
                 if isinstance(existing_seen_at, datetime) and existing_seen_at > cutoff:
                     return False
 
-            query = (
-                self._collection("seen_items")
-                .where("content_hash", "==", content_hash)
-                .where("seen_at", ">", cutoff)
-                .limit(1)
-            )
-            if any(query.stream(transaction=txn)):
+            if self._content_hash_seen(content_hash, cutoff, transaction=txn):
                 return False
 
             txn.set(

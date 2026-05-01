@@ -1,0 +1,26 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "tech_pulse_seen_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "content_hash",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "seen_at",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "tech_pulse_seen_items",
+      "fieldPath": "expires_at",
+      "ttl": true,
+      "indexes": []
+    }
+  ]
+}
