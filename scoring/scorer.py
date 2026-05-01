@@ -177,6 +177,7 @@ class Scorer:
                     system_instruction=_SYSTEM,
                     prompt=retry_prompt,
                     response_schema=ScoreResult,
+                    log_parse_errors=False,
                 )
                 return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
             except json.JSONDecodeError:
@@ -265,8 +266,7 @@ class Scorer:
                 article.score = 0.0
                 article.score_status = "fallback"
                 unscored_count += 1
-                if outcome.error_kind == "api":
-                    passed.append(article)
+                passed.append(article)
                 continue
 
             weighted_score = self._apply_source_weight(result.score, getattr(article, "source", ""))

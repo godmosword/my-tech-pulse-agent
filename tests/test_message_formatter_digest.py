@@ -129,3 +129,48 @@ def test_headline_and_narrative_lead_appear_above_items():
     idx_themes = msg.index("*🧭 今日主線*")
     idx_first_item = msg.index("⭐")
     assert idx_headline < idx_narrative < idx_themes < idx_first_item
+
+
+def test_theme_keyword_ai_does_not_match_inside_participants():
+    summary = _sample_summary(
+        0,
+        category="other",
+        title="Thinking Through CC0 and IP for NFT Communities",
+        summary="This week's participants discuss NFT intellectual property frameworks.",
+        score=7.7,
+    )
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+
+    assert "AI 基礎設施" not in msg
+    assert "其他焦點" in msg
+
+
+def test_theme_keyword_ai_matches_standalone_ai_phrase():
+    summary = _sample_summary(
+        0,
+        category="other",
+        title="AI infrastructure demand grows",
+        summary="GPU and data center capacity remain constrained.",
+        score=7.7,
+    )
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+
+    assert "AI 基礎設施" in msg
+
+
+def test_fallback_items_are_not_duplicated_or_averaged():
+    fallback = _sample_summary(
+        0,
+        category="other",
+        title="Fallback item",
+        summary="Fallback summary.",
+        score=0.0,
+    )
+    fallback.score_status = "fallback"
+
+    msg = format_items_digest([fallback], total_fetched=1, total_after_filter=1)
+
+    assert msg.count("Fallback item") == 1
+    assert "未評分" in msg
+    assert "平均評分" not in msg
+    assert "全部待確認" in msg

@@ -21,7 +21,7 @@ from scoring.scorer import Scorer
 from sources.deep_scraper import DeepScraper
 from sources.earnings_fetcher import EarningsFetcher
 from sources.ir_scraper import IRScraper
-from sources.rss_fetcher import Article
+from sources.rss_fetcher import Article, clean_feed_text
 from sources.rss_fetcher import RSSFetcher
 from sources.social_tracker import SocialTracker
 
@@ -37,6 +37,7 @@ PIPELINE_TIMEOUT_SECONDS = int(os.getenv("PIPELINE_TIMEOUT_SECONDS", "540"))
 MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "2"))
 MAX_DEEP_ARTICLES = int(os.getenv("MAX_DEEP_ARTICLES", "3"))
 MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
+MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "3"))
 
 
 class PipelineDeadlineExceeded(BaseException):
@@ -96,7 +97,7 @@ class TechPulseCrew:
                 logger.error("Social trending fetch failed: %s", exc, exc_info=True)
 
             try:
-                articles = self.deduplicator.filter_new(raw_articles)
+                articles = self.deduplicator.filter_unseen(raw_articles)
                 self.deduplicator.cleanup_expired()
             except Exception as exc:
                 logger.error("Dedup stage failed: %s", exc, exc_info=True)
@@ -139,13 +140,6 @@ class TechPulseCrew:
                 logger.error("Extraction stage failed: %s", exc, exc_info=True)
                 critical_errors.append("llm:extraction")
 
-            if not summaries and instant_scored_articles:
-                summaries = self._fallback_summaries(instant_scored_articles)
-                logger.warning(
-                    "Extraction produced no summaries; delivering %d fallback summary item(s)",
-                    len(summaries),
-                )
-
             # Stage 2.5 — Reviewer (fact-grounding check + quality gate)
             if summaries:
                 pre_review_summaries = summaries
@@ -166,6 +160,10 @@ class TechPulseCrew:
                     logger.error("Reviewer stage failed: %s", exc, exc_info=True)
                     critical_errors.append("llm:reviewer")
                     # fail-open: continue with original summaries
+
+            summaries = self._ensure_minimum_summaries(summaries, instant_scored_articles)
+            if summaries:
+                summaries = self._claim_deliverable_summaries(summaries, instant_scored_articles)
 
             should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
             if should_synthesize:
@@ -192,6 +190,9 @@ class TechPulseCrew:
                 signal.alarm(0)
                 if previous_handler is not None:
                     signal.signal(signal.SIGALRM, previous_handler)
+
+        if deep_briefs:
+            deep_briefs = self._claim_deep_briefs(deep_briefs, scored_articles)
 
         # Delivery — each send independently guarded
         narrative_excerpt: str | None = None
@@ -374,7 +375,7 @@ class TechPulseCrew:
         max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "8"))
         summaries: list[ArticleSummary] = []
         for article in articles[:max_articles]:
-            text = (article.summary or article.content or "").strip()
+            text = clean_feed_text(article.content or article.summary or "")
             if not text:
                 text = "原文摘要暫時無法取得，請點開來源查看完整內容。"
             summaries.append(
@@ -399,6 +400,86 @@ class TechPulseCrew:
                 )
             )
         return summaries
+
+    def _ensure_minimum_summaries(
+        self,
+        summaries: list[ArticleSummary],
+        articles: list[Article],
+    ) -> list[ArticleSummary]:
+        if len(summaries) >= MIN_DIGEST_ITEMS or not articles:
+            return summaries
+
+        existing_urls = {summary.source_url for summary in summaries if summary.source_url}
+        needed = MIN_DIGEST_ITEMS - len(summaries)
+        fallback_articles = [article for article in articles if article.url not in existing_urls][:needed]
+        if not fallback_articles:
+            return summaries
+
+        fallback_summaries = self._fallback_summaries(fallback_articles)
+        logger.warning(
+            "Digest below minimum (%d/%d); adding %d fallback summary item(s)",
+            len(summaries),
+            MIN_DIGEST_ITEMS,
+            len(fallback_summaries),
+        )
+        return summaries + fallback_summaries
+
+    def _claim_deliverable_summaries(
+        self,
+        summaries: list[ArticleSummary],
+        articles: list[Article],
+    ) -> list[ArticleSummary]:
+        article_by_url = {article.url: article for article in articles}
+        claimed: list[ArticleSummary] = []
+        skipped = 0
+        for summary in summaries:
+            article = article_by_url.get(summary.source_url)
+            try:
+                if article:
+                    ok = self.deduplicator.claim_article(article)
+                else:
+                    content = f"{summary.title}{summary.summary}"
+                    ok = self.deduplicator.claim_url(summary.source_url, content)
+            except Exception as exc:
+                logger.error("Final dedup claim failed for %s: %s", summary.source_url, exc, exc_info=True)
+                ok = True
+
+            if ok:
+                claimed.append(summary)
+            else:
+                skipped += 1
+
+        if skipped:
+            logger.info("Final dedup claim skipped %d duplicate summary item(s)", skipped)
+        return claimed
+
+    def _claim_deep_briefs(
+        self,
+        briefs: list[InsightBrief],
+        articles: list[Article],
+    ) -> list[InsightBrief]:
+        article_by_url = {article.url: article for article in articles}
+        claimed: list[InsightBrief] = []
+        skipped = 0
+        for brief in briefs:
+            article = article_by_url.get(brief.url)
+            try:
+                if article:
+                    ok = self.deduplicator.claim_article(article)
+                else:
+                    ok = self.deduplicator.claim_url(brief.url, f"{brief.title}{brief.insight}")
+            except Exception as exc:
+                logger.error("Final deep dedup claim failed for %s: %s", brief.url, exc, exc_info=True)
+                ok = True
+
+            if ok:
+                claimed.append(brief)
+            else:
+                skipped += 1
+
+        if skipped:
+            logger.info("Final dedup claim skipped %d duplicate deep brief(s)", skipped)
+        return claimed
 
     def _handle_deadline(self, signum, frame):
         raise PipelineDeadlineExceeded(

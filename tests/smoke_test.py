@@ -17,7 +17,7 @@ from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
 from scoring.scorer import ScoreResult, Scorer
 from sources.deep_scraper import DeepScraper
-from sources.rss_fetcher import Article, RSSFetcher
+from sources.rss_fetcher import Article, RSSFetcher, clean_feed_text
 from scripts.preflight import _failures as preflight_failures
 from llm.gemini_client import _extract_json_object
 from pipeline.crew import TechPulseCrew
@@ -102,6 +102,24 @@ def test_extract_json_object_from_wrapped_text():
 def test_rss_fetcher_loads_registry():
     fetcher = RSSFetcher()
     assert len(fetcher._registry) > 0, "Source registry should have at least one news source"
+
+
+def test_clean_feed_text_removes_html_entities_and_feed_footers():
+    html = (
+        "<p><em>Welcome to Web3 Water Cooler</em> with participants and NFTs...</p>"
+        '<p><a href="https://example.com">Read More</a></p>'
+        '<p>The post <a href="https://example.com">Thinking Through CC0</a> '
+        'appeared first on <a href="https://future.com">Future</a>.</p>'
+        "It&#8217;s useful."
+    )
+
+    text = clean_feed_text(html)
+
+    assert "<p>" not in text
+    assert "&#8217;" not in text
+    assert "Read More" not in text
+    assert "appeared first" not in text
+    assert "It’s useful" in text
 
 
 def test_article_model_validates():
@@ -775,6 +793,17 @@ def test_deduplicator_filter_new_claims_atomically(tmp_path):
     assert second == []
 
 
+def test_deduplicator_filter_unseen_does_not_mark_seen(tmp_path):
+    dedup = _tmp_dedup(tmp_path)
+    article = Article(title="Fresh", url="https://example.com/fresh", source="test", summary="Body")
+
+    first = dedup.filter_unseen([article])
+    second = dedup.filter_unseen([article])
+
+    assert first == [article]
+    assert second == [article]
+
+
 # ---------- Scorer ----------
 
 MOCK_SCORE_RESPONSE = json.dumps({"relevance": 9.0, "novelty": 8.0, "depth": 8.0, "score": 8.5})
@@ -968,6 +997,24 @@ def test_scorer_retries_once_on_non_json_response():
     assert len(result) == 1
     assert result[0].score_status == "scored"
     assert result[0].score == 7.4
+
+
+def test_scorer_parse_failure_uses_fallback_item():
+    article = Article(
+        title="Microsoft launches AI cloud security service",
+        url="https://example.com/1",
+        source="test",
+        summary="Microsoft announced an AI security service for enterprise cloud customers.",
+    )
+    responses = ["Here is the JSON requested:", "Here is the JSON requested:"]
+    with _mock_gemini_client(responses) as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles([article])
+
+    assert mock_client.models.generate_content.call_count == 2
+    assert len(result) == 1
+    assert result[0].score == 0.0
+    assert result[0].score_status == "fallback"
 
 
 def test_article_score_field_default():
@@ -1319,6 +1366,17 @@ def test_kol_registry_loads():
         data = yaml.safe_load(f)
     assert "kol_sources" in data
     assert len(data["kol_sources"]) >= 5
+
+
+def test_a16z_archive_feed_is_disabled():
+    from sources.rss_fetcher import KOL_REGISTRY_PATH
+    import yaml
+    with open(KOL_REGISTRY_PATH) as f:
+        data = yaml.safe_load(f)
+
+    a16z = next(item for item in data["kol_sources"] if item["name"] == "a16z_blog")
+    assert a16z["enabled"] is False
+    assert a16z["url"] != "https://future.com/feed"
 
 
 def test_rss_fetcher_loads_kol_registry():

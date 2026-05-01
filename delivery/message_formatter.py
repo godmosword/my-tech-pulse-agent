@@ -12,7 +12,7 @@ from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "6"))
-MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "150"))
+MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "260"))
 MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
 UNSCORED_ALERT_RATIO = float(os.getenv("UNSCORED_ALERT_RATIO", "0.2"))
 MAX_UNSCORED_TAIL = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
@@ -36,7 +36,7 @@ def _theme_key(summary: ArticleSummary) -> str:
 
     corpus = " ".join([summary.entity, summary.summary, getattr(summary, "title", "")]).lower()
     for theme, keywords in _THEME_KEYWORDS.items():
-        if any(k.lower() in corpus for k in keywords):
+        if any(_contains_theme_keyword(corpus, k) for k in keywords):
             return theme
 
     cat_map = {
@@ -47,6 +47,13 @@ def _theme_key(summary: ArticleSummary) -> str:
         "research": "技術研發",
     }
     return cat_map.get(summary.category, "其他焦點")
+
+
+def _contains_theme_keyword(corpus: str, keyword: str) -> bool:
+    keyword = keyword.lower()
+    if any("\u4e00" <= char <= "\u9fff" for char in keyword):
+        return keyword in corpus
+    return re.search(rf"(?<![a-z0-9]){re.escape(keyword)}(?![a-z0-9])", corpus) is not None
 
 
 def _theme_rank_score(items: list[ArticleSummary]) -> float:
@@ -112,7 +119,7 @@ def _truncate(text: str, max_chars: int = MAX_SUMMARY_CHARS) -> str:
 def _score_line(summary: ArticleSummary) -> str:
     """Return `⭐ 8.3 *Title*` or `📊 8.3 *Title*` for earnings."""
     title = escape(getattr(summary, "title", "") or summary.entity)
-    if getattr(summary, "score_status", "scored") == "unscored":
+    if getattr(summary, "score_status", "ok") in {"unscored", "fallback"} or summary.score <= 0:
         return f"⚪ 未評分 *{title}*"
     score_str = escape(f"{summary.score:.1f}")
     prefix = "📊" if summary.category == "earnings" else "⭐"
@@ -201,10 +208,8 @@ def _format_items_digest_v1(
         s for s in ranked
         if s.score > 0 and getattr(s, "score_status", "ok") != "fallback"
     ]
-    display_pool = valid_ranked if len(valid_ranked) >= 5 else ranked
-    display_pool = display_pool[:MAX_ITEMS_PER_DIGEST * 2]
-
     unscored = [s for s in ranked if getattr(s, "score_status", "ok") == "fallback"]
+    display_pool = valid_ranked[:MAX_ITEMS_PER_DIGEST * 2]
 
     groups = _select_by_theme(display_pool) if display_pool else []
 
@@ -248,21 +253,28 @@ def _format_items_digest_v1(
             lines.append("")
             shown_items.append(s)
 
-    if unscored:
+    shown_unscored: list[ArticleSummary] = []
+    fallback_allowance = max(0, min(MAX_UNSCORED_TAIL, MAX_ITEMS_PER_DIGEST - len(shown_items)))
+    if unscored and fallback_allowance:
         lines.append("*其他快訊*")
-        for s in unscored[:MAX_UNSCORED_TAIL]:
+        for s in unscored[:fallback_allowance]:
             lines.append(_score_line(s))
-            lines.append(escape(_truncate(_compose_structured_summary(s), max_chars=90)))
+            lines.append("⚠️ 資料待確認")
+            lines.append(escape(_truncate(_compose_structured_summary(s))))
             lines.append(_source_link(s))
             lines.append("")
+            shown_unscored.append(s)
 
     if shown_items:
         avg = mean(s.score for s in shown_items)
         avg_str = escape(f"{avg:.1f}")
         n_themes = len(groups)
-        lines.append(
-            f"_精選 {escape(str(len(shown_items)))} 則 · 平均評分 {avg_str} · 涵蓋 {escape(str(n_themes))} 個主題_"
-        )
+        footer = f"_精選 {escape(str(len(shown_items) + len(shown_unscored)))} 則 · 平均評分 {avg_str} · 涵蓋 {escape(str(n_themes))} 個主題"
+        if shown_unscored:
+            footer += f" · {escape(str(len(shown_unscored)))} 則待確認"
+        lines.append(footer + "_")
+    elif shown_unscored:
+        lines.append(f"_精選 {escape(str(len(shown_unscored)))} 則 · 全部待確認_")
     else:
         fetched_esc = escape(str(total_fetched))
         filtered_esc = escape(str(total_after_filter))

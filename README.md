@@ -55,6 +55,9 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `MIN_DEEP_WORDS` | ❌          | Minimum public full-text length before deep chain runs (`800`) |
 | `MAX_EARNINGS_FILINGS` | ❌      | Max earnings filings processed per run (`2`) |
 | `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
+| `MAX_ITEMS_PER_DIGEST` | ❌      | Max items shown in Telegram digest (`6`) |
+| `MIN_DIGEST_ITEMS` | ❌         | Minimum digest items, filled with fallback summaries when needed (`3`) |
+| `MAX_SUMMARY_CHARS` | ❌        | Max chars per item summary in Telegram digest (`260`) |
 | `STATE_BACKEND`        | ❌       | Persistent state backend: `auto`, `sqlite`, or `firestore` (`auto`) |
 | `FIRESTORE_COLLECTION_PREFIX` | ❌ | Collection prefix for production state (`tech_pulse`) |
 

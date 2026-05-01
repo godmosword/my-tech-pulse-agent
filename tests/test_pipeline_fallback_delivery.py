@@ -39,3 +39,52 @@ def test_fallback_summaries_handle_missing_rss_summary():
 
     assert "Thin RSS item" in msg
     assert "原文摘要暫時無法取得" in msg
+
+
+def test_ensure_minimum_summaries_adds_three_fallback_items(monkeypatch):
+    monkeypatch.setattr("pipeline.crew.MIN_DIGEST_ITEMS", 3)
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    articles = [
+        Article(
+            title=f"Fallback {idx}",
+            url=f"https://example.com/{idx}",
+            source="Example News",
+            summary=f"Fallback summary {idx}",
+            score=0.0,
+            score_status="fallback",
+        )
+        for idx in range(4)
+    ]
+
+    summaries = crew._ensure_minimum_summaries([], articles)
+    msg = format_items_digest(summaries, total_fetched=10, total_after_filter=4)
+
+    assert len(summaries) == 3
+    assert "Fallback 0" in msg
+    assert "Fallback 1" in msg
+    assert "Fallback 2" in msg
+    assert "Fallback 3" not in msg
+    assert "全部待確認" in msg
+
+
+def test_final_claim_only_marks_deliverable_summaries():
+    class FakeDedup:
+        def __init__(self):
+            self.claimed = []
+
+        def claim_article(self, article):
+            self.claimed.append(article.url)
+            return True
+
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.deduplicator = FakeDedup()
+    articles = [
+        Article(title="Delivered", url="https://example.com/delivered", source="Example News"),
+        Article(title="Filtered", url="https://example.com/filtered", source="Example News"),
+    ]
+    summaries = crew._fallback_summaries([articles[0]])
+
+    claimed = crew._claim_deliverable_summaries(summaries, articles)
+
+    assert claimed == summaries
+    assert crew.deduplicator.claimed == ["https://example.com/delivered"]

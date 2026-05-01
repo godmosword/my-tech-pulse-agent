@@ -41,13 +41,14 @@ kol_sources:
 
   - name: a16z_blog
     author: a16z
-    url: https://future.com/feed
+    # Disabled: the old Future archive feed stopped in 2022 and pollutes daily digests.
+    url: https://a16z.com/
     tier: deep
     domain: [vc_thesis, emerging_tech, crypto]
     focus: [VC_thesis, emerging_tech, crypto]
     min_words: 800
     priority: 2
-    enabled: true
+    enabled: false
 
   - name: sequoia_blog
     author: Sequoia Capital

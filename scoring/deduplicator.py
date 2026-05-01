@@ -70,7 +70,7 @@ class Deduplicator:
         """
         new_articles = []
         for article in articles:
-            body = f"{article.title}{(article.summary or '')[:500]}"
+            body = self._article_body(article)
             url_hash = self._url_hash(article.url)
             content_hash = self._content_hash(body)
             seen_at = datetime.now(timezone.utc)
@@ -90,6 +90,50 @@ class Deduplicator:
             len(new_articles), len(articles), dropped, "s" if dropped != 1 else "",
         )
         return new_articles
+
+    def filter_unseen(self, articles: list) -> list:
+        """Return articles not seen within TTL without mutating state."""
+        unseen = []
+        for article in articles:
+            body = self._article_body(article)
+            url_hash = self._url_hash(article.url)
+            content_hash = self._content_hash(body)
+            if not self._store.has_seen(url_hash, content_hash, self._cutoff_iso()):
+                unseen.append(article)
+
+        dropped = len(articles) - len(unseen)
+        logger.info(
+            "Dedup prefilter: %d unseen / %d total (%d duplicate%s skipped)",
+            len(unseen), len(articles), dropped, "s" if dropped != 1 else "",
+        )
+        return unseen
+
+    def claim_article(self, article) -> bool:
+        """Atomically mark one selected article as seen if it is still unseen."""
+        body = self._article_body(article)
+        seen_at = datetime.now(timezone.utc)
+        return self._store.claim_seen(
+            url_hash=self._url_hash(article.url),
+            content_hash=self._content_hash(body),
+            cutoff_iso=self._cutoff_iso(),
+            seen_at=seen_at,
+            url=article.url,
+            expires_at=seen_at + self._ttl,
+        )
+
+    def claim_url(self, url: str, content: str = "") -> bool:
+        """Atomically mark one selected URL/content pair as seen."""
+        if not url:
+            return True
+        seen_at = datetime.now(timezone.utc)
+        return self._store.claim_seen(
+            url_hash=self._url_hash(url),
+            content_hash=self._content_hash(content),
+            cutoff_iso=self._cutoff_iso(),
+            seen_at=seen_at,
+            url=url,
+            expires_at=seen_at + self._ttl,
+        )
 
     def cleanup_expired(self) -> int:
         """Delete records older than TTL. Returns count of removed rows."""
@@ -112,6 +156,10 @@ class Deduplicator:
     @staticmethod
     def _content_hash(content: str) -> str:
         return hashlib.sha256(content[:500].encode()).hexdigest()
+
+    @staticmethod
+    def _article_body(article) -> str:
+        return f"{getattr(article, 'title', '')}{(getattr(article, 'summary', '') or '')[:500]}"
 
     @staticmethod
     def _normalize_url(url: str) -> str:

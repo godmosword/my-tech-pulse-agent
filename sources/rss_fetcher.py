@@ -1,6 +1,8 @@
 """RSS feed fetcher with source registry, fallback support, and KOL feeds."""
 
+import html
 import logging
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -24,6 +26,30 @@ NS = {
     "content": "http://purl.org/rss/1.0/modules/content/",
     "dc": "http://purl.org/dc/elements/1.1/",
 }
+
+_POST_FOOTER_RE = re.compile(
+    r"\bThe post\b.*?\bappeared first on\b.*?(?:\.|$)",
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+
+def clean_feed_text(text: str) -> str:
+    """Convert RSS HTML fragments to compact plain text."""
+    if not text:
+        return ""
+
+    cleaned = html.unescape(text)
+    cleaned = re.sub(r"(?is)<(script|style).*?</\1>", " ", cleaned)
+    cleaned = re.sub(r"(?i)<br\s*/?>", "\n", cleaned)
+    cleaned = re.sub(r"(?i)</(?:p|div|li|h[1-6]|blockquote)>", "\n", cleaned)
+    cleaned = re.sub(r"(?s)<[^>]+>", " ", cleaned)
+    cleaned = html.unescape(cleaned)
+    cleaned = _POST_FOOTER_RE.sub(" ", cleaned)
+    cleaned = re.sub(r"\bRead More\b", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"[ \t\r\f\v]+", " ", cleaned)
+    cleaned = re.sub(r"\n\s+", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip(" \n\t.-")
 
 
 class Article(BaseModel):
@@ -227,11 +253,14 @@ class RSSFetcher:
         for item in list(channel.findall("item"))[:MAX_ARTICLES_PER_FEED]:
             title = (item.findtext("title") or "").strip()
             url = (item.findtext("link") or "").strip()
-            summary = (
+            content_raw = (
                 item.findtext(f"{{{NS['content']}}}encoded")
                 or item.findtext("description")
                 or ""
             )
+            description_raw = item.findtext("description") or content_raw
+            summary = clean_feed_text(description_raw)
+            content = clean_feed_text(content_raw)
             published_at = self._parse_date(item.findtext("pubDate"))
 
             if title and url:
@@ -241,7 +270,7 @@ class RSSFetcher:
                     source=source_name,
                     published_at=published_at,
                     summary=summary[:2000],
-                    content=summary[:4000],
+                    content=content[:4000],
                 ))
         return articles
 
@@ -260,8 +289,8 @@ class RSSFetcher:
                     url = link.get("href", "")
                     break
 
-            summary = (entry.findtext(f"{prefix}summary") or "").strip()
-            content = (entry.findtext(f"{{{NS['content']}}}encoded") or "").strip()
+            summary = clean_feed_text(entry.findtext(f"{prefix}summary") or "")
+            content = clean_feed_text(entry.findtext(f"{{{NS['content']}}}encoded") or "")
             published_at = self._parse_date(
                 entry.findtext(f"{prefix}published") or entry.findtext(f"{prefix}updated")
             )
