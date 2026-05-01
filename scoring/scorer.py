@@ -253,6 +253,8 @@ class Scorer:
                 len(candidates), len(prefiltered),
             )
 
+        unscored: list = []
+
         for article in candidates:
             text = article.content or article.summary or ""
             article_type = getattr(article, "label", "news")
@@ -266,7 +268,11 @@ class Scorer:
                 article.score = 0.0
                 article.score_status = "fallback"
                 unscored_count += 1
-                passed.append(article)
+                unscored.append(article)  # kept separate — not in main passed list
+                logger.warning(
+                    "Scoring failed for '%s' (%s) — will appear in fallback tail only",
+                    article.title[:60], outcome.error_kind,
+                )
                 continue
 
             weighted_score = self._apply_source_weight(result.score, getattr(article, "source", ""))
@@ -282,10 +288,18 @@ class Scorer:
                     article.title[:60], weighted_score, thresh,
                 )
 
+        # Append unscored items at the end so they form the fallback tail in delivery.
+        # Capped so they never crowd out scored content.
+        max_unscored_tail = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
+        passed.extend(unscored[:max_unscored_tail])
+
         unscored_ratio = (unscored_count / len(candidates)) if candidates else 0.0
         logger.info(
-            "Scoring: %d/%d articles passed+unscored | unscored=%d (%.1f%%)",
-            len(passed), len(candidates), unscored_count, unscored_ratio * 100,
+            "Scoring: %d scored | %d unscored (%.1f%%) | %d total passed",
+            len(passed) - min(unscored_count, max_unscored_tail),
+            unscored_count,
+            unscored_ratio * 100,
+            len(passed),
         )
         return passed
 

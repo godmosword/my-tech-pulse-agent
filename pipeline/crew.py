@@ -117,7 +117,12 @@ class TechPulseCrew:
             except Exception as exc:
                 logger.error("Scoring stage failed: %s", exc, exc_info=True)
                 critical_errors.append("llm:scoring")
-                scored_articles = articles  # fallback: pass everything through unscored
+                # Mark all as fallback so delivery puts them in tail, not main digest
+                for a in articles:
+                    if not getattr(a, "score_status", None):
+                        a.score = 0.0
+                        a.score_status = "fallback"
+                scored_articles = articles
 
             # Deep tier — full-text KOL/paper analysis.
             try:
@@ -387,16 +392,20 @@ class TechPulseCrew:
         max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "8"))
         summaries: list[ArticleSummary] = []
         for article in articles[:max_articles]:
-            text = clean_feed_text(article.content or article.summary or "")
-            if not text:
-                text = "原文摘要暫時無法取得，請點開來源查看完整內容。"
+            raw_text = clean_feed_text(article.content or article.summary or "")
+            if not raw_text:
+                raw_text = article.title  # last resort: at least show the headline
+            # Split text into fact / impact heuristically: first sentence is fact, rest is impact.
+            sentences = [s.strip() for s in raw_text.replace("。", ". ").split(". ") if s.strip()]
+            what_happened = sentences[0] if sentences else raw_text
+            why_it_matters = ". ".join(sentences[1:]) if len(sentences) > 1 else ""
             summaries.append(
                 ArticleSummary(
                     entity=article.source or "Unknown",
                     title=article.title,
-                    summary=text,
-                    what_happened=text,
-                    why_it_matters="",
+                    summary=raw_text,
+                    what_happened=what_happened,
+                    why_it_matters=why_it_matters,
                     category="other",
                     key_facts=[],
                     sentiment="neutral",
@@ -409,7 +418,7 @@ class TechPulseCrew:
                     label=str(getattr(article, "label", "news")),
                     author=str(getattr(article, "author", "")),
                     published_at=article.published_at.isoformat() if article.published_at else "",
-                    source_text=(article.content or article.summary or "")[:4000],
+                    source_text=raw_text[:4000],
                 )
             )
         return summaries

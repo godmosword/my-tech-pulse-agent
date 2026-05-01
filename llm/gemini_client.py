@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import time
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
@@ -14,6 +15,15 @@ logger = logging.getLogger(__name__)
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
 GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-3-flash-preview")
+
+# Retry delays for transient Gemini API errors (seconds between attempts)
+_RETRY_DELAYS = [2.0, 5.0]
+_RETRYABLE_KEYWORDS = ("timeout", "429", "503", "rate", "quota", "unavailable", "resource_exhausted")
+
+
+def _is_retryable(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(k in msg for k in _RETRYABLE_KEYWORDS)
 
 
 def make_client():
@@ -40,7 +50,11 @@ def generate_json(
     response_schema: type[BaseModel] | None = None,
     log_parse_errors: bool = True,
 ) -> tuple[dict[str, Any], str]:
-    """Generate a JSON object with Gemini and return parsed data plus raw text."""
+    """Generate a JSON object with Gemini and return parsed data plus raw text.
+
+    Retries up to len(_RETRY_DELAYS) times on transient API errors (timeout, 429, 503).
+    JSON parse errors are not retried here — callers handle their own parse-retry loops.
+    """
     from google.genai import types  # noqa: PLC0415 — lazy import
     config_kwargs = {
         "system_instruction": (
@@ -57,27 +71,45 @@ def generate_json(
             thinking_level=types.ThinkingLevel.LOW
         )
 
-    response = client.models.generate_content(
-        model=model,
-        contents=prompt,
-        config=types.GenerateContentConfig(**config_kwargs),
-    )
-    parsed = getattr(response, "parsed", None)
-    if isinstance(parsed, BaseModel):
-        return parsed.model_dump(), json.dumps(parsed.model_dump(), ensure_ascii=False)
-    if isinstance(parsed, dict):
-        return parsed, json.dumps(parsed, ensure_ascii=False)
+    last_exc: Exception | None = None
+    for attempt, delay in enumerate([0.0] + _RETRY_DELAYS):
+        if delay:
+            logger.info("Gemini retry attempt %d after %.1fs (model=%s)", attempt + 1, delay, model)
+            time.sleep(delay)
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(**config_kwargs),
+            )
+            parsed = getattr(response, "parsed", None)
+            if isinstance(parsed, BaseModel):
+                return parsed.model_dump(), json.dumps(parsed.model_dump(), ensure_ascii=False)
+            if isinstance(parsed, dict):
+                return parsed, json.dumps(parsed, ensure_ascii=False)
 
-    raw = _response_text(response)
-    try:
-        return json.loads(raw), raw
-    except json.JSONDecodeError:
-        extracted = _extract_json_object(raw)
-        if extracted:
-            return json.loads(extracted), raw
-        if log_parse_errors:
-            logger.warning("Gemini JSON parse error | raw=%s", raw[:200])
-        raise
+            raw = _response_text(response)
+            try:
+                return json.loads(raw), raw
+            except json.JSONDecodeError:
+                extracted = _extract_json_object(raw)
+                if extracted:
+                    return json.loads(extracted), raw
+                if log_parse_errors:
+                    logger.warning("Gemini JSON parse error | raw=%s", raw[:200])
+                raise  # JSON parse errors propagate immediately — no point retrying
+        except json.JSONDecodeError:
+            raise
+        except Exception as exc:
+            last_exc = exc
+            if not _is_retryable(exc):
+                raise
+            logger.warning(
+                "Gemini transient error (attempt %d/%d, model=%s): %s",
+                attempt + 1, len(_RETRY_DELAYS) + 1, model, exc,
+            )
+
+    raise last_exc  # type: ignore[misc]
 
 
 def _response_text(response: object) -> str:

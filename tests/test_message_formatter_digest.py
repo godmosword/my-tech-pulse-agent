@@ -173,4 +173,5 @@ def test_fallback_items_are_not_duplicated_or_averaged():
     assert msg.count("Fallback item") == 1
     assert "未評分" in msg
     assert "平均評分" not in msg
-    assert "全部待確認" in msg
+    # Footer now shows "快訊 N 則" instead of "全部待確認" for cleaner UX
+    assert "快訊" in msg

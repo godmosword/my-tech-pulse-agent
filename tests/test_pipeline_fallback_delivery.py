@@ -38,8 +38,10 @@ def test_fallback_summaries_handle_missing_rss_summary():
     summaries = crew._fallback_summaries([article])
     msg = format_items_digest(summaries, total_fetched=316, total_after_filter=1)
 
+    # When RSS summary is empty, fallback uses the title as last resort
     assert "Thin RSS item" in msg
-    assert "原文摘要暫時無法取得" in msg
+    assert len(summaries) == 1
+    assert summaries[0].what_happened  # should never be empty
 
 
 def test_ensure_minimum_summaries_adds_three_fallback_items(monkeypatch):
@@ -65,7 +67,8 @@ def test_ensure_minimum_summaries_adds_three_fallback_items(monkeypatch):
     assert "Fallback 1" in msg
     assert "Fallback 2" in msg
     assert "Fallback 3" not in msg
-    assert "全部待確認" in msg
+    # Footer now shows "快訊 N 則" instead of "全部待確認" for cleaner UX
+    assert "快訊" in msg
 
 
 def test_final_claim_only_marks_deliverable_summaries():

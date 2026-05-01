@@ -14,7 +14,7 @@ from agents.synthesizer_agent import DigestOutput
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "6"))
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "260"))
 MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
-UNSCORED_ALERT_RATIO = float(os.getenv("UNSCORED_ALERT_RATIO", "0.2"))
+UNSCORED_ALERT_RATIO = float(os.getenv("UNSCORED_ALERT_RATIO", "0.5"))
 MAX_UNSCORED_TAIL = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
 
 MAX_THEMES_PER_DIGEST = int(os.getenv("MAX_THEMES_PER_DIGEST", "4"))
@@ -146,8 +146,8 @@ def _compose_structured_summary(summary: ArticleSummary) -> str:
 
     if fact and impact:
         return f"{fact} {impact}"
-    if fact and not impact:
-        return f"{fact}（資訊不足）"
+    if fact:
+        return fact
     return summary.summary
 
 
@@ -261,7 +261,6 @@ def _format_items_digest_v1(
         lines.append("*其他快訊*")
         for s in unscored[:fallback_allowance]:
             lines.append(_score_line(s))
-            lines.append("⚠️ 資料待確認")
             lines.append(escape(_truncate(_compose_structured_summary(s))))
             if getattr(s, "history_context", ""):
                 lines.append(f"↳ {escape(_truncate(s.history_context, 140))}")
@@ -273,12 +272,11 @@ def _format_items_digest_v1(
         avg = mean(s.score for s in shown_items)
         avg_str = escape(f"{avg:.1f}")
         n_themes = len(groups)
-        footer = f"_精選 {escape(str(len(shown_items) + len(shown_unscored)))} 則 · 平均評分 {avg_str} · 涵蓋 {escape(str(n_themes))} 個主題"
-        if shown_unscored:
-            footer += f" · {escape(str(len(shown_unscored)))} 則待確認"
-        lines.append(footer + "_")
+        total = len(shown_items) + len(shown_unscored)
+        footer = f"_精選 {escape(str(total))} 則 · 平均評分 {avg_str} · 涵蓋 {escape(str(n_themes))} 個主題_"
+        lines.append(footer)
     elif shown_unscored:
-        lines.append(f"_精選 {escape(str(len(shown_unscored)))} 則 · 全部待確認_")
+        lines.append(f"_快訊 {escape(str(len(shown_unscored)))} 則_")
     else:
         fetched_esc = escape(str(total_fetched))
         filtered_esc = escape(str(total_after_filter))
