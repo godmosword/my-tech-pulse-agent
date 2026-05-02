@@ -175,3 +175,20 @@ def test_fallback_items_are_not_duplicated_or_averaged():
     assert "平均評分" not in msg
     # Footer now shows "快訊 N 則" instead of "全部待確認" for cleaner UX
     assert "快訊" in msg
+
+
+def test_item_contains_verification_and_published_time_lines():
+    summary = _sample_summary(
+        0,
+        category="product_launch",
+        title="OpenAI New Model",
+        what_happened="OpenAI released a new model.",
+        why_it_matters="Model supply may tighten GPU demand.",
+        score=8.9,
+    )
+    summary.confidence = "high"
+    summary.published_at = "2026-05-01T06:49:00+00:00"
+
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "✅ 已驗證：高信心" in msg
+    assert "🕒 發布時間：2026\\-05\\-01 06:49:00 UTC" in msg
