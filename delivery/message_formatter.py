@@ -127,6 +127,24 @@ def _score_line(summary: ArticleSummary) -> str:
     return f"{prefix} {score_str} *{title}*"
 
 
+def _verification_status(summary: ArticleSummary) -> str:
+    if getattr(summary, "score_status", "ok") in {"unscored", "fallback"} or summary.score <= 0:
+        return "⚠️ 待補驗證：模型評分缺失"
+    confidence = getattr(summary, "confidence", "low")
+    if confidence == "high":
+        return "✅ 已驗證：高信心"
+    if confidence == "medium":
+        return "⚠️ 部分驗證：中信心"
+    return "⚠️ 待補驗證：低信心"
+
+
+def _published_line(summary: ArticleSummary) -> str:
+    ts = (getattr(summary, "published_at", "") or "").strip()
+    if not ts:
+        return "🕒 發布時間：待補"
+    return f"🕒 發布時間：{escape(ts[:19].replace('T', ' '))} UTC"
+
+
 def _tags(summary: ArticleSummary) -> str:
     parts: list[str] = []
     cat = summary.category.replace("_", "\\_")
@@ -299,8 +317,8 @@ def _format_items_digest_v1(
         lines.append(f"*{escape(theme)}*")
         for s in items:
             lines.append(_score_line(s))
-            if s.score <= 0 or getattr(s, "score_status", "ok") == "fallback":
-                lines.append("⚠️ 資料待確認")
+            lines.append(_verification_status(s))
+            lines.append(_published_line(s))
             lines.append(escape(_truncate(_compose_structured_summary(s))))
             if getattr(s, "history_context", ""):
                 lines.append(f"↳ {escape(_truncate(s.history_context, 140))}")
@@ -317,6 +335,8 @@ def _format_items_digest_v1(
         lines.append("*其他快訊*")
         for s in unscored[:fallback_allowance]:
             lines.append(_score_line(s))
+            lines.append(_verification_status(s))
+            lines.append(_published_line(s))
             lines.append(escape(_truncate(_compose_structured_summary(s))))
             if getattr(s, "history_context", ""):
                 lines.append(f"↳ {escape(_truncate(s.history_context, 140))}")
