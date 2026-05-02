@@ -110,9 +110,11 @@ class _FakeMemory:
 class _FakeTelegram:
     def __init__(self, sent):
         self.sent = sent
+        self.calls = 0
 
     def send_items_digest(self, *args, **kwargs):
         del args, kwargs
+        self.calls += 1
         return self.sent
 
 
@@ -208,7 +210,14 @@ def test_memory_semantic_duplicate_can_be_filtered(monkeypatch):
 
 def test_items_digest_archives_memory_only_after_successful_delivery():
     summary_1 = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
-        Article(title="Delivered", url="https://example.com/ok", source="Example", summary="Delivered summary")
+        Article(
+            title="Delivered",
+            url="https://example.com/ok",
+            source="Example",
+            summary="Delivered summary",
+            score=8.0,
+            score_status="scored",
+        )
     ])[0]
     crew = TechPulseCrew.__new__(TechPulseCrew)
     crew.telegram = _FakeTelegram(sent=True)
@@ -218,10 +227,62 @@ def test_items_digest_archives_memory_only_after_successful_delivery():
     assert crew.memory.archived == [summary_1]
 
     summary_2 = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
-        Article(title="Failed", url="https://example.com/fail", source="Example", summary="Failed summary")
+        Article(
+            title="Failed",
+            url="https://example.com/fail",
+            source="Example",
+            summary="Failed summary",
+            score=8.0,
+            score_status="scored",
+        )
     ])[0]
     crew.telegram = _FakeTelegram(sent=False)
     crew.memory = _FakeMemory()
 
     assert crew._send_items_digest_with_memory([summary_2], total_fetched=1, total_after_filter=1) is False
     assert crew.memory.archived == []
+
+
+def test_items_digest_skips_unscored_fallback_only_delivery():
+    summary = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+        Article(
+            title="EBay Soars on Report GameStop Is Preparing Takeover Bid",
+            url="https://example.com/ebay",
+            source="bloomberg_rss",
+            summary="EBay jumped after a reported GameStop bid.",
+            score=0.0,
+            score_status="fallback",
+        )
+    ])[0]
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.telegram = _FakeTelegram(sent=True)
+    crew.memory = _FakeMemory()
+
+    assert crew._send_items_digest_with_memory([summary], total_fetched=316, total_after_filter=1) is False
+    assert crew.telegram.calls == 0
+    assert crew.memory.archived == []
+
+
+def test_items_digest_allows_story_insight_without_scored_summary():
+    summary = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+        Article(
+            title="Thin fallback context",
+            url="https://example.com/thin",
+            source="example",
+            summary="Thin fallback context.",
+            score=0.0,
+            score_status="fallback",
+        )
+    ])[0]
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.telegram = _FakeTelegram(sent=True)
+    crew.memory = _FakeMemory()
+
+    assert crew._send_items_digest_with_memory(
+        [summary],
+        total_fetched=1,
+        total_after_filter=1,
+        story_insights=[object()],
+    ) is True
+    assert crew.telegram.calls == 1
+    assert crew.memory.archived == [summary]

@@ -189,7 +189,10 @@ class TechPulseCrew:
             if summaries:
                 summaries = self._claim_deliverable_summaries(summaries, instant_scored_articles)
 
-            should_synthesize = len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
+            should_synthesize = (
+                len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
+                and self._has_deliverable_item_signal(summaries)
+            )
             if should_synthesize:
                 # Stage 3 — Synthesize (Gemini Pro)
                 try:
@@ -632,6 +635,10 @@ class TechPulseCrew:
         narrative_excerpt=None,
         story_insights=None,
     ) -> bool:
+        if not self._has_deliverable_item_signal(summaries, story_insights=story_insights):
+            logger.info("Skipping items digest delivery: no scored summaries or story insights")
+            return False
+
         sent = self.telegram.send_items_digest(
             summaries,
             total_fetched=total_fetched,
@@ -651,6 +658,20 @@ class TechPulseCrew:
             self.memory.archive_summaries(summaries)
         except Exception as exc:
             logger.warning("Memory archive skipped for delivered summaries: %s", exc)
+
+    @staticmethod
+    def _has_deliverable_item_signal(
+        summaries: list[ArticleSummary],
+        *,
+        story_insights=None,
+    ) -> bool:
+        if story_insights:
+            return True
+        return any(
+            float(getattr(summary, "score", 0.0) or 0.0) > 0
+            and getattr(summary, "score_status", "ok") not in {"fallback", "unscored"}
+            for summary in summaries
+        )
 
     def _archive_delivered_deep_brief(self, brief: InsightBrief) -> None:
         try:
