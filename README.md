@@ -18,14 +18,20 @@ python scripts/preflight.py      # production config check
 ```
 RSS / Social / SEC EDGAR
         ↓
-  Gemini Pro Extractor
-  → per-article structured JSON with confidence score
+  Heuristic Prefilter + Gemini Flash Score Gate
+  → eliminates low-signal items before expensive calls
         ↓
-  Gemini Pro Synthesizer
+  Gemini Pro Extractor (with semantic pre-dedup)
+  → structured arguments with confidence scores
+        ↓
+  Gemini Pro Reviewer + Synthesizer
   → cross-article themes + daily digest narrative
         ↓
-  Telegram Delivery (#科技脈搏)
+  Smart Telegram Delivery (#科技脈搏)
+  → theme-aware message chunking at 4096 char boundaries
 ```
+
+**Smart message delivery**: Long digests are split intelligently at newline (theme) boundaries to preserve formatting. Messages stay under Telegram's 4096 character limit while maintaining MarkdownV2 escape sequences. Each chunk includes validation and configurable inter-message delays.
 
 Earnings reports follow a dedicated sub-pipeline:
 
@@ -67,6 +73,9 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `MEMORY_TOP_K`         | ❌       | Similar historical items checked per summary (`3`) |
 | `SEMANTIC_DUP_DISTANCE_THRESHOLD` | ❌ | Cosine distance threshold for near-duplicate detection (`0.12`) |
 | `SEMANTIC_DUP_DROP_ENABLED` | ❌  | Drop semantic duplicates when `1`; rollout default is context-only (`0`) |
+| `TELEGRAM_CHUNK_DELAY_MS` | ❌      | Delay between digest chunks to prevent rate limiting (`500`) |
+| `SEMANTIC_PREFILTER_ENABLED` | ❌   | Enable pre-extraction semantic dedup via 7-day embedding window (`0`) |
+| `SEMANTIC_PREFILTER_THRESHOLD` | ❌ | Cosine similarity threshold for pre-extraction dedup (`0.85`) |
 
 ## Deployment
 
