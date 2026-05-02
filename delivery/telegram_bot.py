@@ -15,6 +15,7 @@ from delivery.message_formatter import escape, format_earnings, format_insight_b
 logger = logging.getLogger(__name__)
 
 MAX_MESSAGE_LENGTH = 4096
+TELEGRAM_CHUNK_DELAY_MS = int(os.getenv("TELEGRAM_CHUNK_DELAY_MS", "500"))
 
 
 class TelegramBot:
@@ -116,13 +117,76 @@ class TelegramBot:
             return False
 
     async def _async_send(self, text: str) -> None:
-        chunks = [text[i:i + MAX_MESSAGE_LENGTH] for i in range(0, len(text), MAX_MESSAGE_LENGTH)]
-        for chunk in chunks:
-            await self._bot.send_message(
-                chat_id=self._channel_id,
-                text=chunk,
-                parse_mode="MarkdownV2",
-            )
+        """Send message with smart chunking at theme boundaries to preserve formatting."""
+        chunks = self._smart_chunk_text(text)
+
+        for i, chunk in enumerate(chunks):
+            if not self._validate_markdown_boundaries(chunk):
+                logger.warning(
+                    "Chunk %d has unmatched markdown escapes; may render incorrectly",
+                    i,
+                )
+
+            try:
+                await self._bot.send_message(
+                    chat_id=self._channel_id,
+                    text=chunk,
+                    parse_mode="MarkdownV2",
+                )
+                logger.info("Sent digest chunk %d/%d (%d chars)", i + 1, len(chunks), len(chunk))
+
+                if i < len(chunks) - 1:
+                    await asyncio.sleep(TELEGRAM_CHUNK_DELAY_MS / 1000.0)
+            except Exception as exc:
+                logger.error("Chunk %d delivery failed: %s", i, exc)
+                raise
+
+    @staticmethod
+    def _smart_chunk_text(text: str, max_length: int = MAX_MESSAGE_LENGTH) -> list[str]:
+        """Split text by theme boundaries, or by character count if needed.
+
+        Prefers splitting at newlines (theme boundaries), but falls back to
+        character-based splitting for lines exceeding max_length.
+        """
+        if not text:
+            return [""]
+
+        lines = text.split("\n")
+        chunks = []
+        current = []
+        current_len = 0
+
+        for line in lines:
+            line_len = len(line) + 1
+            new_total = current_len + line_len
+
+            if len(line) > max_length:
+                if current:
+                    chunks.append("\n".join(current))
+                    current = []
+                    current_len = 0
+                for i in range(0, len(line), max_length):
+                    chunks.append(line[i : i + max_length])
+            elif current and new_total > max_length:
+                chunks.append("\n".join(current))
+                current = [line]
+                current_len = line_len
+            else:
+                current.append(line)
+                current_len = new_total
+
+        if current:
+            chunks.append("\n".join(current))
+
+        return chunks
+
+    @staticmethod
+    def _validate_markdown_boundaries(text: str) -> bool:
+        """Check if text has unmatched backslash escapes at boundaries."""
+        if not text:
+            return True
+        trailing = len(text) - len(text.rstrip("\\"))
+        return trailing % 2 == 0
 
     @staticmethod
     async def _on_callback_query(update, context) -> None:
