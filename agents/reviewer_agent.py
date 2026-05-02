@@ -26,13 +26,14 @@ MODEL = GEMINI_MODEL
 SYSTEM_PROMPT = (
     "You are a fact-checking editor. Your job is to verify grounding, not to rewrite. "
     "Be specific about what is missing, not generic. "
-    "Reply ONLY with a valid JSON object, no explanation, no markdown."
+    "Output ONLY valid JSON. Do not include any text before or after the JSON object. "
+    "Do not use markdown code fences."
 )
 
 REVIEW_PROMPT = """\
 Review the extracted summary below against the source text.
 
-Check three things and reply with JSON:
+Check three things and reply with JSON only. Do not include any text before or after the JSON object.
 
 1. "fact_error": true if what_happened contains any specific number (e.g. "$100M", "40%", "Q3 2025")
    that does NOT appear verbatim in the source text. false otherwise.

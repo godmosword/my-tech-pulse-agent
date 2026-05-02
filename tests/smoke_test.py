@@ -281,6 +281,7 @@ def test_short_deep_article_downgrades_to_instant(monkeypatch):
 MOCK_EXTRACTOR_RESPONSE = json.dumps({
     "entity": "OpenAI",
     "summary": "OpenAI released GPT-5 with improved reasoning capabilities.",
+    "what_happened": "OpenAI released GPT-5 with improved reasoning capabilities.",
     "category": "product_launch",
     "key_facts": ["GPT-5 released", "improved reasoning"],
     "sentiment": "positive",
@@ -327,6 +328,29 @@ def test_extractor_returns_none_on_invalid_json():
 
         agent = ExtractorAgent()
         result = agent.extract(title="Test", text="Test text")
+
+    assert result is None
+
+
+def test_extractor_rejects_missing_required_strings():
+    incomplete = json.dumps({
+        "entity": "OpenAI",
+        "summary": "OpenAI released GPT-5.",
+        "what_happened": "",
+        "category": "product_launch",
+        "key_facts": ["GPT-5 released"],
+        "sentiment": "positive",
+        "confidence": "high",
+        "cross_ref": False,
+    })
+
+    with _mock_gemini_client(incomplete):
+        agent = ExtractorAgent()
+        result = agent.extract(
+            title="OpenAI Releases GPT-5",
+            text="OpenAI today announced GPT-5.",
+            source_name="techcrunch_rss",
+        )
 
     assert result is None
 
@@ -830,6 +854,17 @@ def test_scorer_returns_none_on_invalid_json():
     assert result is None
 
 
+def test_scorer_accepts_cannot_score_fallback_shape():
+    with _mock_gemini_client(json.dumps({"score": 0, "reason": "cannot_score"})):
+        scorer = Scorer()
+        result = scorer.score_item("title", "text")
+
+    assert result is not None
+    assert result.score == 0
+    assert result.reason == "cannot_score"
+    assert result.relevance == 0
+
+
 def test_scorer_lexicon_match_scores_title_and_lede():
     with _mock_gemini_client(MOCK_SCORE_RESPONSE):
         scorer = Scorer()
@@ -1012,6 +1047,23 @@ def test_scorer_parse_failure_uses_fallback_item():
         result = scorer.filter_articles([article])
 
     assert mock_client.models.generate_content.call_count == 2
+    assert len(result) == 1
+    assert result[0].score == 0.0
+    assert result[0].score_status == "fallback"
+
+
+def test_scorer_empty_response_falls_back_without_retry():
+    article = Article(
+        title="Microsoft launches AI cloud security service",
+        url="https://example.com/1",
+        source="test",
+        summary="Microsoft announced an AI security service for enterprise cloud customers.",
+    )
+    with _mock_gemini_client("") as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles([article])
+
+    assert mock_client.models.generate_content.call_count == 1
     assert len(result) == 1
     assert result[0].score == 0.0
     assert result[0].score_status == "fallback"

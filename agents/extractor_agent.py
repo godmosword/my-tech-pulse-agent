@@ -31,8 +31,8 @@ Extract the following fields from the article below and return a single JSON obj
 
 Fields:
 - entity: primary company or technology mentioned (string)
-- summary: 2–3 sentence factual summary, no editorializing (string, fallback compatibility)
-- what_happened: first sentence with objective facts only (numbers, timing, concrete actions) (string)
+- summary: max 2 sentence factual summary, no editorializing (string, fallback compatibility)
+- what_happened: up to 3 concise sentences with objective facts only (numbers, timing, concrete actions) (string)
 - why_it_matters: second sentence describing impact on industry/supply chain/valuation when supported; empty if insufficient info (string)
 - category: one of ["product_launch", "funding", "acquisition", "earnings", "regulation", "research", "other"]
 - key_facts: list of up to 5 specific factual claims (list of strings)
@@ -45,6 +45,7 @@ Formatting constraints for structured summary fields:
 - why_it_matters should be one sentence on implications for industry/supply chain/valuation only when the article supports it.
 - If implication evidence is insufficient, set why_it_matters to an empty string.
 - Keep summary as a compatible fallback narrative.
+- Keep every field concise so the JSON object can complete within the token limit.
 
 Article title: {title}
 Article source: {source}
@@ -95,12 +96,18 @@ class ExtractorAgent:
             data, raw = generate_json(
                 self._gemini_client,
                 model=MODEL,
-                max_output_tokens=768,
+                max_output_tokens=2048,
                 system_instruction=SYSTEM_PROMPT,
                 prompt=prompt,
                 response_schema=ArticleSummary,
             )
             summary = ArticleSummary(**data)
+            if not self._has_required_fields(summary):
+                logger.warning(
+                    "Extractor returned incomplete JSON for '%s' | missing_required_field",
+                    title[:80],
+                )
+                return None
             summary.source_url = source_url
             summary.source_name = source_name
             return summary
@@ -174,3 +181,8 @@ class ExtractorAgent:
             r"\bmillion\b", r"\bstock\b", r"\bshares\b",
         ]
         summary.cross_ref = any(re.search(p, corpus) for p in investment_signals)
+
+    @staticmethod
+    def _has_required_fields(summary: ArticleSummary) -> bool:
+        required = (summary.entity, summary.summary, summary.what_happened)
+        return all(isinstance(value, str) and bool(value.strip()) for value in required)

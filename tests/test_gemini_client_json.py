@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
 
-from llm.gemini_client import generate_json
+import pytest
+
+from llm.gemini_client import GeminiEmptyResponseError, generate_json
 
 
 def _client_with_response(resp):
@@ -70,3 +72,26 @@ def test_generate_json_reads_candidate_part_text_when_text_property_empty():
 
     assert data["score"] == 7.5
     assert raw == '{"score": 7.5}'
+
+
+def test_generate_json_raises_empty_response_with_finish_reason():
+    response = MagicMock()
+    response.parsed = None
+    response.text = ""
+    candidate = MagicMock()
+    candidate.finish_reason = "SAFETY"
+    candidate.content.parts = []
+    response.candidates = [candidate]
+
+    with patch("google.genai.types.GenerateContentConfig", side_effect=lambda **kw: kw):
+        with pytest.raises(GeminiEmptyResponseError) as exc_info:
+            generate_json(
+                _client_with_response(response),
+                model="m",
+                system_instruction="s",
+                prompt="p",
+                max_output_tokens=64,
+                response_schema=None,
+            )
+
+    assert exc_info.value.finish_reason == "SAFETY"

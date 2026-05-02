@@ -15,7 +15,7 @@ from typing import Literal, Optional
 import yaml
 from pydantic import BaseModel
 
-from llm.gemini_client import GEMINI_FLASH_MODEL, generate_json, make_client
+from llm.gemini_client import GEMINI_FLASH_MODEL, GeminiEmptyResponseError, generate_json, make_client
 from scoring.heuristic_filter import HeuristicFilter
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,8 @@ MIN_LEXICON_SCORE = float(os.getenv("MIN_LEXICON_SCORE", "3.0"))
 
 _SYSTEM = (
     "You are a tech news quality filter. "
-    "Reply ONLY with a valid JSON object, no explanation, no markdown."
+    "Respond with ONLY a JSON object. No preamble, no explanation, no markdown fences. "
+    'If you cannot score this article, return: {"score": 0, "reason": "cannot_score"}.'
 )
 
 _PROMPT = """\
@@ -40,6 +41,9 @@ Score this news item 0–10 on three dimensions:
 - depth     (0-10): Does it contain specific facts, data, or quotes — not just headlines?
 
 Final score = relevance × {w_rel} + novelty × {w_nov} + depth × {w_dep}
+
+Respond with ONLY a JSON object. No preamble, no explanation, no markdown fences.
+If you cannot score this article, return: {{"score": 0, "reason": "cannot_score"}}
 
 Reply ONLY with valid JSON:
 {{"relevance": N, "novelty": N, "depth": N, "score": N}}
@@ -56,6 +60,9 @@ Score this tech analysis/newsletter piece 0–10 on three dimensions:
 
 Final score = relevance × {w_rel} + novelty × {w_nov} + depth × {w_dep}
 
+Respond with ONLY a JSON object. No preamble, no explanation, no markdown fences.
+If you cannot score this article, return: {{"score": 0, "reason": "cannot_score"}}
+
 Reply ONLY with valid JSON:
 {{"relevance": N, "novelty": N, "depth": N, "score": N}}
 
@@ -66,16 +73,17 @@ Text: {text}
 
 
 class ScoreResult(BaseModel):
-    relevance: float
-    novelty: float
-    depth: float
+    relevance: float = 0.0
+    novelty: float = 0.0
+    depth: float = 0.0
     score: float
+    reason: Optional[str] = None
 
 
 @dataclass
 class ScoreOutcome:
     result: Optional[ScoreResult]
-    error_kind: Literal["none", "parse", "api"]
+    error_kind: Literal["none", "parse", "api", "empty_response", "safety_blocked", "recitation_blocked"]
 
 
 @dataclass(frozen=True)
@@ -166,6 +174,15 @@ class Scorer:
                 log_parse_errors=False,
             )
             return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
+        except GeminiEmptyResponseError as exc:
+            error_kind = self._empty_response_error_kind(exc.finish_reason)
+            logger.warning(
+                "Scoring failed for '%s' | reason=%s | finish_reason=%s",
+                title[:60],
+                error_kind,
+                exc.finish_reason or "unknown",
+            )
+            return ScoreOutcome(result=None, error_kind=error_kind)
         except json.JSONDecodeError as exc:
             retry_prompt = (
                 f"{prompt}\n\n"
@@ -183,6 +200,15 @@ class Scorer:
                     log_parse_errors=False,
                 )
                 return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
+            except GeminiEmptyResponseError as empty_exc:
+                error_kind = self._empty_response_error_kind(empty_exc.finish_reason)
+                logger.warning(
+                    "Scoring retry failed for '%s' | reason=%s | finish_reason=%s",
+                    title[:60],
+                    error_kind,
+                    empty_exc.finish_reason or "unknown",
+                )
+                return ScoreOutcome(result=None, error_kind=error_kind)
             except json.JSONDecodeError:
                 logger.warning("Scorer JSON parse error after retry: %s", exc)
                 return ScoreOutcome(result=None, error_kind="parse")
@@ -327,3 +353,12 @@ class Scorer:
     def _contains_term(haystack: str, term: str) -> bool:
         escaped = re.escape(term.lower())
         return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", haystack) is not None
+
+    @staticmethod
+    def _empty_response_error_kind(finish_reason: str) -> Literal["empty_response", "safety_blocked", "recitation_blocked"]:
+        normalized = finish_reason.upper()
+        if normalized == "SAFETY":
+            return "safety_blocked"
+        if normalized == "RECITATION":
+            return "recitation_blocked"
+        return "empty_response"

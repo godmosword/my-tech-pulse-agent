@@ -21,6 +21,17 @@ _RETRY_DELAYS = [2.0, 5.0]
 _RETRYABLE_KEYWORDS = ("timeout", "429", "503", "rate", "quota", "unavailable", "resource_exhausted")
 
 
+class GeminiEmptyResponseError(ValueError):
+    """Raised when Gemini returns no text payload for a generation request."""
+
+    def __init__(self, finish_reason: str = ""):
+        self.finish_reason = finish_reason
+        message = "Gemini returned an empty response"
+        if finish_reason:
+            message = f"{message} (finish_reason={finish_reason})"
+        super().__init__(message)
+
+
 def _is_retryable(exc: Exception) -> bool:
     msg = str(exc).lower()
     return any(k in msg for k in _RETRYABLE_KEYWORDS)
@@ -89,6 +100,8 @@ def generate_json(
                 return parsed, json.dumps(parsed, ensure_ascii=False)
 
             raw = _response_text(response)
+            if not raw.strip():
+                raise GeminiEmptyResponseError(_response_finish_reason(response))
             try:
                 return json.loads(raw), raw
             except json.JSONDecodeError:
@@ -128,6 +141,16 @@ def _response_text(response: object) -> str:
             if isinstance(text, str) and text:
                 parts_text.append(text)
     return "".join(parts_text).strip()
+
+
+def _response_finish_reason(response: object) -> str:
+    """Return the first Gemini candidate finish reason, if available."""
+    for candidate in getattr(response, "candidates", []) or []:
+        finish_reason = getattr(candidate, "finish_reason", "")
+        if finish_reason:
+            name = getattr(finish_reason, "name", "")
+            return str(name or finish_reason)
+    return ""
 
 
 def _extract_json_object(text: str) -> str:
