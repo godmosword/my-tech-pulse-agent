@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -51,6 +52,47 @@ def make_client():
     )
 
 
+def _prepare_json_payload(raw: str) -> str:
+    """Strip markdown fences and conversational preamble before the first JSON object."""
+    text = raw.strip()
+    if not text:
+        return text
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text, re.IGNORECASE)
+    if fence:
+        text = fence.group(1).strip()
+    brace = text.find("{")
+    if brace > 0:
+        text = text[brace:]
+    return text
+
+
+def _parse_json_from_response_text(raw: str) -> dict[str, Any]:
+    """Parse JSON from model output; tolerate prose prefixes and ```json``` fences."""
+    prepared = _prepare_json_payload(raw)
+    blobs: list[str] = []
+    if prepared.strip():
+        blobs.append(prepared.strip())
+    stripped = raw.strip()
+    if stripped and stripped not in blobs:
+        blobs.append(stripped)
+
+    last_err: json.JSONDecodeError | None = None
+    for blob in blobs:
+        try:
+            return json.loads(blob)
+        except json.JSONDecodeError as exc:
+            last_err = exc
+        extracted = _extract_json_object(blob)
+        if extracted:
+            try:
+                return json.loads(extracted)
+            except json.JSONDecodeError as exc:
+                last_err = exc
+    if last_err is not None:
+        raise last_err
+    raise json.JSONDecodeError("No JSON object found in model response", raw[:120], 0)
+
+
 def generate_json(
     client,
     *,
@@ -77,7 +119,15 @@ def generate_json(
         "response_mime_type": "application/json",
         "response_schema": response_schema,
     }
-    if hasattr(types, "ThinkingConfig") and hasattr(types, "ThinkingLevel"):
+    # Thinking + JSON can steal output budget on Flash; disable by default for flash models.
+    _no_thinking = (
+        os.getenv("GEMINI_DISABLE_THINKING_FOR_FLASH", "1") == "1" and "flash" in model.lower()
+    )
+    if (
+        not _no_thinking
+        and hasattr(types, "ThinkingConfig")
+        and hasattr(types, "ThinkingLevel")
+    ):
         config_kwargs["thinking_config"] = types.ThinkingConfig(
             thinking_level=types.ThinkingLevel.LOW
         )
@@ -103,13 +153,14 @@ def generate_json(
             if not raw.strip():
                 raise GeminiEmptyResponseError(_response_finish_reason(response))
             try:
-                return json.loads(raw), raw
+                data = _parse_json_from_response_text(raw)
+                return data, raw
             except json.JSONDecodeError:
-                extracted = _extract_json_object(raw)
-                if extracted:
-                    return json.loads(extracted), raw
                 if log_parse_errors:
-                    logger.warning("Gemini JSON parse error | raw=%s", raw[:200])
+                    logger.warning(
+                        "Gemini JSON parse error | raw_head=%s",
+                        raw[:500].replace("\n", "\\n"),
+                    )
                 raise  # JSON parse errors propagate immediately — no point retrying
         except json.JSONDecodeError:
             raise

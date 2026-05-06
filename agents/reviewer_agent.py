@@ -26,6 +26,7 @@ from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
 logger = logging.getLogger(__name__)
 
 MODEL = GEMINI_MODEL
+REVIEWER_MAX_OUTPUT_TOKENS = int(os.getenv("REVIEWER_MAX_OUTPUT_TOKENS", "768"))
 
 SYSTEM_PROMPT = (
     "You are a fact-checking editor. Your job is to verify grounding, not to rewrite. "
@@ -219,7 +220,7 @@ class ReviewerAgent:
             data, _ = generate_json(
                 self._gemini_client,
                 model=MODEL,
-                max_output_tokens=256,
+                max_output_tokens=REVIEWER_MAX_OUTPUT_TOKENS,
                 system_instruction=SYSTEM_PROMPT,
                 prompt=prompt,
                 response_schema=ReviewResult,

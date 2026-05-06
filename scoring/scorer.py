@@ -167,7 +167,7 @@ class Scorer:
             data, raw = generate_json(
                 self._gemini_client,
                 model=FLASH_MODEL,
-                max_output_tokens=128,
+                max_output_tokens=256,
                 system_instruction=_SYSTEM,
                 prompt=prompt,
                 response_schema=ScoreResult,
@@ -193,7 +193,7 @@ class Scorer:
                 data, raw = generate_json(
                     self._gemini_client,
                     model=FLASH_MODEL,
-                    max_output_tokens=256,
+                    max_output_tokens=512,
                     system_instruction=_SYSTEM,
                     prompt=retry_prompt,
                     response_schema=ScoreResult,
@@ -209,8 +209,8 @@ class Scorer:
                     empty_exc.finish_reason or "unknown",
                 )
                 return ScoreOutcome(result=None, error_kind=error_kind)
-            except json.JSONDecodeError:
-                logger.warning("Scorer JSON parse error after retry: %s", exc)
+            except json.JSONDecodeError as retry_exc:
+                logger.warning("Scorer JSON parse error after retry: %s", retry_exc)
                 return ScoreOutcome(result=None, error_kind="parse")
         except Exception as exc:
             logger.warning("Scorer failed for '%s': %s", title[:60], exc)

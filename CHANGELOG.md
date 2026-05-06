@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **Gemini JSON robustness**: Strip prose preamble (e.g. “Here is the JSON…”) and markdown ``json`` code fences before parsing; wider parse-error log (`raw_head`). Flash scoring omits thinking by default (`GEMINI_DISABLE_THINKING_FOR_FLASH`) to preserve JSON output budget.
+- **Scorer**: Higher Flash token limits (256 / retry 512); retry parse logs the retry exception correctly.
+- **Reviewer**: Configurable `REVIEWER_MAX_OUTPUT_TOKENS` (default 768) for structured JSON replies.
+
 ## [2026-05-06]
 
 ### Changed
