@@ -270,19 +270,30 @@ class TechPulseCrew:
 
         delivery_attempted = 0
         delivery_succeeded = 0
+        story_insights_for_delivery = digest.top_stories if digest else None
         try:
-            delivery_attempted += 1
-            if self._send_items_digest_with_memory(
-                summaries,
-                total_fetched=len(raw_articles),
-                total_after_filter=len(instant_scored_articles),
-                themes=digest.themes if digest else None,
-                market_takeaway=self.synthesizer.build_market_takeaway(digest) if digest else None,
-                headline=digest.headline if digest else None,
-                narrative_excerpt=narrative_excerpt,
-                story_insights=digest.top_stories if digest else None,
+            if self._has_deliverable_item_signal(
+                summaries, story_insights=story_insights_for_delivery
             ):
-                delivery_succeeded += 1
+                delivery_attempted += 1
+                if self._send_items_digest_with_memory(
+                    summaries,
+                    total_fetched=len(raw_articles),
+                    total_after_filter=len(instant_scored_articles),
+                    themes=digest.themes if digest else None,
+                    market_takeaway=self.synthesizer.build_market_takeaway(digest) if digest else None,
+                    headline=digest.headline if digest else None,
+                    narrative_excerpt=narrative_excerpt,
+                    story_insights=story_insights_for_delivery,
+                ):
+                    delivery_succeeded += 1
+            else:
+                logger.warning(
+                    "Telegram items digest skipped: nothing deliverable (summaries=%d, "
+                    "has_digest=%s). See funnel in pipeline_run_summary.",
+                    len(summaries),
+                    digest is not None,
+                )
         except Exception as exc:
             logger.error("Telegram items digest delivery failed: %s", exc, exc_info=True)
             critical_errors.append("delivery:items_digest")
@@ -331,6 +342,10 @@ class TechPulseCrew:
             delivery_succeeded,
         )
         run_summary = {
+            "articles_fetched": len(raw_articles),
+            "articles_after_dedup": len(articles),
+            "articles_after_scoring": len(scored_articles),
+            "instant_candidates": len(instant_scored_articles),
             "synthesis_ran": digest is not None,
             "summaries_count": len(summaries),
             "deep_briefs": len(deep_briefs),
