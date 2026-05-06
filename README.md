@@ -63,7 +63,7 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
 | `MAX_ITEMS_PER_DIGEST` | ❌      | Max items shown in Telegram digest (`6`) |
 | `MIN_DIGEST_ITEMS` | ❌         | Minimum digest items, filled with fallback summaries when needed (`3`) |
-| `ITEM_DIGEST_THEME_MIN_SUMMARIES` | ❌ | Minimum scored summaries before running the synthesizer for headline / themes / narrative (`3`; raise to reduce synthesis cost) |
+| `ITEM_DIGEST_THEME_MIN_SUMMARIES` | ❌ | Minimum summaries before running the synthesizer for headline / themes / narrative (`2`; set `3` to reduce synthesis cost on thin runs) |
 | `MAX_SUMMARY_CHARS` | ❌        | Max chars per item structured body in Telegram digest (`340`; Telegram hard limit is 4096 per message) |
 | `EXTRACTOR_MAX_INPUT_CHARS` | ❌ | Article text slice sent to extraction (`6000`) |
 | `MIN_WHAT_HAPPENED_CHARS` | ❌ | If `what_happened` is shorter than this after the reviewer LLM pass, trigger one grounded extraction retry (`45`) |
