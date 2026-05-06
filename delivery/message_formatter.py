@@ -301,9 +301,16 @@ def _format_items_digest_v1(
             lines.append(f"• {escape(theme)}")
         lines.append("")
 
-    if market_takeaway:
+    # Skip market_takeaway if it's merely the start of narrative_excerpt
+    # (both derive from the same narrative text and would appear as duplicates).
+    _effective_market_takeaway = market_takeaway
+    if market_takeaway and narrative_excerpt:
+        prefix_len = min(50, len(market_takeaway))
+        if narrative_excerpt.startswith(market_takeaway[:prefix_len]):
+            _effective_market_takeaway = None
+    if _effective_market_takeaway:
         lines.append("*📈 市場含義*")
-        lines.append(escape(market_takeaway))
+        lines.append(escape(_effective_market_takeaway))
         lines.append("")
 
     if story_insights:

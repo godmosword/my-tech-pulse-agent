@@ -131,7 +131,11 @@ class SynthesizerAgent:
 
     @staticmethod
     def build_market_takeaway(digest: DigestOutput) -> str:
-        """Build a short 1-2 line takeaway from digest narrative/themes for item digest preamble."""
+        """Return a 1-2 line takeaway for the digest preamble.
+
+        Prefers the second narrative paragraph to avoid duplicating narrative_excerpt
+        (which always shows the first paragraph). Falls back to theme names.
+        """
         headline = (digest.headline or "").strip()
 
         def _similar(a: str, b: str) -> float:
@@ -140,14 +144,45 @@ class SynthesizerAgent:
                 return 0.0
             return float(difflib.SequenceMatcher(None, a, b).ratio())
 
+        def _truncate_at_sentence(text: str, max_chars: int = 180) -> str:
+            if len(text) <= max_chars:
+                return text
+            cut = text[:max_chars]
+            for punct in ("。", "！", "？", ". ", "! ", "? "):
+                pos = cut.rfind(punct)
+                if pos > max_chars * 0.5:
+                    return cut[:pos + len(punct)].rstrip()
+            last_space = cut.rfind(" ")
+            if last_space > max_chars * 0.5:
+                return cut[:last_space].rstrip() + "…"
+            return cut.rstrip() + "…"
+
         if digest.narrative:
-            lines = [ln.strip() for ln in digest.narrative.splitlines() if ln.strip()]
-            for line in lines[:5]:
-                if len(line) < 10:
-                    continue
-                if headline and _similar(line, headline) > 0.55:
-                    continue
-                return line[:180]
+            paragraphs = [p.strip() for p in digest.narrative.split("\n\n") if p.strip()]
+
+            # Prefer lines from the second paragraph onward; the first paragraph
+            # is already shown as narrative_excerpt in the Telegram message.
+            for para in paragraphs[1:]:
+                for line in para.splitlines():
+                    line = line.strip()
+                    if len(line) < 10:
+                        continue
+                    if headline and _similar(line, headline) > 0.55:
+                        continue
+                    return _truncate_at_sentence(line)
+
+            # Single-paragraph narrative: skip the first line (mirrors narrative_excerpt)
+            # and try subsequent lines within the paragraph.
+            if paragraphs:
+                for line in paragraphs[0].splitlines()[1:]:
+                    line = line.strip()
+                    if len(line) < 10:
+                        continue
+                    if headline and _similar(line, headline) > 0.55:
+                        continue
+                    return _truncate_at_sentence(line)
+
+        # Fallback: theme names joined (distinct from 🧭 今日主線 bullet list)
         if digest.themes:
             return "；".join(theme.theme for theme in digest.themes[:2])
         return ""
