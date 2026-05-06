@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - **Digest synthesis gate**: Default `ITEM_DIGEST_THEME_MIN_SUMMARIES` is **2** (was 3). Runs with only two extracted summaries still produce headline / themes / narrative; thin RSS windows no longer drop straight to “items-only” Telegram. Set env to `3` if you prefer to skip synthesis unless there are three items. Observability: log line when synthesis is skipped (`Skipping digest synthesis: …`).
 - **`pipeline_run_summary`**: Includes RSS/scoring funnel (`articles_fetched`, `articles_after_dedup`, `articles_after_scoring`, `instant_candidates`) so empty runs are obvious in one JSON log line.
 - **Telegram**: Items digest increments `delivery_attempted` only when there is deliverable content (`_has_deliverable_item_signal`). Skipped sends log `Telegram items digest skipped: nothing deliverable…` instead of misleading `attempted=1 succeeded=0` with no message.
+- **Firestore**: Queries use `FieldFilter` (`filter=` keyword) to silence `google-cloud-firestore` deprecation warnings on Cloud Run.
+- **EDGAR earnings RSS**: Strip BOM / whitespace before XML parse; on `ParseError` log response length and a short safe head for debugging (empty body, HTML error pages, etc.).
 
 ## [2026-05-06]
 

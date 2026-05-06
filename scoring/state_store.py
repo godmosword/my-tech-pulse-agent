@@ -10,6 +10,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Protocol
 
+try:
+    from google.cloud.firestore_v1.base_query import FieldFilter
+except ImportError:
+    FieldFilter = None  # google-cloud-firestore < 2.16 (project pins >=2.16)
+
 logger = logging.getLogger(__name__)
 
 
@@ -279,12 +284,15 @@ class FirestoreStateStore:
         return isinstance(exc, self._failed_precondition_error) and "requires an index" in str(exc)
 
     def _content_hash_seen(self, content_hash: str, cutoff: datetime, transaction=None) -> bool:
-        query = (
-            self._collection("seen_items")
-            .where("content_hash", "==", content_hash)
-            .where("seen_at", ">", cutoff)
-            .limit(1)
-        )
+        coll = self._collection("seen_items")
+        if FieldFilter is not None:
+            query = (
+                coll.where(filter=FieldFilter("content_hash", "==", content_hash))
+                .where(filter=FieldFilter("seen_at", ">", cutoff))
+                .limit(1)
+            )
+        else:
+            query = coll.where("content_hash", "==", content_hash).where("seen_at", ">", cutoff).limit(1)
         try:
             return any(query.stream(transaction=transaction))
         except Exception as exc:
@@ -438,7 +446,11 @@ class FirestoreStateStore:
             return False, 0.0
         cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
         try:
-            query = self._collection("article_embeddings").where("stored_at", ">=", cutoff).stream()
+            coll = self._collection("article_embeddings")
+            if FieldFilter is not None:
+                query = coll.where(filter=FieldFilter("stored_at", ">=", cutoff)).stream()
+            else:
+                query = coll.where("stored_at", ">=", cutoff).stream()
             best = 0.0
             for doc in query:
                 data = doc.to_dict() or {}

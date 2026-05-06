@@ -67,7 +67,27 @@ class EarningsFetcher:
                 resp.raise_for_status()
                 text = resp.text
 
-            root = ET.fromstring(text)
+            # SEC occasionally returns HTML/rate-limit bodies; strip BOM / whitespace for XML.
+            if text.startswith("\ufeff"):
+                text = text.lstrip("\ufeff")
+            text = text.strip()
+            if not text:
+                logger.warning("EDGAR RSS empty response body from %s", url[:120])
+                return []
+
+            try:
+                root = ET.fromstring(text)
+            except ET.ParseError as exc:
+                head = text[:220].replace("\n", " ").replace("\r", "")
+                logger.warning(
+                    "EDGAR RSS XML parse failed (%s) len=%d url=%s head=%r",
+                    exc,
+                    len(text),
+                    url[:160],
+                    head,
+                )
+                return []
+
             filings = []
 
             # Handle Atom feeds from EDGAR
