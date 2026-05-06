@@ -60,8 +60,11 @@ def test_digest_groups_by_theme_and_uses_quality_footer():
     # Theme heading (one of the curated Chinese labels) appears.
     assert any(label in msg for label in ("財報焦點", "AI 基礎設施", "政策與監管", "產品與策略"))
 
-    # New quality footer present, old throughput footer absent.
-    assert re.search(r"_精選 \d+ 則 · 平均評分 \d+\\\.\d+ · 涵蓋 \d+ 個主題_", msg)
+    # Quality footer: scored count matches average denominator (no mixing unscored tail).
+    assert re.search(
+        r"_已評分 \d+ 則（平均 \d+\\\.\d+） · 主題區 \d+ 個_",
+        msg,
+    )
     assert "今日 12 篇" not in msg
     assert "過濾後 9 篇" not in msg
 
@@ -192,3 +195,37 @@ def test_item_contains_verification_and_published_time_lines():
     msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
     assert "✅ 已驗證：高信心" in msg
     assert "🕒 發布時間：2026\\-05\\-01 06:49:00 UTC" in msg
+
+
+def test_digest_footer_splits_scored_and_unscored_when_fallback_tail_present():
+    """Regression: do not imply average covers unscored items (plan Tech Pulse fix)."""
+    scored = _sample_summary(
+        0,
+        category="funding",
+        entity="QuantWare",
+        title="Intel VC Backs QuantWare",
+        summary="Dutch startup raises funding.",
+        score=8.2,
+    )
+    scored.score_status = "scored"
+    fallback = _sample_summary(
+        1,
+        category="other",
+        title="Super Micro Jumps",
+        summary="Margins improved.",
+        score=0.0,
+    )
+    fallback.score_status = "fallback"
+
+    msg = format_items_digest(
+        [scored, fallback],
+        total_fetched=2,
+        total_after_filter=2,
+        now=datetime(2026, 5, 5, 23, 22, tzinfo=timezone.utc),
+    )
+
+    assert "精選" not in msg
+    assert "附錄未評分 1 則" in msg
+    assert "已評分 1 則" in msg
+    assert "主題區 1 個" in msg
+    assert "（平均 8\\.2）" in msg

@@ -1147,8 +1147,9 @@ def test_format_items_digest_structure():
     assert "8" in text          # score
     assert "OpenAI" in text
     assert "投資日報" in text   # cross_ref indicator
-    assert "精選" in text       # new quality-signal footer
-    assert "平均評分" in text
+    assert "已評分" in text
+    assert "主題區" in text
+    assert "平均" in text
 
 
 def test_format_items_digest_sorted_by_score():
@@ -1273,7 +1274,7 @@ def _make_summary(**kwargs) -> ArticleSummary:
     defaults = dict(
         entity="OpenAI",
         summary="OpenAI raised $100M.",
-        what_happened="OpenAI raised $100M in Series B funding.",
+        what_happened="OpenAI raised $100M in Series B funding led by Andreessen Horowitz.",
         why_it_matters="This positions OpenAI to compete with Google DeepMind.",
         category="funding",
         sentiment="positive",

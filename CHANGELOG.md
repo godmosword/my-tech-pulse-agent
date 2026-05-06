@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026-05-06]
+
+### Changed
+- **Digest content richness**: Lower default synthesis gate (`ITEM_DIGEST_THEME_MIN_SUMMARIES` → `3`) so headline / themes / narrative run more often; raise Telegram per-item body budget (`MAX_SUMMARY_CHARS` → `340`).
+- **Extractor**: Configurable article slice (`EXTRACTOR_MAX_INPUT_CHARS`, default `6000`); prompt requires at least one verifiable anchor in `what_happened` or `confidence=low`; structured `extraction_metrics` logs.
+- **Reviewer**: If `what_happened` is shorter than `MIN_WHAT_HAPPENED_CHARS` (default `45`), trigger one grounded extraction retry (same budget as LLM `needs_retry`); `ReviewerOutput.extract_retry_used`; `summary_metrics` logs.
+- **Docs**: README / `.env.example` document new tuning knobs; consolidate duplicate boilerplate in `AGENTS.md` / `CLAUDE.md`.
+
+### Added
+- `tests/test_reviewer_thin_retry.py` for thin-fact retry behavior.
+
 ## [2026-05-02]
 
 ### Fixed

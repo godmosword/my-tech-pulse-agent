@@ -5,12 +5,16 @@ Sits between ExtractorAgent and SynthesizerAgent. Checks three things:
 2. inferred    — why_it_matters makes causal claims with no source basis → prepend [INFERRED]
 3. needs_retry — why_it_matters is generic with no specific entity or mechanism
 
+Additionally: if what_happened is shorter than MIN_WHAT_HAPPENED_CHARS (default 45), the pipeline
+sets needs_retry=True for one grounded extraction retry (same budget as LLM-flagged retry).
+
 On needs_retry=True: ExtractorAgent reruns once with review_comment as feedback.
 After max_retry=1: approve with confidence="low" regardless of output quality.
 """
 
 import json
 import logging
+import os
 import re
 from typing import Optional
 
@@ -43,7 +47,8 @@ Check three things and reply with JSON only. Do not include any text before or a
 
 3. "needs_retry": true if why_it_matters is completely generic — contains no specific company name,
    product, number, or mechanism (e.g. "this is significant for the industry" with nothing else).
-   false otherwise.
+   Also true if what_happened is extremely thin or vague while the source excerpt clearly contains
+   concrete anchors you could quote. false otherwise.
 
 4. "review_comment": if needs_retry is true, write one sentence explaining exactly what specific
    information is missing. If needs_retry is false, set to null.
@@ -77,6 +82,7 @@ class ReviewerOutput(BaseModel):
     inferred: bool
     review_comment: Optional[str]
     final_output: Optional[ArticleSummary]
+    extract_retry_used: bool = False
 
 
 class ReviewerAgent:
@@ -92,12 +98,26 @@ class ReviewerAgent:
 
         result = self._call_reviewer(summary, source_text)
 
+        if not result.fact_error:
+            min_wh = int(os.getenv("MIN_WHAT_HAPPENED_CHARS", "45"))
+            wh = (summary.what_happened or "").strip()
+            if not result.needs_retry and len(wh) < min_wh:
+                result = result.model_copy(
+                    update={
+                        "needs_retry": True,
+                        "review_comment": (
+                            "what_happened is too brief; add concrete subjects, numbers, or dates "
+                            "that appear verbatim in the source only."
+                        ),
+                    }
+                )
+
         if result.fact_error:
             logger.warning(
                 "fact_error flagged for '%s' — numbers may not match source",
                 summary.title[:60],
             )
-            return ReviewerOutput(
+            out = ReviewerOutput(
                 item_id=item_id,
                 approved=True,  # still deliver, but confidence degrades
                 needs_retry=False,
@@ -105,7 +125,10 @@ class ReviewerAgent:
                 inferred=result.inferred,
                 review_comment=result.review_comment,
                 final_output=self._apply_flags(summary, result),
+                extract_retry_used=False,
             )
+            self._log_review_metrics(out)
+            return out
 
         if result.inferred:
             summary = self._apply_inferred_prefix(summary)
@@ -119,7 +142,7 @@ class ReviewerAgent:
             retried = self._retry_extraction(summary, result.review_comment or "")
             if retried:
                 retried.confidence = "low"
-                return ReviewerOutput(
+                out = ReviewerOutput(
                     item_id=item_id,
                     approved=True,
                     needs_retry=False,
@@ -127,14 +150,17 @@ class ReviewerAgent:
                     inferred=False,
                     review_comment=result.review_comment,
                     final_output=retried,
+                    extract_retry_used=True,
                 )
+                self._log_review_metrics(out)
+                return out
             # retry produced nothing — fall through to approve with low confidence
             summary.confidence = "low"
 
         if result.needs_retry:
             summary.confidence = "low"
 
-        return ReviewerOutput(
+        out = ReviewerOutput(
             item_id=item_id,
             approved=True,
             needs_retry=False,
@@ -142,7 +168,10 @@ class ReviewerAgent:
             inferred=result.inferred,
             review_comment=result.review_comment if result.needs_retry else None,
             final_output=self._apply_flags(summary, result),
+            extract_retry_used=False,
         )
+        self._log_review_metrics(out)
+        return out
 
     def review_batch(self, summaries: list[ArticleSummary]) -> list[ReviewerOutput]:
         outputs = []
@@ -161,8 +190,24 @@ class ReviewerAgent:
                     inferred=False,
                     review_comment=None,
                     final_output=summary,
+                    extract_retry_used=False,
                 ))
         return outputs
+
+    @staticmethod
+    def _log_review_metrics(output: ReviewerOutput) -> None:
+        summary = output.final_output
+        if summary is None:
+            return
+        logger.info(
+            "summary_metrics item_id=%s len_wh=%d len_why=%d confidence=%s extract_retry_used=%s fact_error=%s",
+            output.item_id,
+            len((summary.what_happened or "").strip()),
+            len((summary.why_it_matters or "").strip()),
+            summary.confidence,
+            output.extract_retry_used,
+            output.fact_error,
+        )
 
     def _call_reviewer(self, summary: ArticleSummary, source_text: str) -> ReviewResult:
         prompt = REVIEW_PROMPT.format(

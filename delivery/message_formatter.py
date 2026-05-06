@@ -12,7 +12,8 @@ from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput, StoryInsight
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "6"))
-MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "260"))
+# Raised default (340) reduces mid-sentence cuts in Telegram; split fact/impact lines were skipped to keep formatting simple.
+MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "340"))
 MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
 UNSCORED_ALERT_RATIO = float(os.getenv("UNSCORED_ALERT_RATIO", "0.5"))
 MAX_UNSCORED_TAIL = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
@@ -348,8 +349,16 @@ def _format_items_digest_v1(
         avg = mean(s.score for s in shown_items)
         avg_str = escape(f"{avg:.1f}")
         n_themes = len(groups)
-        total = len(shown_items) + len(shown_unscored)
-        footer = f"_精選 {escape(str(total))} 則 · 平均評分 {avg_str} · 涵蓋 {escape(str(n_themes))} 個主題_"
+        n_scored = len(shown_items)
+        n_unscored = len(shown_unscored)
+        # Footer counts must match the average: average is only over scored theme items.
+        parts: list[str] = [
+            f"已評分 {escape(str(n_scored))} 則（平均 {avg_str}）",
+        ]
+        if n_unscored > 0:
+            parts.append(f"附錄未評分 {escape(str(n_unscored))} 則")
+        parts.append(f"主題區 {escape(str(n_themes))} 個")
+        footer = "_" + " · ".join(parts) + "_"
         lines.append(footer)
     elif shown_unscored:
         lines.append(f"_快訊 {escape(str(len(shown_unscored)))} 則_")

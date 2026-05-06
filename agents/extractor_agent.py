@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 MODEL = GEMINI_MODEL
 
+
+def _extractor_input_char_limit() -> int:
+    return int(os.getenv("EXTRACTOR_MAX_INPUT_CHARS", "6000"))
+
+
 SYSTEM_PROMPT = """\
 You are a tech news extractor. Your only job is to extract structured information from a given article.
 
@@ -41,7 +46,7 @@ Fields:
 - cross_ref: true if this story is likely relevant to investment decisions (bool)
 
 Formatting constraints for structured summary fields:
-- what_happened must be one sentence of objective facts only.
+- what_happened must be one sentence of objective facts only, and MUST include at least one verifiable anchor from the article (company or product name, or a number/date that appears verbatim in the text). If the source truly lacks all three, write the shortest faithful fact sentence and set confidence to "low".
 - why_it_matters should be one sentence on implications for industry/supply chain/valuation only when the article supports it.
 - If implication evidence is insufficient, set why_it_matters to an empty string.
 - Keep summary as a compatible fallback narrative.
@@ -87,10 +92,11 @@ class ExtractorAgent:
         self._client = None
 
     def extract(self, title: str, text: str, source_name: str = "", source_url: str = "") -> Optional[ArticleSummary]:
+        lim = _extractor_input_char_limit()
         prompt = EXTRACTION_PROMPT.format(
             title=title,
             source=source_name,
-            text=text[:4000],
+            text=text[:lim],
         )
         try:
             data, raw = generate_json(
@@ -110,6 +116,13 @@ class ExtractorAgent:
                 return None
             summary.source_url = source_url
             summary.source_name = source_name
+            logger.info(
+                "extraction_metrics title=%s len_wh=%d len_why=%d confidence=%s",
+                title[:80],
+                len((summary.what_happened or "").strip()),
+                len((summary.why_it_matters or "").strip()),
+                summary.confidence,
+            )
             return summary
 
         except json.JSONDecodeError as exc:
@@ -147,7 +160,7 @@ class ExtractorAgent:
                 result.source_language = str(article.get("source_language", "en") or "en")
                 published_at = article.get("published_at")
                 result.published_at = published_at.isoformat() if hasattr(published_at, "isoformat") else str(published_at or "")
-                result.source_text = text[:4000]
+                result.source_text = text[: _extractor_input_char_limit()]
                 self._postprocess_flags(result)
                 results.append(result)
         return results
