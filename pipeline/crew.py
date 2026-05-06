@@ -1,5 +1,7 @@
 """Pipeline orchestration: Stage 0 (dedup) → Stage 1 (score) → Stage 2 (extract) → Stage 3 (synthesize)."""
 
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -49,6 +51,30 @@ SEMANTIC_DUP_DROP_ENABLED = os.getenv("SEMANTIC_DUP_DROP_ENABLED", "0") == "1"
 MEMORY_CONTEXT_MAX_DISTANCE = float(os.getenv("MEMORY_CONTEXT_MAX_DISTANCE", "0.35"))
 SEMANTIC_PREFILTER_ENABLED = os.getenv("SEMANTIC_PREFILTER_ENABLED", "0") == "1"
 SEMANTIC_PREFILTER_THRESHOLD = float(os.getenv("SEMANTIC_PREFILTER_THRESHOLD", "0.85"))
+EXTRACTOR_FULLTEXT_TOP_K = int(os.getenv("EXTRACTOR_FULLTEXT_TOP_K", "0"))
+EXTRACTOR_FULLTEXT_MIN_WORDS = int(os.getenv("EXTRACTOR_FULLTEXT_MIN_WORDS", "120"))
+NARRATIVE_EXCERPT_MAX_CHARS = int(os.getenv("NARRATIVE_EXCERPT_MAX_CHARS", "600"))
+EXTRACTOR_FULLTEXT_TIMEOUT_SECONDS = int(os.getenv("EXTRACTOR_FULLTEXT_TIMEOUT_SECONDS", "90"))
+
+
+def truncate_paragraph_at_sentence_boundary(text: str, max_chars: int = 600) -> str:
+    """Cut text to max_chars, preferring end-of-sentence or newline over mid-sentence chop."""
+    if not text:
+        return ""
+    t = text.strip()
+    if len(t) <= max_chars:
+        return t
+    window = t[:max_chars]
+    min_keep = min(120, max(8, max_chars // 5))
+    for i in range(len(window) - 1, min_keep - 1, -1):
+        if window[i] in "。！？!?":
+            return window[: i + 1].strip()
+        if window[i] == "." and i + 1 < len(window) and window[i + 1] == " ":
+            return window[: i + 1].strip()
+    nl = window.rfind("\n")
+    if nl >= min_keep:
+        return window[:nl].strip()
+    return window.rstrip()
 
 
 class PipelineDeadlineExceeded(BaseException):
@@ -64,6 +90,10 @@ class TechPulseCrew:
         self.deduplicator = Deduplicator()
         self.scorer = Scorer()
         self.deep_scraper = DeepScraper(min_words=MIN_DEEP_WORDS)
+        self._extractor_fulltext_scraper = DeepScraper(
+            min_words=max(50, EXTRACTOR_FULLTEXT_MIN_WORDS),
+            timeout_seconds=EXTRACTOR_FULLTEXT_TIMEOUT_SECONDS,
+        )
         self.deep_agent = DeepInsightAgent()
         self.extractor = ExtractorAgent()
         self.reviewer = ReviewerAgent()
@@ -151,6 +181,7 @@ class TechPulseCrew:
 
             # Stage 2 — Extract (Gemini Pro)
             try:
+                self._enrich_extractor_candidates_with_fulltext(instant_scored_articles)
                 article_dicts = [a.model_dump() for a in instant_scored_articles]
                 summaries = self.extractor.extract_batch(article_dicts)
                 logger.info("Extracted %d article summaries", len(summaries))
@@ -226,7 +257,9 @@ class TechPulseCrew:
         if digest and digest.narrative:
             paragraphs = [p.strip() for p in digest.narrative.split("\n\n") if p.strip()]
             if paragraphs:
-                narrative_excerpt = paragraphs[0][:600]
+                narrative_excerpt = truncate_paragraph_at_sentence_boundary(
+                    paragraphs[0], NARRATIVE_EXCERPT_MAX_CHARS
+                )
 
         delivery_attempted = 0
         delivery_succeeded = 0
@@ -290,6 +323,17 @@ class TechPulseCrew:
             delivery_attempted,
             delivery_succeeded,
         )
+        run_summary = {
+            "synthesis_ran": digest is not None,
+            "summaries_count": len(summaries),
+            "deep_briefs": len(deep_briefs),
+            "earnings": len(earnings_outputs),
+            "digest_headline": (digest.headline if digest else None),
+            "delivery_succeeded": delivery_succeeded,
+            "delivery_attempted": delivery_attempted,
+            "critical_errors": critical_errors,
+        }
+        logger.info("pipeline_run_summary %s", json.dumps(run_summary, ensure_ascii=False))
         logger.info("=== tech-pulse pipeline complete ===")
         return {
             "articles_fetched": len(raw_articles),
@@ -366,6 +410,47 @@ class TechPulseCrew:
             )
         logger.info("Deep pipeline: %d brief(s), %d fallback(s)", len(briefs), len(instant_fallbacks))
         return briefs, instant_fallbacks, consumed_urls
+
+    def _enrich_extractor_candidates_with_fulltext(self, articles: list[Article]) -> None:
+        """Optional Apify full-page fetch for top-K scored articles before extraction (needs APIFY_API_KEY)."""
+        k = EXTRACTOR_FULLTEXT_TOP_K
+        if k <= 0 or not articles:
+            return
+        min_words = max(50, EXTRACTOR_FULLTEXT_MIN_WORDS)
+        scraper = self._extractor_fulltext_scraper
+        ranked = sorted(
+            [a for a in articles if float(getattr(a, "score", 0.0) or 0.0) > 0],
+            key=lambda a: float(getattr(a, "score", 0.0) or 0.0),
+            reverse=True,
+        )
+        enriched = 0
+        for article in ranked[:k]:
+            url = getattr(article, "url", "") or ""
+            if not url:
+                continue
+            try:
+                scrape = scraper.fetch(url, min_words=min_words)
+            except Exception as exc:
+                logger.warning("Fulltext enrich failed for %s: %s", url[:80], exc)
+                continue
+            if scrape.status not in {"ok", "too_short"}:
+                continue
+            body = (scrape.text or "").strip()
+            if not body:
+                continue
+            prev = (article.content or article.summary or "")
+            if len(body) <= len(prev) + 80:
+                continue
+            article.content = body
+            enriched += 1
+            logger.info(
+                "Extractor fulltext enrich: score=%.1f words=%d title=%s",
+                float(getattr(article, "score", 0.0) or 0.0),
+                scrape.word_count,
+                (article.title or "")[:70],
+            )
+        if enriched:
+            logger.info("Extractor fulltext enrich: %d/%d candidate(s)", enriched, min(k, len(ranked)))
 
     @staticmethod
     def _is_deep_candidate(article: Article) -> bool:

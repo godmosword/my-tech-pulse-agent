@@ -1,5 +1,6 @@
 """Layer 2 agent: cross-article theme synthesis and daily digest narrative."""
 
+import difflib
 import json
 import logging
 from datetime import date
@@ -53,6 +54,8 @@ Return a JSON object with these fields:
     - tech_rationale: maps to 【底層邏輯】; explain how the mechanism works, why the bottleneck exists, or what makes the protocol sound. No fluff. 80-100 Chinese words.
     - implication: maps to 【生態影響】; explain what changes in the industry stack, who loses share, or the second-order effect. Max 50 Chinese words.
 - cross_ref_count: number of cross_ref=true articles (int)
+
+Do not make the first sentence of "narrative" paraphrase the "headline" (same thesis in different words). Open narrative with a complementary angle, mechanism detail, or tension across sources. The Telegram preamble uses narrative line 1 separately—ensure headline vs narrative line 1 are meaningfully distinct.
 
 Article summaries (JSON array):
 {summaries_json}
@@ -129,10 +132,22 @@ class SynthesizerAgent:
     @staticmethod
     def build_market_takeaway(digest: DigestOutput) -> str:
         """Build a short 1-2 line takeaway from digest narrative/themes for item digest preamble."""
+        headline = (digest.headline or "").strip()
+
+        def _similar(a: str, b: str) -> float:
+            a, b = a.strip(), b.strip()
+            if not a or not b:
+                return 0.0
+            return float(difflib.SequenceMatcher(None, a, b).ratio())
+
         if digest.narrative:
-            first_line = digest.narrative.strip().splitlines()[0].strip()
-            if first_line:
-                return first_line[:180]
+            lines = [ln.strip() for ln in digest.narrative.splitlines() if ln.strip()]
+            for line in lines[:5]:
+                if len(line) < 10:
+                    continue
+                if headline and _similar(line, headline) > 0.55:
+                    continue
+                return line[:180]
         if digest.themes:
             return "；".join(theme.theme for theme in digest.themes[:2])
         return ""

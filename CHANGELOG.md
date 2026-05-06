@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - `tests/test_reviewer_thin_retry.py` for thin-fact retry behavior.
+- **Digest readability & observability**: Sentence-boundary `narrative_excerpt` (env `NARRATIVE_EXCERPT_MAX_CHARS`); synthesizer prompt + `build_market_takeaway` dedupe vs headline (`difflib.SequenceMatcher`); optional Apify full-page Top-K before extraction (`EXTRACTOR_FULLTEXT_TOP_K`, `EXTRACTOR_FULLTEXT_MIN_WORDS`, `EXTRACTOR_FULLTEXT_TIMEOUT_SECONDS`); structured `pipeline_run_summary` JSON log at end of `crew.run`.
+- `tests/test_narrative_excerpt.py`, `tests/test_synthesizer_takeaway.py`.
 
 ## [2026-05-02]
 
