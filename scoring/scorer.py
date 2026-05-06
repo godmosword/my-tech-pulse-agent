@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 SCORE_CONFIG_PATH = Path(__file__).parent / "score_config.yaml"
 DOMAIN_LEXICON_PATH = Path(__file__).parent.parent / "sources" / "domain_lexicon.yaml"
 FLASH_MODEL = GEMINI_FLASH_MODEL
+SCORE_FLASH_OUTPUT_TOKENS = int(os.getenv("SCORE_FLASH_OUTPUT_TOKENS", "512"))
+SCORE_FLASH_RETRY_OUTPUT_TOKENS = int(os.getenv("SCORE_FLASH_RETRY_OUTPUT_TOKENS", "1024"))
 MIN_LEXICON_SCORE = float(os.getenv("MIN_LEXICON_SCORE", "3.0"))
 
 _SYSTEM = (
@@ -140,6 +142,34 @@ class Scorer:
 
         return LexiconMatch(lexicon_score=round(max(0.0, min(10.0, score)), 2), matched_signals=matched)
 
+    def _recover_scores_from_partial_json(self, text: str, item_type: str) -> Optional[ScoreResult]:
+        """When Flash returns truncated JSON (e.g. {\"relevance\": ), extract numeric fields via regex."""
+        if not text or not text.strip():
+            return None
+        w = self._config.get("kol_weights", self._config["weights"]) if item_type == "kol" else self._config["weights"]
+
+        def grab(key: str) -> Optional[float]:
+            m = re.search(rf'"{key}"\s*:\s*(-?\d+(?:\.\d+)?)', text)
+            if not m:
+                return None
+            return float(m.group(1))
+
+        rel = grab("relevance")
+        nov = grab("novelty")
+        dep = grab("depth")
+        scr = grab("score")
+        if rel is not None and nov is not None and dep is not None:
+            combined = rel * w["relevance"] + nov * w["novelty"] + dep * w["depth"]
+            return ScoreResult(relevance=rel, novelty=nov, depth=dep, score=round(combined, 2))
+        if scr is not None:
+            return ScoreResult(
+                relevance=rel if rel is not None else 0.0,
+                novelty=nov if nov is not None else 0.0,
+                depth=dep if dep is not None else 0.0,
+                score=scr,
+            )
+        return None
+
     def _score_item_with_status(
         self, title: str, text: str, item_type: str = "default", author: str = ""
     ) -> ScoreOutcome:
@@ -167,7 +197,7 @@ class Scorer:
             data, raw = generate_json(
                 self._gemini_client,
                 model=FLASH_MODEL,
-                max_output_tokens=256,
+                max_output_tokens=SCORE_FLASH_OUTPUT_TOKENS,
                 system_instruction=_SYSTEM,
                 prompt=prompt,
                 response_schema=ScoreResult,
@@ -184,16 +214,28 @@ class Scorer:
             )
             return ScoreOutcome(result=None, error_kind=error_kind)
         except json.JSONDecodeError as exc:
+            raw_first = getattr(exc, "raw_text", "") or ""
+            recovered = self._recover_scores_from_partial_json(raw_first, item_type)
+            if recovered:
+                logger.info(
+                    "Scorer recovered partial JSON for '%s' (first attempt)",
+                    title[:60],
+                )
+                return ScoreOutcome(result=recovered, error_kind="none")
             retry_prompt = (
-                f"{prompt}\n\n"
-                "Your previous response was not parseable JSON. Return exactly this shape and nothing else: "
-                '{"relevance": 0, "novelty": 0, "depth": 0, "score": 0}'
+                "Reply with ONLY one compact JSON object and nothing else — no prose.\n"
+                'Shape: {"relevance":N,"novelty":N,"depth":N,"score":N}\n'
+                f"Title: {title[:200]}\n"
+                f"Text: {text[:500]}\n"
+                "Use numbers 0-10 for relevance, novelty, depth. "
+                "score = relevance*w_rel + novelty*w_nov + depth*w_dep with "
+                f"w_rel={w['relevance']}, w_nov={w['novelty']}, w_dep={w['depth']}."
             )
             try:
                 data, raw = generate_json(
                     self._gemini_client,
                     model=FLASH_MODEL,
-                    max_output_tokens=512,
+                    max_output_tokens=SCORE_FLASH_RETRY_OUTPUT_TOKENS,
                     system_instruction=_SYSTEM,
                     prompt=retry_prompt,
                     response_schema=ScoreResult,
@@ -210,6 +252,14 @@ class Scorer:
                 )
                 return ScoreOutcome(result=None, error_kind=error_kind)
             except json.JSONDecodeError as retry_exc:
+                raw_retry = getattr(retry_exc, "raw_text", "") or ""
+                recovered_retry = self._recover_scores_from_partial_json(raw_retry, item_type)
+                if recovered_retry:
+                    logger.info(
+                        "Scorer recovered partial JSON for '%s' (after retry)",
+                        title[:60],
+                    )
+                    return ScoreOutcome(result=recovered_retry, error_kind="none")
                 logger.warning("Scorer JSON parse error after retry: %s", retry_exc)
                 return ScoreOutcome(result=None, error_kind="parse")
         except Exception as exc:

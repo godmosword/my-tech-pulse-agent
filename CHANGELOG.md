@@ -4,12 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026-05-06]
+
 ### Fixed
 - **Gemini JSON robustness**: Strip prose preamble (e.g. “Here is the JSON…”) and markdown ``json`` code fences before parsing; wider parse-error log (`raw_head`). Flash scoring omits thinking by default (`GEMINI_DISABLE_THINKING_FOR_FLASH`) to preserve JSON output budget.
-- **Scorer**: Higher Flash token limits (256 / retry 512); retry parse logs the retry exception correctly.
-- **Reviewer**: Configurable `REVIEWER_MAX_OUTPUT_TOKENS` (default 768) for structured JSON replies.
-
-## [2026-05-06]
+- **Scorer**: Default Flash output tokens 512 / retry 1024; compact retry prompt; on parse failure attach full raw text (`GeminiJsonParseError`) and regex-recover `relevance`/`novelty`/`depth`/`score` when truncated (`SCORE_FLASH_OUTPUT_TOKENS`, `SCORE_FLASH_RETRY_OUTPUT_TOKENS`).
+- **Reviewer**: Higher default `REVIEWER_MAX_OUTPUT_TOKENS` (1024); regex recovery of `fact_error` / `inferred` / `needs_retry` / `review_comment` when Gemini JSON is truncated mid-field (parse errors still logged from `gemini_client`).
+- **RSS / Atom feeds**: Sanitize XML before parse — strip illegal control characters and escape bare `&` outside CDATA (common broken WordPress feeds); retry parse after sanitization.
 
 ### Changed
 - **Digest content richness**: Lower default synthesis gate (`ITEM_DIGEST_THEME_MIN_SUMMARIES` → `3`) so headline / themes / narrative run more often; raise Telegram per-item body budget (`MAX_SUMMARY_CHARS` → `340`).
@@ -19,6 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - `tests/test_reviewer_thin_retry.py` for thin-fact retry behavior.
+- `tests/test_reviewer_partial_json.py`, `tests/test_scorer_partial_json.py`, `tests/test_rss_feed_sanitize.py` for truncated JSON recovery and feed sanitization.
 - **Digest readability & observability**: Sentence-boundary `narrative_excerpt` (env `NARRATIVE_EXCERPT_MAX_CHARS`); synthesizer prompt + `build_market_takeaway` dedupe vs headline (`difflib.SequenceMatcher`); optional Apify full-page Top-K before extraction (`EXTRACTOR_FULLTEXT_TOP_K`, `EXTRACTOR_FULLTEXT_MIN_WORDS`, `EXTRACTOR_FULLTEXT_TIMEOUT_SECONDS`); structured `pipeline_run_summary` JSON log at end of `crew.run`.
 - `tests/test_narrative_excerpt.py`, `tests/test_synthesizer_takeaway.py`.
 

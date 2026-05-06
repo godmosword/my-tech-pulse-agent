@@ -32,6 +32,40 @@ _POST_FOOTER_RE = re.compile(
     flags=re.IGNORECASE | re.DOTALL,
 )
 
+# XML 1.0 document; feeds sometimes emit raw control chars or bare & in titles/links.
+_ILLEGAL_XML_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# Reference production rule [67]; permissive enough for numeric + named entities.
+_BARE_AMPERSAND_RE = re.compile(
+    r"&(?!(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9._-]*);)"
+)
+
+
+def _prepare_feed_xml(text: str) -> str:
+    """Strip BOM / UTF-8 BOM and characters illegal in XML 1.0."""
+    if not text:
+        return text
+    t = text.lstrip("\ufeff\u200b\u2060")
+    return _ILLEGAL_XML_CHAR_RE.sub("", t)
+
+
+def _escape_bare_ampersands_outside_cdata(xml_text: str) -> str:
+    """Escape & that are not entity references — WordPress / feeds often omit &amp; in text."""
+    out: list[str] = []
+    pos = 0
+    while pos < len(xml_text):
+        start = xml_text.find("<![CDATA[", pos)
+        if start == -1:
+            out.append(_BARE_AMPERSAND_RE.sub("&amp;", xml_text[pos:]))
+            break
+        out.append(_BARE_AMPERSAND_RE.sub("&amp;", xml_text[pos:start]))
+        end = xml_text.find("]]>", start)
+        if end == -1:
+            out.append(xml_text[start:])
+            break
+        out.append(xml_text[start : end + 3])
+        pos = end + 3
+    return "".join(out)
+
 
 def clean_feed_text(text: str) -> str:
     """Convert RSS HTML fragments to compact plain text."""
@@ -275,10 +309,27 @@ class RSSFetcher:
             return []
 
     def _parse_feed(self, text: str, source_name: str) -> list[Article]:
-        try:
-            root = ET.fromstring(text)
-        except ET.ParseError as exc:
-            logger.warning("XML parse error for %s: %s", source_name, exc)
+        bodies: list[str] = []
+        seen: set[str] = set()
+        for variant in (
+            _prepare_feed_xml(text),
+            _escape_bare_ampersands_outside_cdata(_prepare_feed_xml(text)),
+        ):
+            if variant.strip() and variant not in seen:
+                bodies.append(variant)
+                seen.add(variant)
+
+        root = None
+        last_exc: ET.ParseError | None = None
+        for body in bodies:
+            try:
+                root = ET.fromstring(body)
+                break
+            except ET.ParseError as exc:
+                last_exc = exc
+
+        if root is None:
+            logger.warning("XML parse error for %s: %s", source_name, last_exc)
             return []
 
         # Detect RSS vs Atom

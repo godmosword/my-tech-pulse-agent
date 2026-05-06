@@ -26,7 +26,7 @@ from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
 logger = logging.getLogger(__name__)
 
 MODEL = GEMINI_MODEL
-REVIEWER_MAX_OUTPUT_TOKENS = int(os.getenv("REVIEWER_MAX_OUTPUT_TOKENS", "768"))
+REVIEWER_MAX_OUTPUT_TOKENS = int(os.getenv("REVIEWER_MAX_OUTPUT_TOKENS", "1024"))
 
 SYSTEM_PROMPT = (
     "You are a fact-checking editor. Your job is to verify grounding, not to rewrite. "
@@ -73,6 +73,41 @@ class ReviewResult(BaseModel):
     inferred: bool = False
     needs_retry: bool = False
     review_comment: Optional[str] = None
+
+
+def _recover_review_result_from_partial_json(text: str) -> Optional[ReviewResult]:
+    """When Gemini truncates mid-JSON, recover booleans (and review_comment if complete enough).
+
+    Requires both ``fact_error`` and ``inferred`` literals — matches reviewer prompt field order
+    and avoids guessing when output stops after the first field only.
+    """
+    if not text.strip():
+        return None
+    fe_m = re.search(r'"fact_error"\s*:\s*(true|false)', text, re.I)
+    inf_m = re.search(r'"inferred"\s*:\s*(true|false)', text, re.I)
+    if not fe_m or not inf_m:
+        return None
+    nr_m = re.search(r'"needs_retry"\s*:\s*(true|false)', text, re.I)
+    fact_error = fe_m.group(1).lower() == "true"
+    inferred = inf_m.group(1).lower() == "true"
+    needs_retry = nr_m.group(1).lower() == "true" if nr_m else False
+
+    review_comment: Optional[str] = None
+    if re.search(r'"review_comment"\s*:\s*null\b', text):
+        review_comment = None
+    else:
+        cm = re.search(r'"review_comment"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+        if cm:
+            review_comment = (
+                cm.group(1).replace("\\n", "\n").replace("\\t", "\t").replace('\\"', '"')
+            )
+
+    return ReviewResult(
+        fact_error=fact_error,
+        inferred=inferred,
+        needs_retry=needs_retry,
+        review_comment=review_comment,
+    )
 
 
 class ReviewerOutput(BaseModel):
@@ -226,7 +261,18 @@ class ReviewerAgent:
                 response_schema=ReviewResult,
             )
             return ReviewResult(**data)
-        except (json.JSONDecodeError, Exception) as exc:
+        except json.JSONDecodeError as exc:
+            raw = getattr(exc, "raw_text", "") or ""
+            recovered = _recover_review_result_from_partial_json(raw)
+            if recovered is not None:
+                logger.info(
+                    "Reviewer recovered partial JSON (truncated Gemini output) title=%s",
+                    summary.title[:60],
+                )
+                return recovered
+            logger.warning("Reviewer LLM parse failed for '%s': %s", summary.title[:60], exc)
+            return ReviewResult()  # fail-open: no flags
+        except Exception as exc:
             logger.warning("Reviewer LLM call failed for '%s': %s", summary.title[:60], exc)
             return ReviewResult()  # fail-open: no flags
 

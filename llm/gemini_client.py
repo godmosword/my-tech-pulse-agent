@@ -33,6 +33,14 @@ class GeminiEmptyResponseError(ValueError):
         super().__init__(message)
 
 
+class GeminiJsonParseError(json.JSONDecodeError):
+    """JSONDecodeError with the raw model text attached for caller-side recovery."""
+
+    def __init__(self, inner: json.JSONDecodeError, raw_text: str):
+        super().__init__(inner.msg, inner.doc, inner.pos)
+        self.raw_text = raw_text
+
+
 def _is_retryable(exc: Exception) -> bool:
     msg = str(exc).lower()
     return any(k in msg for k in _RETRYABLE_KEYWORDS)
@@ -155,13 +163,13 @@ def generate_json(
             try:
                 data = _parse_json_from_response_text(raw)
                 return data, raw
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as parse_exc:
                 if log_parse_errors:
                     logger.warning(
                         "Gemini JSON parse error | raw_head=%s",
                         raw[:500].replace("\n", "\\n"),
                     )
-                raise  # JSON parse errors propagate immediately — no point retrying
+                raise GeminiJsonParseError(parse_exc, raw) from parse_exc
         except json.JSONDecodeError:
             raise
         except Exception as exc:
