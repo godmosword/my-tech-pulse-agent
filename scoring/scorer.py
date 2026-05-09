@@ -369,7 +369,7 @@ class Scorer:
 
         # Append unscored items at the end so they form the fallback tail in delivery.
         # Capped so they never crowd out scored content.
-        max_unscored_tail = int(os.getenv("MAX_UNSCORED_TAIL", "1"))
+        max_unscored_tail = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
         passed.extend(unscored[:max_unscored_tail])
 
         unscored_ratio = (unscored_count / len(candidates)) if candidates else 0.0

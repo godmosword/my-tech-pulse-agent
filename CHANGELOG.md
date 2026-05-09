@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **`MAX_UNSCORED_TAIL`**: Scorer default matches Telegram formatter (`3`, was `1`) so ops expectations align when scoring fails for multiple articles.
+- **Minimum digest padding**: `_ensure_minimum_summaries` pulls fallback headlines from the merged instant pool **and** full `scored_articles` when the instant shortlist is too thin (still skips URLs already extracted).
+
 ## [0.1.3] — 2026-05-09
 
 ### Fixed

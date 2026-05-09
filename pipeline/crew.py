@@ -214,7 +214,9 @@ class TechPulseCrew:
                     critical_errors.append("llm:reviewer")
                     # fail-open: continue with original summaries
 
-            summaries = self._ensure_minimum_summaries(summaries, instant_scored_articles)
+            summaries = self._ensure_minimum_summaries(
+                summaries, instant_scored_articles, scored_articles
+            )
             if summaries:
                 summaries = self._apply_memory_context(summaries)
             if summaries:
@@ -547,23 +549,41 @@ class TechPulseCrew:
             )
         return summaries
 
+    @staticmethod
+    def _merge_article_pools(primary: list[Article], secondary: list[Article]) -> list[Article]:
+        """Dedupe by URL; preserve order (instant candidates first, then full scored pool)."""
+        seen: set[str] = set()
+        ordered: list[Article] = []
+        for pool in (primary, secondary):
+            for article in pool:
+                url = getattr(article, "url", "") or ""
+                if url and url not in seen:
+                    seen.add(url)
+                    ordered.append(article)
+        return ordered
+
     def _ensure_minimum_summaries(
         self,
         summaries: list[ArticleSummary],
-        articles: list[Article],
+        instant_articles: list[Article],
+        scored_articles: list[Article],
     ) -> list[ArticleSummary]:
-        if len(summaries) >= MIN_DIGEST_ITEMS or not articles:
+        if len(summaries) >= MIN_DIGEST_ITEMS:
+            return summaries
+
+        pool = self._merge_article_pools(instant_articles, scored_articles)
+        if not pool:
             return summaries
 
         existing_urls = {summary.source_url for summary in summaries if summary.source_url}
         needed = MIN_DIGEST_ITEMS - len(summaries)
-        fallback_articles = [article for article in articles if article.url not in existing_urls][:needed]
+        fallback_articles = [a for a in pool if a.url not in existing_urls][:needed]
         if not fallback_articles:
             return summaries
 
         fallback_summaries = self._fallback_summaries(fallback_articles)
         logger.warning(
-            "Digest below minimum (%d/%d); adding %d fallback summary item(s)",
+            "Digest below minimum (%d/%d); adding %d fallback summary item(s) from pooled articles",
             len(summaries),
             MIN_DIGEST_ITEMS,
             len(fallback_summaries),

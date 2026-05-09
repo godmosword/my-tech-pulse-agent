@@ -59,7 +59,7 @@ def test_ensure_minimum_summaries_adds_three_fallback_items(monkeypatch):
         for idx in range(4)
     ]
 
-    summaries = crew._ensure_minimum_summaries([], articles)
+    summaries = crew._ensure_minimum_summaries([], articles, articles)
     msg = format_items_digest(summaries, total_fetched=10, total_after_filter=4)
 
     assert len(summaries) == 3
@@ -69,6 +69,51 @@ def test_ensure_minimum_summaries_adds_three_fallback_items(monkeypatch):
     assert "Fallback 3" not in msg
     # Footer now shows "快訊 N 則" instead of "全部待確認" for cleaner UX
     assert "快訊" in msg
+
+
+def test_ensure_minimum_summaries_uses_scored_pool_when_instant_is_thin(monkeypatch):
+    """Regression: thin instant pool used to block MIN_DIGEST padding (plan digest investigation)."""
+    monkeypatch.setattr("pipeline.crew.MIN_DIGEST_ITEMS", 3)
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    instant = [
+        Article(
+            title="Instant only",
+            url="https://example.com/a",
+            source="News",
+            summary="One instant story.",
+            score=8.6,
+            score_status="scored",
+        )
+    ]
+    scored = instant + [
+        Article(
+            title="Extra scored B",
+            url="https://example.com/b",
+            source="News",
+            summary="Second story body.",
+            score=8.0,
+            score_status="scored",
+        ),
+        Article(
+            title="Extra scored C",
+            url="https://example.com/c",
+            source="News",
+            summary="Third story body.",
+            score=7.5,
+            score_status="scored",
+        ),
+    ]
+    existing = crew._fallback_summaries([instant[0]])
+    existing[0].score_status = "scored"
+
+    out = crew._ensure_minimum_summaries(existing, instant, scored)
+
+    assert len(out) == 3
+    assert {s.source_url for s in out} == {
+        "https://example.com/a",
+        "https://example.com/b",
+        "https://example.com/c",
+    }
 
 
 def test_final_claim_only_marks_deliverable_summaries():

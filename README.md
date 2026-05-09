@@ -56,6 +56,7 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `MIN_BASE_SCORE_THRESHOLD` | ❌ | Cheap pre-LLM heuristic gate (`0.35`) |
 | `MIN_LEXICON_SCORE` | ❌       | Domain lexicon score floor before Gemini scoring (`3.0`) |
 | `MAX_SCORING_ARTICLES` | ❌      | Max articles scored per run (`24`) |
+| `MAX_UNSCORED_TAIL` | ❌ | Max scoring-failed articles merged into the delivery pool (`3`; same env as Telegram unscored tail budget) |
 | `MAX_EXTRACTION_ARTICLES` | ❌   | Max articles extracted per run (`8`) |
 | `MAX_DEEP_ARTICLES` | ❌       | Max KOL/paper deep briefs generated per run (`3`) |
 | `MIN_DEEP_WORDS` | ❌          | Minimum public full-text length before deep chain runs (`800`) |
@@ -178,6 +179,27 @@ gcloud firestore indexes composite create \
 
 If the vector index is missing or still building, the pipeline logs a warning and continues
 without memory search for that run.
+
+## Troubleshooting: Telegram digest shows only one item
+
+Each run logs a JSON line `pipeline_run_summary { ... }` with funnel counts. Compare:
+
+| Field | Meaning |
+|-------|---------|
+| `articles_fetched` | RSS + merges before dedup |
+| `articles_after_dedup` | Unseen URLs |
+| `articles_after_scoring` | After Flash gate + threshold |
+| `instant_candidates` | Length of `instant_scored_articles` passed into extraction |
+| `summaries_count` | Summaries after reviewer + minimum padding + dedup claim |
+
+Inspect `OUTPUT_DIR/summaries_<timestamp>.json` for the same run: count rows and check `score` / `score_status` / `confidence`.
+
+**Typical causes**
+
+1. **Synthesis skipped** — need `summaries_count >= ITEM_DIGEST_THEME_MIN_SUMMARIES` (default `2`) and at least one deliverable scored item. With one summary you still get a items-only digest (no `🗞️` / `🧭`). Lower `ITEM_DIGEST_THEME_MIN_SUMMARIES` to `1` if you always want a headline block (extra LLM cost).
+2. **Thin instant pool** — `_ensure_minimum_summaries` now pads from the merged instant list **plus** full `scored_articles` so deep-tier consumption does not starve minimum digest size when other scored URLs exist.
+3. **Scoring** — most articles below `SCORE_THRESHOLD` or lexicon/heuristic prefilter.
+4. **`MAX_UNSCORED_TAIL`** — scorer and formatter both read this env (default `3`); caps how many scoring-failed articles enter the delivery pool.
 
 ## Project Structure
 
