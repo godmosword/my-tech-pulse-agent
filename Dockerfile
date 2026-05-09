@@ -10,5 +10,8 @@ COPY . .
 # 安裝專案及其依賴套件
 RUN pip install -e .
 
+# 正式頻道 digest 版面（📡 / 🧭 / 📈 / 🧠）；Cloud Run 仍可覆寫
+ENV DIGEST_FORMAT=v1
+
 # 設定容器啟動時執行的預設指令 (Cloud Run Job 單次執行)
 CMD ["python", "main.py"]

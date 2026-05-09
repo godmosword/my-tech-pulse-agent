@@ -8,9 +8,14 @@ import os
 import sys
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[1]
+from delivery.message_formatter import CANONICAL_DIGEST_FORMAT, EXPERIMENTAL_DIGEST_FORMAT
+
 REQUIRED_ENV = ("GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID")
 EXPECTED_MODELS = {
     "GEMINI_MODEL": "gemini-3.1-pro-preview",
@@ -65,6 +70,25 @@ def _failures() -> list[str]:
     return failures
 
 
+def _warnings() -> list[str]:
+    """Non-blocking notices (digest layout, etc.)."""
+    warnings: list[str] = []
+    raw = os.getenv("DIGEST_FORMAT", "").strip()
+    if not raw:
+        return warnings
+    fmt = raw.lower()
+    if fmt == EXPERIMENTAL_DIGEST_FORMAT:
+        warnings.append(
+            f"DIGEST_FORMAT={EXPERIMENTAL_DIGEST_FORMAT} uses the experimental numbered digest; "
+            f"canonical #科技脈搏 layout is {CANONICAL_DIGEST_FORMAT}."
+        )
+    elif fmt != CANONICAL_DIGEST_FORMAT:
+        warnings.append(
+            f"Unknown DIGEST_FORMAT={raw!r}; runtime falls back to {CANONICAL_DIGEST_FORMAT}."
+        )
+    return warnings
+
+
 def main() -> int:
     failures = _failures()
     if failures:
@@ -74,6 +98,8 @@ def main() -> int:
         return 1
 
     print("Preflight passed: required launch configuration is present.")
+    for w in _warnings():
+        print(f"Warning: {w}")
     return 0
 
 

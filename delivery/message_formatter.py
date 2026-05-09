@@ -11,6 +11,10 @@ from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput, StoryInsight
 
+# Canonical Telegram digest: 📡 header, 🗞️ headline, 🧭 / 📈 / 🧠, themed ⭐ blocks, footer counts.
+CANONICAL_DIGEST_FORMAT = "v1"
+EXPERIMENTAL_DIGEST_FORMAT = "v2"
+
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "6"))
 # Raised default (340) reduces mid-sentence cuts in Telegram; split fact/impact lines were skipped to keep formatting simple.
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "340"))
@@ -478,8 +482,9 @@ def format_items_digest(
     story_insights: Optional[list[StoryInsight]] = None,
     now: Optional[datetime] = None,
 ) -> str:
-    """Format digest with env-based version switch (v1 fallback / v2 opt-in)."""
-    if os.getenv("DIGEST_FORMAT", "v1").lower() == "v2":
+    """Format digest with env-based version switch (v1 default / v2 opt-in)."""
+    fmt = os.getenv("DIGEST_FORMAT", CANONICAL_DIGEST_FORMAT).strip().lower()
+    if fmt == EXPERIMENTAL_DIGEST_FORMAT:
         return format_digest_v2(
             summaries,
             total_fetched,

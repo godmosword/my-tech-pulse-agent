@@ -229,3 +229,18 @@ def test_digest_footer_splits_scored_and_unscored_when_fallback_tail_present():
     assert "已評分 1 則" in msg
     assert "主題區 1 個" in msg
     assert "（平均 8\\.2）" in msg
+
+
+def test_digest_format_unknown_env_falls_back_to_v1(monkeypatch):
+    monkeypatch.setenv("DIGEST_FORMAT", "typo-layout")
+    summary = _sample_summary(0, title="Only Story", score=8.0)
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "Digest v2" not in msg
+    assert "*科技脈搏 ·" in msg
+
+
+def test_digest_format_v2_opt_in(monkeypatch):
+    monkeypatch.setenv("DIGEST_FORMAT", "v2")
+    summary = _sample_summary(0, title="Only Story", score=8.0)
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "Digest v2" in msg

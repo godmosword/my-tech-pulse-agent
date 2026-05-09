@@ -4,10 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-09
+
 ### Fixed
 - **Telegram `📈 市場含義` vs 開頭敘事**：`SynthesizerAgent.build_market_takeaway` 優先使用 narrative **第二段**（並以句號／問號等做句子邊界截斷），避免與第一段 `narrative_excerpt` 重複或在字元 180 處硬切；單段 narrative 時改為用主題名串接。`message_formatter` 若偵測 `market_takeaway` 為 `narrative_excerpt` 前綴則略過「市場含義」區塊，雙重避免重複。
 
 ### Changed
+- **`DIGEST_FORMAT`**: Module constants `CANONICAL_DIGEST_FORMAT` / `EXPERIMENTAL_DIGEST_FORMAT`; unrecognized values fall back to v1 at runtime. `scripts/preflight.py` warns on `v2` or unknown layout and prepends repo root to `sys.path` so `python scripts/preflight.py` runs from project root. README + regression tests for v1 fallback / v2 opt-in. Docker image defaults `ENV DIGEST_FORMAT=v1`; CI deploy passes `--update-env-vars DIGEST_FORMAT=v1` to Cloud Run Job.
 - **Digest synthesis gate**: Default `ITEM_DIGEST_THEME_MIN_SUMMARIES` is **2** (was 3). Runs with only two extracted summaries still produce headline / themes / narrative; thin RSS windows no longer drop straight to “items-only” Telegram. Set env to `3` if you prefer to skip synthesis unless there are three items. Observability: log line when synthesis is skipped (`Skipping digest synthesis: …`).
 - **`pipeline_run_summary`**: Includes RSS/scoring funnel (`articles_fetched`, `articles_after_dedup`, `articles_after_scoring`, `instant_candidates`) so empty runs are obvious in one JSON log line.
 - **Telegram**: Items digest increments `delivery_attempted` only when there is deliverable content (`_has_deliverable_item_signal`). Skipped sends log `Telegram items digest skipped: nothing deliverable…` instead of misleading `attempted=1 succeeded=0` with no message.

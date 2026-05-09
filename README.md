@@ -62,6 +62,7 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `MAX_EARNINGS_FILINGS` | ❌      | Max earnings filings processed per run (`2`) |
 | `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
 | `MAX_ITEMS_PER_DIGEST` | ❌      | Max items shown in Telegram digest (`6`) |
+| `DIGEST_FORMAT` | ❌ | Telegram digest layout: `v1` = canonical #科技脈搏 (📡 / 🗞️ / 🧭 / 📈 / 🧠 / themed items); `v2` = experimental numbered digest (`v1` default; unknown values fall back to `v1`) |
 | `MIN_DIGEST_ITEMS` | ❌         | Minimum digest items, filled with fallback summaries when needed (`3`) |
 | `ITEM_DIGEST_THEME_MIN_SUMMARIES` | ❌ | Minimum summaries before running the synthesizer for headline / themes / narrative (`2`; set `3` to reduce synthesis cost on thin runs) |
 | `MAX_SUMMARY_CHARS` | ❌        | Max chars per item structured body in Telegram digest (`340`; Telegram hard limit is 4096 per message) |
@@ -112,7 +113,9 @@ settings before relying on it:
 | `WIF_SERVICE_ACCOUNT` | Service account email with `roles/run.developer` and `roles/artifactregistry.writer` |
 
 The Artifact Registry repo and Cloud Run Job must already exist (the workflow updates the
-existing job's image; it does not create resources). If you prefer to deploy as a
+existing job's image; it does not create resources). Each deploy runs `gcloud run jobs update`
+with `--update-env-vars DIGEST_FORMAT=v1` so production keeps the canonical #科技脈搏 digest layout
+unless you override that variable in GCP. If you prefer to deploy as a
 Cloud Run Service instead of a Job, swap `gcloud run jobs update` for
 `gcloud run deploy` in the workflow.
 
