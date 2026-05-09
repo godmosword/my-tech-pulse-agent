@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **Digest header clock**: `📡 科技脈搏 · …` / v2 header times use **`DIGEST_HEADER_TIMEZONE`** (default `Asia/Taipei`) instead of formatting UTC as if it were local wall clock.
+
 ### Changed
 - **`MAX_UNSCORED_TAIL`**: Scorer default matches Telegram formatter (`3`, was `1`) so ops expectations align when scoring fails for multiple articles.
 - **Minimum digest padding**: `_ensure_minimum_summaries` pulls fallback headlines from the merged instant pool **and** full `scored_articles` when the instant shortlist is too thin (still skips URLs already extracted).

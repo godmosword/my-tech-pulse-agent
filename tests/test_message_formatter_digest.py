@@ -231,6 +231,30 @@ def test_digest_footer_splits_scored_and_unscored_when_fallback_tail_present():
     assert "（平均 8\\.2）" in msg
 
 
+def test_digest_header_shows_display_timezone_default_taipei(monkeypatch):
+    monkeypatch.delenv("DIGEST_HEADER_TIMEZONE", raising=False)
+    summary = _sample_summary(0, title="Only Story", score=8.0)
+    msg = format_items_digest(
+        [summary],
+        total_fetched=1,
+        total_after_filter=1,
+        now=datetime(2026, 5, 9, 10, 53, tzinfo=timezone.utc),
+    )
+    assert "2026/05/09 18:53" in msg
+
+
+def test_digest_header_respects_digest_header_timezone_utc(monkeypatch):
+    monkeypatch.setenv("DIGEST_HEADER_TIMEZONE", "UTC")
+    summary = _sample_summary(0, title="Only Story", score=8.0)
+    msg = format_items_digest(
+        [summary],
+        total_fetched=1,
+        total_after_filter=1,
+        now=datetime(2026, 5, 9, 10, 53, tzinfo=timezone.utc),
+    )
+    assert "2026/05/09 10:53" in msg
+
+
 def test_digest_format_unknown_env_falls_back_to_v1(monkeypatch):
     monkeypatch.setenv("DIGEST_FORMAT", "typo-layout")
     summary = _sample_summary(0, title="Only Story", score=8.0)

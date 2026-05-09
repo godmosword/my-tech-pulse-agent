@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timezone
 from statistics import mean
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from agents.earnings_agent import EarningsOutput
 from agents.deep_insight_agent import InsightBrief
@@ -27,6 +28,23 @@ MAX_ITEMS_PER_THEME = int(os.getenv("MAX_ITEMS_PER_THEME", "3"))
 MIN_ITEMS_PER_THEME = int(os.getenv("MIN_ITEMS_PER_THEME", "2"))
 EARNINGS_THEME_RATIO_CAP = float(os.getenv("EARNINGS_THEME_RATIO_CAP", "0.4"))
 TRANSLATION_TAG = "[📝 原文為英文，已由 Q-Silicon 深度編譯]"
+
+
+def _digest_header_display_dt(now: Optional[datetime]) -> datetime:
+    """Pipeline instant shown in digest header as channel-local wall clock (default Taipei)."""
+    if now is None:
+        dt = datetime.now(timezone.utc)
+    else:
+        dt = now
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    tz_name = (os.getenv("DIGEST_HEADER_TIMEZONE", "Asia/Taipei") or "Asia/Taipei").strip()
+    try:
+        loc = ZoneInfo(tz_name)
+    except Exception:
+        loc = ZoneInfo("Asia/Taipei")
+    return dt.astimezone(loc)
+
 
 _THEME_KEYWORDS: dict[str, list[str]] = {
     "AI 基礎設施": ["ai", "gpu", "chip", "晶片", "資料中心", "datacenter", "nvidia", "amd", "hbm"],
@@ -271,9 +289,7 @@ def _format_items_digest_v1(
     now: Optional[datetime] = None,
 ) -> str:
     """Format a curated digest of ArticleSummary items grouped by theme."""
-    if now is None:
-        now = datetime.now(timezone.utc)
-    date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
+    date_str = escape(_digest_header_display_dt(now).strftime("%Y/%m/%d %H:%M"))
 
     ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
     valid_ranked = [
@@ -389,9 +405,6 @@ def format_digest_v2(
     now: Optional[datetime] = None,
 ) -> str:
     """Format digest in fixed v2 layout for Telegram MarkdownV2."""
-    if now is None:
-        now = datetime.now(timezone.utc)
-
     ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
     top = ranked[:MAX_ITEMS_PER_DIGEST]
 
@@ -399,7 +412,7 @@ def format_digest_v2(
     if total_fetched > 0:
         quality = min(100.0, max(0.0, (total_after_filter / total_fetched) * 100))
 
-    date_str = escape(now.strftime("%Y/%m/%d %H:%M"))
+    date_str = escape(_digest_header_display_dt(now).strftime("%Y/%m/%d %H:%M"))
     header = [
         f"🧭 *科技脈搏 Digest v2 · {date_str}*",
         f"總篇數: {escape(str(total_fetched))}",

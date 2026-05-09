@@ -64,6 +64,7 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
 | `MAX_ITEMS_PER_DIGEST` | ❌      | Max items shown in Telegram digest (`6`) |
 | `DIGEST_FORMAT` | ❌ | Telegram digest layout: `v1` = canonical #科技脈搏 (📡 / 🗞️ / 🧭 / 📈 / 🧠 / themed items); `v2` = experimental numbered digest (`v1` default; unknown values fall back to `v1`) |
+| `DIGEST_HEADER_TIMEZONE` | ❌ | IANA timezone for digest header date/time (`Asia/Taipei` default; pipeline timestamps are UTC, header converts for display) |
 | `MIN_DIGEST_ITEMS` | ❌         | Minimum digest items, filled with fallback summaries when needed (`3`) |
 | `ITEM_DIGEST_THEME_MIN_SUMMARIES` | ❌ | Minimum summaries before running the synthesizer for headline / themes / narrative (`2`; set `3` to reduce synthesis cost on thin runs) |
 | `MAX_SUMMARY_CHARS` | ❌        | Max chars per item structured body in Telegram digest (`340`; Telegram hard limit is 4096 per message) |
@@ -193,6 +194,8 @@ Each run logs a JSON line `pipeline_run_summary { ... }` with funnel counts. Com
 | `summaries_count` | Summaries after reviewer + minimum padding + dedup claim |
 
 Inspect `OUTPUT_DIR/summaries_<timestamp>.json` for the same run: count rows and check `score` / `score_status` / `confidence`.
+
+**Header time** — The `📡 科技脈搏 · …` timestamp is converted from UTC to **`DIGEST_HEADER_TIMEZONE`** (default `Asia/Taipei`). Use `UTC` if you want the header to match Cloud Run’s coordinated time.
 
 **Typical causes**
 
