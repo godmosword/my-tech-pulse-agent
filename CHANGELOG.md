@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-05-09
+
 ### Fixed
 - **Digest header clock**: `📡 科技脈搏 · …` / v2 header times use **`DIGEST_HEADER_TIMEZONE`** (default `Asia/Taipei`) instead of formatting UTC as if it were local wall clock.
 
