@@ -180,6 +180,26 @@ def test_fallback_items_are_not_duplicated_or_averaged():
     assert "快訊" in msg
 
 
+def test_low_score_fallback_is_labeled_as_low_confidence_brief():
+    low_score = _sample_summary(
+        0,
+        category="other",
+        title="ByteDance AI infrastructure spending",
+        summary="ByteDance targets higher AI infrastructure spending.",
+        score=5.8,
+    )
+    low_score.score_status = "low_score_fallback"
+
+    msg = format_items_digest([low_score], total_fetched=332, total_after_filter=1)
+
+    assert "*其他快訊*" in msg
+    assert "ByteDance AI infrastructure spending" in msg
+    assert "低信心" in msg
+    assert "未達正式評分門檻" in msg
+    assert "主題區" not in msg
+    assert "低信心快訊 1 則" in msg
+
+
 def test_item_contains_verification_and_published_time_lines():
     summary = _sample_summary(
         0,
