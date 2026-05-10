@@ -106,6 +106,7 @@ class Article(BaseModel):
     author: str = ""      # populated for KOL items from kol_registry.yaml
     tier: Literal["instant", "deep", "earnings"] = "instant"
     domain: list[str] = Field(default_factory=list)
+    allowed_themes: list[str] = Field(default_factory=list)  # KOL theme whitelist; empty = unrestricted
     min_words: int = 800
     word_count: int = 0
     deep_status: str = "not_run"
@@ -136,6 +137,7 @@ class KOLConfig(BaseModel):
     focus: list[str] = Field(default_factory=list)
     tier: Literal["deep", "instant"] = "deep"
     domain: list[str] = Field(default_factory=list)
+    allowed_themes: list[str] = Field(default_factory=list)
     min_words: int = 800
     priority: int = 99
     enabled: bool = True
@@ -261,6 +263,7 @@ class RSSFetcher:
                 article.author = kol.author
                 article.tier = kol.tier
                 article.domain = kol.domain or kol.focus
+                article.allowed_themes = list(kol.allowed_themes)
                 article.min_words = kol.min_words
                 article.source_display_name = kol.display_name or kol.name
                 article.source_language = kol.language

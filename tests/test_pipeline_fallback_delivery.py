@@ -308,7 +308,9 @@ def test_items_digest_skips_unscored_fallback_only_delivery():
 
 
 def test_items_digest_allows_low_score_fallback_delivery():
-    summary = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+    """Two or more low_score_fallback items can ship together (≥2 policy)."""
+    crew_factory = TechPulseCrew.__new__(TechPulseCrew)
+    summaries = crew_factory._fallback_summaries([
         Article(
             title="ByteDance targets AI infrastructure spending",
             url="https://example.com/bytedance",
@@ -316,17 +318,62 @@ def test_items_digest_allows_low_score_fallback_delivery():
             summary="ByteDance plans more AI infrastructure spending.",
             score=5.8,
             score_status="low_score_fallback",
+        ),
+        Article(
+            title="Anthropic ships new pricing tier",
+            url="https://example.com/anthropic",
+            source="bloomberg_rss",
+            summary="Anthropic released a new enterprise pricing tier.",
+            score=5.9,
+            score_status="low_score_fallback",
+        ),
+    ])
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.telegram = _FakeTelegram(sent=True)
+    crew.memory = _FakeMemory()
+
+    assert TechPulseCrew._has_deliverable_item_signal(summaries) is True
+    assert TechPulseCrew._has_formal_scored_item_signal(summaries) is False
+    assert crew._send_items_digest_with_memory(summaries, total_fetched=316, total_after_filter=2) is True
+    assert crew.telegram.calls == 1
+    assert crew.memory.archived == summaries
+
+
+def test_single_low_score_fallback_blocks_delivery():
+    """Regression: 2026-05-10 digest shipped a single 5.6-score Lenny's roundup alone."""
+    summary = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+        Article(
+            title="Community Wisdom: thoughts on Claude Code pricing",
+            url="https://example.com/lenny",
+            source="lenny_newsletter",
+            summary="Subscriber-only roundup of Slack community discussions.",
+            score=5.6,
+            score_status="low_score_fallback",
         )
     ])[0]
     crew = TechPulseCrew.__new__(TechPulseCrew)
     crew.telegram = _FakeTelegram(sent=True)
     crew.memory = _FakeMemory()
 
+    assert TechPulseCrew._has_deliverable_item_signal([summary]) is False
+    assert crew._send_items_digest_with_memory([summary], total_fetched=316, total_after_filter=1) is False
+    assert crew.telegram.calls == 0
+    assert crew.memory.archived == []
+
+
+def test_one_scored_item_alone_still_deliverable():
+    """A single scored (non-fallback) item should still ship — gate only blocks fallback-only digests."""
+    summary = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+        Article(
+            title="NVIDIA H200 ships to hyperscalers",
+            url="https://example.com/nvidia",
+            source="bloomberg_rss",
+            summary="NVIDIA shipped H200 GPUs to top-3 hyperscalers.",
+            score=8.4,
+            score_status="scored",
+        )
+    ])[0]
     assert TechPulseCrew._has_deliverable_item_signal([summary]) is True
-    assert TechPulseCrew._has_formal_scored_item_signal([summary]) is False
-    assert crew._send_items_digest_with_memory([summary], total_fetched=316, total_after_filter=1) is True
-    assert crew.telegram.calls == 1
-    assert crew.memory.archived == [summary]
 
 
 def test_items_digest_allows_story_insight_without_scored_summary():

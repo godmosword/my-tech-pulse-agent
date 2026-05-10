@@ -60,7 +60,15 @@ def _digest_header_display_dt(now: Optional[datetime]) -> datetime:
 
 
 _THEME_KEYWORDS: dict[str, list[str]] = {
-    "AI 基礎設施": ["ai", "gpu", "chip", "晶片", "資料中心", "datacenter", "nvidia", "amd", "hbm"],
+    # Compound terms + strong single tokens only — bare "ai" removed to prevent
+    # casual mentions ("gen ai", "ai topics") from collapsing every article into AI 基礎設施.
+    "AI 基礎設施": [
+        "ai infrastructure", "ai chip", "ai gpu", "ai 算力", "ai datacenter",
+        "ai cluster", "ai accelerator", "artificial intelligence",
+        "gpu", "datacenter", "data center", "資料中心",
+        "nvidia", "amd", "hbm", "tsmc", "台積電",
+        "tpu", "asic", "晶片", "training cluster", "算力",
+    ],
     "雲端與企業軟體": ["cloud", "saas", "雲端", "azure", "aws", "gcp", "oracle", "enterprise", "crm"],
     "消費電子": ["iphone", "android", "pc", "wearable", "consumer", "手機", "筆電", "平板", "耳機"],
     "電動車供應鏈": ["ev", "electric vehicle", "battery", "tesla", "自駕", "電動車", "車用", "充電", "鋰電"],
@@ -69,21 +77,30 @@ _THEME_KEYWORDS: dict[str, list[str]] = {
 
 def _theme_key(summary: ArticleSummary) -> str:
     if summary.category == "earnings":
-        return "財報焦點"
+        candidate = "財報焦點"
+    else:
+        corpus = " ".join([summary.entity, summary.summary, getattr(summary, "title", "")]).lower()
+        candidate = None
+        for theme, keywords in _THEME_KEYWORDS.items():
+            if any(_contains_theme_keyword(corpus, k) for k in keywords):
+                candidate = theme
+                break
+        if candidate is None:
+            cat_map = {
+                "product_launch": "產品與策略",
+                "funding": "資本與投資",
+                "acquisition": "併購與整併",
+                "regulation": "政策與監管",
+                "research": "技術研發",
+            }
+            candidate = cat_map.get(summary.category, "其他焦點")
 
-    corpus = " ".join([summary.entity, summary.summary, getattr(summary, "title", "")]).lower()
-    for theme, keywords in _THEME_KEYWORDS.items():
-        if any(_contains_theme_keyword(corpus, k) for k in keywords):
-            return theme
-
-    cat_map = {
-        "product_launch": "產品與策略",
-        "funding": "資本與投資",
-        "acquisition": "併購與整併",
-        "regulation": "政策與監管",
-        "research": "技術研發",
-    }
-    return cat_map.get(summary.category, "其他焦點")
+    # Source-level theme whitelist (KOL guard): if the source declared allowed_themes,
+    # any candidate outside that set is downgraded to the first allowed theme.
+    allowed = list(getattr(summary, "allowed_themes", []) or [])
+    if allowed and candidate not in allowed:
+        return allowed[0]
+    return candidate
 
 
 def _contains_theme_keyword(corpus: str, keyword: str) -> bool:
@@ -365,6 +382,12 @@ def _format_items_digest_v1(
         header += "\n⚠️ 模型評分降級"
 
     lines: list[str] = [header, ""]
+
+    # Fallback-only banner: surfaces when no scored item passed the high-confidence
+    # threshold so users can read the digest knowing it's a low-signal day.
+    if not valid_ranked and fallback_items:
+        lines.append("⚠️ <b>今日無 ≥7.2 高信心頭條，以下為次選快訊</b>")
+        lines.append("")
 
     if headline:
         lines.append(f"<b>🗞️ {escape(headline)}</b>")

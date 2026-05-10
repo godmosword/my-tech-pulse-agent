@@ -557,6 +557,7 @@ class TechPulseCrew:
                     label=str(getattr(article, "label", "news")),
                     author=str(getattr(article, "author", "")),
                     published_at=article.published_at.isoformat() if article.published_at else "",
+                    allowed_themes=list(getattr(article, "allowed_themes", []) or []),
                     source_text=raw_text[:4000],
                 )
             )
@@ -807,7 +808,14 @@ class TechPulseCrew:
     ) -> bool:
         if story_insights:
             return True
-        return any(TechPulseCrew._is_deliverable_summary(summary) for summary in summaries)
+        deliverable = [s for s in summaries if TechPulseCrew._is_deliverable_summary(s)]
+        if not deliverable:
+            return False
+        # When no formally-scored item exists, require >=2 fallback items so that
+        # a single low-confidence article (e.g. a 5.6 KOL roundup) cannot ship alone.
+        if not any(TechPulseCrew._is_formal_scored_summary(s) for s in deliverable):
+            return len(deliverable) >= 2
+        return True
 
     @staticmethod
     def _has_formal_scored_item_signal(summaries: list[ArticleSummary]) -> bool:

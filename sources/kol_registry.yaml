@@ -66,6 +66,7 @@ kol_sources:
     tier: deep
     domain: [product, growth, saas]
     focus: [product, growth, SaaS]
+    allowed_themes: ["產品與策略", "其他焦點"]
     min_words: 800
     priority: 3
     enabled: true
@@ -173,6 +174,7 @@ chinese_sources:
       tier: deep
       domain: [ai, tech_strategy, platform, business_models]
       focus: [AI 商業邏輯, 軟硬體生態系解構, 商業模式拆解]
+      allowed_themes: ["AI 基礎設施", "產品與策略", "資本與投資", "其他焦點"]
       min_words: 800
       priority: 1
       weight: 1.5
@@ -216,6 +218,7 @@ chinese_sources:
       tier: deep
       domain: [crypto, web3, defi, protocol_design]
       focus: [Web3 底層機制, DeFi 協議運作邏輯]
+      allowed_themes: ["技術研發", "其他焦點"]
       min_words: 800
       priority: 1
       weight: 1.5
@@ -230,6 +233,7 @@ chinese_sources:
       tier: deep
       domain: [crypto, l1_l2, defi, derivatives]
       focus: [L1/L2 擴容技術, 全鏈衍生品, 流動性機制]
+      allowed_themes: ["技術研發", "其他焦點"]
       min_words: 800
       priority: 2
       weight: 1.2
