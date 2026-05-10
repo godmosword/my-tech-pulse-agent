@@ -319,3 +319,67 @@ def test_title_is_bold_html():
     summary = _sample_summary(0, title="My Test Title", score=8.0)
     msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
     assert "<b>My Test Title</b>" in msg
+
+
+def test_ai_keyword_does_not_match_gen_ai_casual():
+    """Regression: 2026-05-10 digest classified Lenny's 'gen ai in games' note as AI 基礎設施."""
+    summary = _sample_summary(
+        0,
+        category="other",
+        title="Community Wisdom: thoughts on gen ai in games",
+        summary="Slack community discussion about generative AI use in games and PM workflows.",
+        score=7.5,
+    )
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "AI 基礎設施" not in msg
+
+
+def test_ai_infrastructure_compound_keywords_match():
+    """NVIDIA + datacenter must still classify as AI 基礎設施."""
+    summary = _sample_summary(
+        0,
+        category="product_launch",
+        title="NVIDIA H200 datacenter rollout begins",
+        summary="NVIDIA shipped H200 GPUs to hyperscaler datacenters this week.",
+        score=8.2,
+    )
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "AI 基礎設施" in msg
+
+
+def test_allowed_themes_redirects_offtopic_kol():
+    """KOL allowed_themes whitelist should override keyword match."""
+    summary = _sample_summary(
+        0,
+        category="other",
+        title="Notes on gpu shortages and PM hiring",
+        summary="Quick PM-focused take on the gpu shortage and how teams should hire.",
+        score=7.0,
+    )
+    summary.allowed_themes = ["產品與策略", "其他焦點"]
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "AI 基礎設施" not in msg
+    assert "產品與策略" in msg
+
+
+def test_fallback_only_digest_shows_warning_banner():
+    """When no scored items pass, surface a banner so users know it's a low-signal day."""
+    fallback = _sample_summary(
+        0,
+        category="other",
+        title="Anthropic experiment",
+        summary="An advisory note.",
+        score=5.6,
+    )
+    fallback.score_status = "low_score_fallback"
+    other = _sample_summary(
+        1,
+        category="other",
+        title="Second low-confidence note",
+        summary="Another advisory note.",
+        score=5.7,
+    )
+    other.score_status = "low_score_fallback"
+
+    msg = format_items_digest([fallback, other], total_fetched=300, total_after_filter=2)
+    assert "今日無" in msg and "高信心頭條" in msg

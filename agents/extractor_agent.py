@@ -52,12 +52,19 @@ Formatting constraints for structured summary fields:
 - Keep summary as a compatible fallback narrative.
 - Keep every field concise so the JSON object can complete within the token limit.
 
+Quality gate (CRITICAL — set confidence="low" and why_it_matters="" if ANY apply):
+- Article is a newsletter roundup, link collection, "what we're reading", "community wisdom", or weekly digest of other people's posts.
+- Article is purely advisory / opinion ("how to", "what to do when", "thoughts on") with no original facts, numbers, or named decisions.
+- key_facts cannot include at least 1 specific number, company name, or product version pulled directly from the article body (not the title alone).
+- Title contains any of: "roundup", "wisdom", "best of", "this week in", "what we learned", "what we're reading".
+
 Additionally, generate a Traditional Chinese summary for this article:
 - Field name: zh_summary
 - Exactly 2 sentences in Traditional Chinese (繁體中文)
-- Sentence 1: Explain WHAT was achieved and WHY it is technically significant
+- Sentence 1: Explain WHAT was achieved and WHY it is technically significant. MUST cite at least one specific entity, number, or product mentioned in the article body — not generic phrases like "實用見解" or "重要討論".
 - Sentence 2: Explain the practical implication for engineers or investors
 - Each sentence must be under 60 Chinese characters
+- If the article lacks concrete facts (e.g. it is a roundup or pure opinion), set zh_summary to null instead of inventing content.
 - Do NOT translate the title; write naturally as a tech editor would
 - Example format: {{ "zh_summary": "第一句。第二句。" }}
 
@@ -93,6 +100,7 @@ class ArticleSummary(BaseModel):
     semantic_distance: Optional[float] = None
     source_text: str = Field(default="", exclude=True)  # raw article text for reviewer; not serialized
     zh_summary: Optional[str] = None  # 繁體中文導讀，2句，由 LLM 生成
+    allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
 
 
 class ExtractorAgent:
@@ -171,6 +179,9 @@ class ExtractorAgent:
                 published_at = article.get("published_at")
                 result.published_at = published_at.isoformat() if hasattr(published_at, "isoformat") else str(published_at or "")
                 result.source_text = text[: _extractor_input_char_limit()]
+                allowed = article.get("allowed_themes") or []
+                if isinstance(allowed, (list, tuple)):
+                    result.allowed_themes = [str(t) for t in allowed if t]
                 self._postprocess_flags(result)
                 results.append(result)
         return results
