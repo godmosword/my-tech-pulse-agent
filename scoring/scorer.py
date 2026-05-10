@@ -8,7 +8,9 @@ import json
 import logging
 import os
 import re
+from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -325,14 +327,22 @@ class Scorer:
             )
 
         max_articles = int(os.getenv("MAX_SCORING_ARTICLES", "24"))
-        candidates = prefiltered[:max_articles]
+        ranked_candidates = self._rank_scoring_candidates(prefiltered)
+        candidates = ranked_candidates[:max_articles]
         if len(prefiltered) > len(candidates):
             logger.info(
                 "Scoring capped at %d/%d articles to stay within runtime budget",
                 len(candidates), len(prefiltered),
             )
+        if candidates:
+            logger.info(
+                "Scoring candidate sources: %s",
+                dict(Counter(getattr(a, "source", "unknown") for a in candidates)),
+            )
 
         unscored: list = []
+        low_score_candidates: list = []
+        used_low_score_fallback = False
 
         for article in candidates:
             text = article.content or article.summary or ""
@@ -362,30 +372,89 @@ class Scorer:
                 passed.append(article)
             else:
                 article.score_status = "filtered_out"
+                low_score_candidates.append(article)
                 logger.debug(
                     "Filtered out '%s' (score=%.1f < %.1f)",
                     article.title[:60], weighted_score, thresh,
                 )
 
+        if low_score_candidates:
+            top_low = sorted(low_score_candidates, key=lambda a: getattr(a, "score", 0.0), reverse=True)[:5]
+            logger.info(
+                "Top sub-threshold scores: %s",
+                "; ".join(
+                    f"{getattr(a, 'score', 0.0):.1f}:{getattr(a, 'source', 'unknown')}:{a.title[:50]}"
+                    for a in top_low
+                ),
+            )
+
+        if not passed and low_score_candidates:
+            min_digest_items = int(os.getenv("MIN_DIGEST_ITEMS", "3"))
+            fallback_items = sorted(
+                low_score_candidates,
+                key=lambda a: getattr(a, "score", 0.0),
+                reverse=True,
+            )[:min_digest_items]
+            for article in fallback_items:
+                article.score_status = "low_score_fallback"
+            passed.extend(fallback_items)
+            used_low_score_fallback = True
+            logger.warning(
+                "Scoring produced no threshold-passing items; keeping %d low-score fallback item(s)",
+                len(fallback_items),
+            )
+
         # Append unscored items at the end so they form the fallback tail in delivery.
         # Capped so they never crowd out scored content.
         max_unscored_tail = int(os.getenv("MAX_UNSCORED_TAIL", "3"))
-        passed.extend(unscored[:max_unscored_tail])
+        if not used_low_score_fallback:
+            passed.extend(unscored[:max_unscored_tail])
 
         unscored_ratio = (unscored_count / len(candidates)) if candidates else 0.0
+        low_score_fallback_count = sum(
+            1 for article in passed if getattr(article, "score_status", "") == "low_score_fallback"
+        )
         logger.info(
-            "Scoring: %d scored | %d unscored (%.1f%%) | %d total passed",
-            len(passed) - min(unscored_count, max_unscored_tail),
+            "Scoring: %d scored | %d low-score fallback | %d unscored (%.1f%%) | %d total passed",
+            len([a for a in passed if getattr(a, "score_status", "") == "scored"]),
+            low_score_fallback_count,
             unscored_count,
             unscored_ratio * 100,
             len(passed),
         )
         return passed
 
+    def _rank_scoring_candidates(self, articles: list) -> list:
+        """Prioritize high-signal items before applying the runtime scoring cap."""
+        now = datetime.now(timezone.utc)
+        return sorted(
+            articles,
+            key=lambda article: (
+                self._freshness_score(article, now),
+                float(getattr(article, "base_score", 0.0) or 0.0),
+                float(getattr(article, "lexicon_score", 0.0) or 0.0),
+                self._source_weight(getattr(article, "source", "")),
+            ),
+            reverse=True,
+        )
+
     def _apply_source_weight(self, score: float, source_name: str) -> float:
-        weight = float(self._source_weights.get(source_name, 1.0))
+        weight = self._source_weight(source_name)
         weighted = max(0.0, min(10.0, score * weight))
         return round(weighted, 2)
+
+    def _source_weight(self, source_name: str) -> float:
+        return float(self._source_weights.get(source_name, 1.0))
+
+    @staticmethod
+    def _freshness_score(article, now: datetime) -> float:
+        published_at = getattr(article, "published_at", None)
+        if published_at is None:
+            return 0.0
+        if published_at.tzinfo is None:
+            published_at = published_at.replace(tzinfo=timezone.utc)
+        age_hours = max(0.0, (now - published_at.astimezone(timezone.utc)).total_seconds() / 3600)
+        return max(0.0, 1.0 - (age_hours / 72.0))
 
     @property
     def _gemini_client(self):

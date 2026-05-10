@@ -2,6 +2,7 @@
 
 import json
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -901,8 +902,8 @@ def test_scorer_filter_articles_passes_above_threshold():
         result = scorer.filter_articles(articles)
 
     assert len(result) == 1
-    assert result[0].title == "OpenAI launches new enterprise AI model"
     assert result[0].score == pytest.approx(8.5)
+    assert result[0].score_status == "scored"
 
 
 def test_scorer_filter_articles_respects_runtime_cap(monkeypatch):
@@ -923,6 +924,107 @@ def test_scorer_filter_articles_respects_runtime_cap(monkeypatch):
 
     assert len(result) == 2
     assert mock_client.models.generate_content.call_count == 2
+
+
+def test_scorer_runtime_cap_uses_signal_ranking(monkeypatch):
+    monkeypatch.setenv("MAX_SCORING_ARTICLES", "2")
+    now = datetime.now(timezone.utc)
+    articles = [
+        Article(
+            title="Generic cloud update",
+            url="https://example.com/generic-1",
+            source="test",
+            summary="A cloud company announced a software update.",
+            published_at=now,
+        ),
+        Article(
+            title="Another generic cloud update",
+            url="https://example.com/generic-2",
+            source="test",
+            summary="Another cloud company announced a software update.",
+            published_at=now,
+        ),
+        Article(
+            title="Nvidia AI GPU benchmark improves inference latency",
+            url="https://example.com/gpu",
+            source="test",
+            summary="Nvidia announced an AI GPU for data center inference with 30% benchmark gains.",
+            published_at=now,
+        ),
+        Article(
+            title="OpenAI LLM model adds RAG context window features",
+            url="https://example.com/model",
+            source="test",
+            summary="OpenAI released an LLM model update with RAG and context window improvements.",
+            published_at=now,
+        ),
+    ]
+
+    with _mock_gemini_client([MOCK_SCORE_RESPONSE, MOCK_SCORE_RESPONSE]) as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert mock_client.models.generate_content.call_count == 2
+    assert {article.title for article in result} == {
+        "Nvidia AI GPU benchmark improves inference latency",
+        "OpenAI LLM model adds RAG context window features",
+    }
+
+
+def test_scorer_runtime_cap_prioritizes_freshness_before_static_signal(monkeypatch):
+    monkeypatch.setenv("MAX_SCORING_ARTICLES", "1")
+    old = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    fresh = datetime.now(timezone.utc)
+    articles = [
+        Article(
+            title="Old but dense AI RAG context window analysis",
+            url="https://example.com/old",
+            source="test",
+            summary="OpenAI LLM RAG context window benchmark study with detailed AI inference latency.",
+            published_at=old,
+        ),
+        Article(
+            title="Fresh Nvidia AI chip update",
+            url="https://example.com/fresh",
+            source="test",
+            summary="Nvidia announced an AI chip update for data center customers.",
+            published_at=fresh,
+        ),
+    ]
+
+    with _mock_gemini_client(MOCK_SCORE_RESPONSE) as mock_client:
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert mock_client.models.generate_content.call_count == 1
+    assert len(result) == 1
+    assert result[0].title == "Fresh Nvidia AI chip update"
+
+
+def test_scorer_keeps_low_score_fallback_when_no_item_passes(monkeypatch):
+    monkeypatch.setenv("MIN_DIGEST_ITEMS", "2")
+    articles = [
+        Article(
+            title=f"Nvidia AI data center update {idx}",
+            url=f"https://example.com/low-{idx}",
+            source="test",
+            summary="Nvidia announced an AI data center update with benchmark details.",
+        )
+        for idx in range(3)
+    ]
+    responses = [
+        json.dumps({"relevance": 6.0, "novelty": 5.0, "depth": 5.0, "score": 5.4}),
+        json.dumps({"relevance": 5.0, "novelty": 4.0, "depth": 4.0, "score": 4.4}),
+        json.dumps({"relevance": 4.0, "novelty": 3.0, "depth": 3.0, "score": 3.4}),
+    ]
+
+    with _mock_gemini_client(responses):
+        scorer = Scorer()
+        result = scorer.filter_articles(articles)
+
+    assert len(result) == 2
+    assert [article.score for article in result] == [pytest.approx(5.4), pytest.approx(4.4)]
+    assert {article.score_status for article in result} == {"low_score_fallback"}
 
 
 def test_scorer_prefilter_drops_obvious_low_signal_article():

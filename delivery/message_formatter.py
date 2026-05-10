@@ -143,15 +143,21 @@ def _truncate(text: str, max_chars: int = MAX_SUMMARY_CHARS) -> str:
 def _score_line(summary: ArticleSummary) -> str:
     """Return `⭐ 8.3 *Title*` or `📊 8.3 *Title*` for earnings."""
     title = escape(getattr(summary, "title", "") or summary.entity)
-    if getattr(summary, "score_status", "ok") in {"unscored", "fallback"} or summary.score <= 0:
+    status = getattr(summary, "score_status", "ok")
+    if status in {"unscored", "fallback"} or summary.score <= 0:
         return f"⚪ 未評分 *{title}*"
     score_str = escape(f"{summary.score:.1f}")
+    if status == "low_score_fallback":
+        return f"🟡 {score_str} *{title}*"
     prefix = "📊" if summary.category == "earnings" else "⭐"
     return f"{prefix} {score_str} *{title}*"
 
 
 def _verification_status(summary: ArticleSummary) -> str:
-    if getattr(summary, "score_status", "ok") in {"unscored", "fallback"} or summary.score <= 0:
+    status = getattr(summary, "score_status", "ok")
+    if status == "low_score_fallback":
+        return "⚠️ 低信心：未達正式評分門檻"
+    if status in {"unscored", "fallback"} or summary.score <= 0:
         return "⚠️ 待補驗證：模型評分缺失"
     confidence = getattr(summary, "confidence", "low")
     if confidence == "high":
@@ -294,14 +300,18 @@ def _format_items_digest_v1(
     ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
     valid_ranked = [
         s for s in ranked
-        if s.score > 0 and getattr(s, "score_status", "ok") != "fallback"
+        if s.score > 0 and getattr(s, "score_status", "ok") not in {"fallback", "low_score_fallback"}
     ]
-    unscored = [s for s in ranked if getattr(s, "score_status", "ok") == "fallback"]
+    low_score_fallbacks = [
+        s for s in ranked if getattr(s, "score_status", "ok") == "low_score_fallback"
+    ]
+    unscored = [s for s in ranked if getattr(s, "score_status", "ok") in {"fallback", "unscored"}]
+    fallback_items = low_score_fallbacks + unscored
     display_pool = valid_ranked[:MAX_ITEMS_PER_DIGEST * 2]
 
     groups = _select_by_theme(display_pool) if display_pool else []
 
-    degradation = (len(unscored) / len(summaries)) if summaries else 0.0
+    degradation = (len(fallback_items) / len(summaries)) if summaries else 0.0
     header = f"📡 *科技脈搏 · {date_str}*"
     if degradation > UNSCORED_ALERT_RATIO:
         header += "\n⚠️ 模型評分降級"
@@ -359,9 +369,9 @@ def _format_items_digest_v1(
 
     shown_unscored: list[ArticleSummary] = []
     fallback_allowance = max(0, min(MAX_UNSCORED_TAIL, MAX_ITEMS_PER_DIGEST - len(shown_items)))
-    if unscored and fallback_allowance:
+    if fallback_items and fallback_allowance:
         lines.append("*其他快訊*")
-        for s in unscored[:fallback_allowance]:
+        for s in fallback_items[:fallback_allowance]:
             lines.append(_score_line(s))
             lines.append(_verification_status(s))
             lines.append(_published_line(s))
@@ -377,18 +387,26 @@ def _format_items_digest_v1(
         avg_str = escape(f"{avg:.1f}")
         n_themes = len(groups)
         n_scored = len(shown_items)
-        n_unscored = len(shown_unscored)
+        n_low_score = sum(
+            1 for s in shown_unscored if getattr(s, "score_status", "") == "low_score_fallback"
+        )
+        n_unscored = len(shown_unscored) - n_low_score
         # Footer counts must match the average: average is only over scored theme items.
         parts: list[str] = [
             f"已評分 {escape(str(n_scored))} 則（平均 {avg_str}）",
         ]
+        if n_low_score > 0:
+            parts.append(f"附錄低信心 {escape(str(n_low_score))} 則")
         if n_unscored > 0:
             parts.append(f"附錄未評分 {escape(str(n_unscored))} 則")
         parts.append(f"主題區 {escape(str(n_themes))} 個")
         footer = "_" + " · ".join(parts) + "_"
         lines.append(footer)
     elif shown_unscored:
-        lines.append(f"_快訊 {escape(str(len(shown_unscored)))} 則_")
+        if any(getattr(s, "score_status", "") == "low_score_fallback" for s in shown_unscored):
+            lines.append(f"_低信心快訊 {escape(str(len(shown_unscored)))} 則_")
+        else:
+            lines.append(f"_快訊 {escape(str(len(shown_unscored)))} 則_")
     else:
         fetched_esc = escape(str(total_fetched))
         filtered_esc = escape(str(total_after_filter))

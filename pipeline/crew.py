@@ -224,13 +224,15 @@ class TechPulseCrew:
 
             should_synthesize = (
                 len(summaries) >= ITEM_DIGEST_THEME_MIN_SUMMARIES
-                and self._has_deliverable_item_signal(summaries)
+                and self._has_formal_scored_item_signal(summaries)
             )
             if summaries and not should_synthesize:
                 logger.info(
-                    "Skipping digest synthesis: summaries=%d (min=%d) deliverable_signal=%s",
+                    "Skipping digest synthesis: summaries=%d (min=%d) formal_scored_signal=%s "
+                    "deliverable_signal=%s",
                     len(summaries),
                     ITEM_DIGEST_THEME_MIN_SUMMARIES,
+                    self._has_formal_scored_item_signal(summaries),
                     self._has_deliverable_item_signal(summaries),
                 )
             if should_synthesize:
@@ -331,15 +333,24 @@ class TechPulseCrew:
                 logger.error("Telegram deep brief delivery failed: %s", exc, exc_info=True)
                 critical_errors.append("delivery:deep_brief")
 
+        low_score_fallback_count = sum(
+            1 for s in summaries if getattr(s, "score_status", "") == "low_score_fallback"
+        )
+        fallback_summary_count = sum(
+            1 for s in summaries if getattr(s, "score_status", "") in {"fallback", "unscored"}
+        )
         logger.info(
             "Pipeline run summary: fetched=%d after_dedup=%d after_scoring=%d "
-            "instant=%d deep=%d earnings=%d delivery_attempted=%d delivery_succeeded=%d",
+            "instant=%d deep=%d earnings=%d low_score_fallback=%d fallback=%d "
+            "delivery_attempted=%d delivery_succeeded=%d",
             len(raw_articles),
             len(articles),
             len(scored_articles),
             len(summaries),
             len(deep_briefs),
             len(earnings_outputs),
+            low_score_fallback_count,
+            fallback_summary_count,
             delivery_attempted,
             delivery_succeeded,
         )
@@ -350,6 +361,8 @@ class TechPulseCrew:
             "instant_candidates": len(instant_scored_articles),
             "synthesis_ran": digest is not None,
             "summaries_count": len(summaries),
+            "low_score_fallback_count": low_score_fallback_count,
+            "fallback_summary_count": fallback_summary_count,
             "deep_briefs": len(deep_briefs),
             "earnings": len(earnings_outputs),
             "digest_headline": (digest.headline if digest else None),
@@ -794,10 +807,24 @@ class TechPulseCrew:
     ) -> bool:
         if story_insights:
             return True
-        return any(
+        return any(TechPulseCrew._is_deliverable_summary(summary) for summary in summaries)
+
+    @staticmethod
+    def _has_formal_scored_item_signal(summaries: list[ArticleSummary]) -> bool:
+        return any(TechPulseCrew._is_formal_scored_summary(summary) for summary in summaries)
+
+    @staticmethod
+    def _is_deliverable_summary(summary: ArticleSummary) -> bool:
+        if getattr(summary, "score_status", "") == "low_score_fallback":
+            return float(getattr(summary, "score", 0.0) or 0.0) > 0
+        return TechPulseCrew._is_formal_scored_summary(summary)
+
+    @staticmethod
+    def _is_formal_scored_summary(summary: ArticleSummary) -> bool:
+        return (
             float(getattr(summary, "score", 0.0) or 0.0) > 0
-            and getattr(summary, "score_status", "ok") not in {"fallback", "unscored"}
-            for summary in summaries
+            and getattr(summary, "score_status", "ok")
+            not in {"fallback", "unscored", "low_score_fallback"}
         )
 
     def _archive_delivered_deep_brief(self, brief: InsightBrief) -> None:

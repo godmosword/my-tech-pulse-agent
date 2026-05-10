@@ -308,6 +308,28 @@ def test_items_digest_skips_unscored_fallback_only_delivery():
     assert crew.memory.archived == []
 
 
+def test_items_digest_allows_low_score_fallback_delivery():
+    summary = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
+        Article(
+            title="ByteDance targets AI infrastructure spending",
+            url="https://example.com/bytedance",
+            source="bloomberg_rss",
+            summary="ByteDance plans more AI infrastructure spending.",
+            score=5.8,
+            score_status="low_score_fallback",
+        )
+    ])[0]
+    crew = TechPulseCrew.__new__(TechPulseCrew)
+    crew.telegram = _FakeTelegram(sent=True)
+    crew.memory = _FakeMemory()
+
+    assert TechPulseCrew._has_deliverable_item_signal([summary]) is True
+    assert TechPulseCrew._has_formal_scored_item_signal([summary]) is False
+    assert crew._send_items_digest_with_memory([summary], total_fetched=316, total_after_filter=1) is True
+    assert crew.telegram.calls == 1
+    assert crew.memory.archived == [summary]
+
+
 def test_items_digest_allows_story_insight_without_scored_summary():
     summary = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
         Article(
