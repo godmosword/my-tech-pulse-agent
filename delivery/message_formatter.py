@@ -1,8 +1,9 @@
-"""MarkdownV2 message formatter for #科技脈搏 Telegram channel."""
+"""HTML message formatter for #科技脈搏 Telegram channel."""
 
 import os
 import re
 from datetime import datetime, timezone
+from html import escape as _html_escape
 from statistics import mean
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -17,7 +18,6 @@ CANONICAL_DIGEST_FORMAT = "v1"
 EXPERIMENTAL_DIGEST_FORMAT = "v2"
 
 MAX_ITEMS_PER_DIGEST = int(os.getenv("MAX_ITEMS_PER_DIGEST", "6"))
-# Raised default (340) reduces mid-sentence cuts in Telegram; split fact/impact lines were skipped to keep formatting simple.
 MAX_SUMMARY_CHARS = int(os.getenv("MAX_SUMMARY_CHARS", "340"))
 MAX_PER_CATEGORY = int(os.getenv("MAX_PER_CATEGORY", "3"))
 UNSCORED_ALERT_RATIO = float(os.getenv("UNSCORED_ALERT_RATIO", "0.5"))
@@ -28,6 +28,19 @@ MAX_ITEMS_PER_THEME = int(os.getenv("MAX_ITEMS_PER_THEME", "3"))
 MIN_ITEMS_PER_THEME = int(os.getenv("MIN_ITEMS_PER_THEME", "2"))
 EARNINGS_THEME_RATIO_CAP = float(os.getenv("EARNINGS_THEME_RATIO_CAP", "0.4"))
 TRANSLATION_TAG = "[📝 原文為英文，已由 Q-Silicon 深度編譯]"
+
+_THEME_EMOJI: dict[str, str] = {
+    "AI 基礎設施": "🧠",
+    "技術研發": "🔬",
+    "財報焦點": "💰",
+    "雲端與企業軟體": "☁️",
+    "消費電子": "📱",
+    "電動車供應鏈": "⚡",
+    "資本與投資": "💵",
+    "產品與策略": "🚀",
+    "政策與監管": "⚖️",
+    "併購與整併": "🤝",
+}
 
 
 def _digest_header_display_dt(now: Optional[datetime]) -> datetime:
@@ -75,7 +88,7 @@ def _theme_key(summary: ArticleSummary) -> str:
 
 def _contains_theme_keyword(corpus: str, keyword: str) -> bool:
     keyword = keyword.lower()
-    if any("\u4e00" <= char <= "\u9fff" for char in keyword):
+    if any("一" <= char <= "鿿" for char in keyword):
         return keyword in corpus
     return re.search(rf"(?<![a-z0-9]){re.escape(keyword)}(?![a-z0-9])", corpus) is not None
 
@@ -121,13 +134,10 @@ def _select_by_theme(ranked: list[ArticleSummary]) -> list[tuple[str, list[Artic
 
     return selected
 
-# All MarkdownV2 special characters that must be escaped
-_MV2_SPECIAL = r"\_*[]()~`>#+-=|{}.!"
-
 
 def escape(text: str) -> str:
-    """Escape MarkdownV2 special characters in dynamic text."""
-    return "".join(f"\\{c}" if c in _MV2_SPECIAL else c for c in str(text))
+    """HTML-escape dynamic text for Telegram HTML parse_mode."""
+    return _html_escape(str(text), quote=False)
 
 
 def _truncate(text: str, max_chars: int = MAX_SUMMARY_CHARS) -> str:
@@ -140,51 +150,64 @@ def _truncate(text: str, max_chars: int = MAX_SUMMARY_CHARS) -> str:
     return text
 
 
-def _score_line(summary: ArticleSummary) -> str:
-    """Return `⭐ 8.3 *Title*` or `📊 8.3 *Title*` for earnings."""
-    title = escape(getattr(summary, "title", "") or summary.entity)
-    status = getattr(summary, "score_status", "ok")
-    if status in {"unscored", "fallback"} or summary.score <= 0:
-        return f"⚪ 未評分 *{title}*"
-    score_str = escape(f"{summary.score:.1f}")
-    if status == "low_score_fallback":
-        return f"🟡 {score_str} *{title}*"
-    prefix = "📊" if summary.category == "earnings" else "⭐"
-    return f"{prefix} {score_str} *{title}*"
+def _truncate_words(text: str, max_words: int = 80) -> str:
+    words = text.split()
+    if len(words) > max_words:
+        return " ".join(words[:max_words]) + "…"
+    return text
 
 
-def _verification_status(summary: ArticleSummary) -> str:
+def _confidence_badge(summary: ArticleSummary) -> str:
     status = getattr(summary, "score_status", "ok")
+    if status in {"unscored", "fallback"}:
+        return "⚠️ 待補驗證"
     if status == "low_score_fallback":
-        return "⚠️ 低信心：未達正式評分門檻"
-    if status in {"unscored", "fallback"} or summary.score <= 0:
-        return "⚠️ 待補驗證：模型評分缺失"
+        return "🔴 低信心"
+    why = getattr(summary, "why_it_matters", "") or ""
+    if "[INFERRED]" in why:
+        return "🔍 推測"
     confidence = getattr(summary, "confidence", "low")
     if confidence == "high":
-        return "✅ 已驗證：高信心"
+        return "✅ 高信心"
     if confidence == "medium":
-        return "⚠️ 部分驗證：中信心"
-    return "⚠️ 待補驗證：低信心"
+        return "🟡 中信心"
+    return "🔴 低信心"
+
+
+def _score_line(summary: ArticleSummary) -> str:
+    """Return score + confidence badge line."""
+    status = getattr(summary, "score_status", "ok")
+    if status in {"unscored", "fallback"} or summary.score <= 0:
+        return "⚪ 未評分  ·  ⚠️ 待補驗證"
+    score_str = f"{summary.score:.1f}"
+    badge = _confidence_badge(summary)
+    if status == "low_score_fallback":
+        return f"🟡 {score_str}  ·  {badge}"
+    prefix = "📊" if summary.category == "earnings" else "⭐"
+    return f"{prefix} {score_str}  ·  {badge}"
 
 
 def _published_line(summary: ArticleSummary) -> str:
     ts = (getattr(summary, "published_at", "") or "").strip()
     if not ts:
-        return "🕒 發布時間：待補"
-    return f"🕒 發布時間：{escape(ts[:19].replace('T', ' '))} UTC"
+        return "🕒 —"
+    return f"🕒 {escape(ts[:16].replace('T', ' '))}"
 
 
 def _tags(summary: ArticleSummary) -> str:
-    parts: list[str] = []
-    cat = summary.category.replace("_", "\\_")
-    parts.append(f"\\#{cat}")
-    raw_tag = summary.entity.replace(" ", "")
-    entity_tag = re.sub(r"[^A-Za-z0-9]", "", raw_tag)[:20]
-    if entity_tag:
-        parts.append(f"\\#{escape(entity_tag)}")
+    parts: list[str] = [f"#{summary.category}"]
+    raw_tag = re.sub(r"[^A-Za-z0-9]", "", summary.entity.replace(" ", ""))[:20]
+    if raw_tag:
+        parts.append(f"#{raw_tag}")
     return " ".join(parts)
 
 
+def _source_link(summary: ArticleSummary) -> str:
+    url = summary.source_url or ""
+    name = escape(getattr(summary, "source_display_name", "") or summary.source_name or "source")
+    if url:
+        return f'<a href="{url}">{name}</a>'
+    return name
 
 
 def _compose_structured_summary(summary: ArticleSummary) -> str:
@@ -199,20 +222,17 @@ def _compose_structured_summary(summary: ArticleSummary) -> str:
     return summary.summary
 
 
-def _source_link(summary: ArticleSummary) -> str:
-    name = escape(getattr(summary, "source_display_name", "") or summary.source_name or "source")
-    url = summary.source_url or ""
-    if url:
-        return f"[{name}]({url})"
-    return name
-
-
 def _is_english_source(language: str) -> bool:
     return (language or "en").lower().startswith("en")
 
 
 def _translation_tag_line(language: str) -> str:
     return escape(TRANSLATION_TAG) if _is_english_source(language) else ""
+
+
+def _theme_section_header(theme: str) -> str:
+    emoji = _THEME_EMOJI.get(theme, "📡")
+    return f"\n━━━ {emoji} {escape(theme)} ━━━\n"
 
 
 def _format_three_part_insight(
@@ -223,13 +243,13 @@ def _format_three_part_insight(
     source_language: str = "en",
 ) -> list[str]:
     lines = [
-        "*【核心洞見】*",
+        "<b>【核心洞見】</b>",
         escape(insight),
         "",
-        "*【底層邏輯】*",
+        "<b>【底層邏輯】</b>",
         escape(tech_rationale),
         "",
-        "*【生態影響】*",
+        "<b>【生態影響】</b>",
         escape(implication),
     ]
     tag = _translation_tag_line(source_language)
@@ -242,9 +262,9 @@ def _format_story_insight(story: StoryInsight) -> list[str]:
     title = escape(story.title or story.entity or "Untitled")
     source_name = escape(story.source_display_name or story.source_name or "source")
     source_url = story.source_url or ""
-    source = f"[{source_name}]({source_url})" if source_url else source_name
+    source = f'<a href="{source_url}">{source_name}</a>' if source_url else source_name
     return [
-        f"🧠 *{title}*",
+        f"🧠 <b>{title}</b>",
         source,
         "",
         *_format_three_part_insight(
@@ -257,17 +277,17 @@ def _format_story_insight(story: StoryInsight) -> list[str]:
 
 
 def format_insight_brief(brief: InsightBrief) -> str:
-    """Format one deep-tier InsightBrief as a standalone Telegram message."""
-    confidence = " _\\(低信心度\\)_" if brief.confidence == "low" else ""
+    """Format one deep-tier InsightBrief as a standalone Telegram HTML message."""
+    confidence = " <i>(低信心度)</i>" if brief.confidence == "low" else ""
     title = escape(brief.title)
     author = escape(brief.author or "unknown")
     source = escape(getattr(brief, "source_display_name", "") or brief.source_name)
     domain = escape(brief.domain)
-    word_count = escape(str(brief.word_count))
+    word_count = brief.word_count
 
     lines = [
-        f"🧠 *{title}*{confidence}",
-        f"_{author} · {source}_",
+        f"🧠 <b>{title}</b>{confidence}",
+        f"<i>{author} · {source}</i>",
         "",
         *_format_three_part_insight(
             insight=brief.insight,
@@ -276,11 +296,39 @@ def format_insight_brief(brief: InsightBrief) -> str:
             source_language=getattr(brief, "source_language", "en"),
         ),
         "",
-        f"\\#{domain}  [原文]({brief.url})  _{word_count}字_",
+        f'#{domain}  <a href="{brief.url}">原文</a>  <i>{word_count}字</i>',
     ]
     if brief.cross_ref:
         lines.append("🔗 投資日報")
     return "\n".join(lines)
+
+
+def _format_article_card(s: ArticleSummary) -> list[str]:
+    """Format one article as an HTML card."""
+    lines: list[str] = []
+    lines.append(_score_line(s))
+    title = escape(getattr(s, "title", "") or s.entity)
+    lines.append(f"<b>{title}</b>")
+
+    zh_summary = getattr(s, "zh_summary", None)
+    if zh_summary:
+        lines.append(f"\n💡 <i>{escape(zh_summary)}</i>")
+
+    lines.append("")
+    body = _truncate_words(_compose_structured_summary(s))
+    lines.append(escape(body))
+    if getattr(s, "history_context", ""):
+        lines.append(f"↳ {escape(_truncate_words(s.history_context, 20))}")
+
+    meta = f"{_published_line(s)}  {_tags(s)}"
+    lines.append(meta)
+    url = s.source_url or ""
+    if url:
+        lines.append(f'🔗 <a href="{url}">原文連結</a>')
+    if s.cross_ref:
+        lines.append("📌 投資日報")
+
+    return lines
 
 
 def _format_items_digest_v1(
@@ -294,8 +342,8 @@ def _format_items_digest_v1(
     story_insights: Optional[list[StoryInsight]] = None,
     now: Optional[datetime] = None,
 ) -> str:
-    """Format a curated digest of ArticleSummary items grouped by theme."""
-    date_str = escape(_digest_header_display_dt(now).strftime("%Y/%m/%d %H:%M"))
+    """Format a curated digest of ArticleSummary items grouped by theme (HTML)."""
+    date_str = _digest_header_display_dt(now).strftime("%Y/%m/%d %H:%M")
 
     ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
     valid_ranked = [
@@ -312,39 +360,38 @@ def _format_items_digest_v1(
     groups = _select_by_theme(display_pool) if display_pool else []
 
     degradation = (len(fallback_items) / len(summaries)) if summaries else 0.0
-    header = f"📡 *科技脈搏 · {date_str}*"
+    header = f"📡 <b>科技脈搏 · {escape(date_str)}</b>"
     if degradation > UNSCORED_ALERT_RATIO:
         header += "\n⚠️ 模型評分降級"
 
     lines: list[str] = [header, ""]
 
     if headline:
-        lines.append(f"*🗞️ {escape(headline)}*")
+        lines.append(f"<b>🗞️ {escape(headline)}</b>")
         lines.append("")
     if narrative_excerpt:
         lines.append(escape(narrative_excerpt))
         lines.append("")
 
     if themes:
-        lines.append("*🧭 今日主線*")
+        lines.append("<b>🧭 今日主線</b>")
         for theme in themes[:3]:
             lines.append(f"• {escape(theme)}")
         lines.append("")
 
     # Skip market_takeaway if it's merely the start of narrative_excerpt
-    # (both derive from the same narrative text and would appear as duplicates).
     _effective_market_takeaway = market_takeaway
     if market_takeaway and narrative_excerpt:
         prefix_len = min(50, len(market_takeaway))
         if narrative_excerpt.startswith(market_takeaway[:prefix_len]):
             _effective_market_takeaway = None
     if _effective_market_takeaway:
-        lines.append("*📈 市場含義*")
+        lines.append("<b>📈 市場含義</b>")
         lines.append(escape(_effective_market_takeaway))
         lines.append("")
 
     if story_insights:
-        lines.append("*🧠 深度洞察*")
+        lines.append("<b>🧠 深度洞察</b>")
         lines.append("")
         for story in story_insights[:3]:
             lines.extend(_format_story_insight(story))
@@ -352,65 +399,37 @@ def _format_items_digest_v1(
 
     shown_items: list[ArticleSummary] = []
     for theme, items in groups:
-        lines.append(f"*{escape(theme)}*")
+        lines.append(_theme_section_header(theme))
         for s in items:
-            lines.append(_score_line(s))
-            lines.append(_verification_status(s))
-            lines.append(_published_line(s))
-            lines.append(escape(_truncate(_compose_structured_summary(s))))
-            if getattr(s, "history_context", ""):
-                lines.append(f"↳ {escape(_truncate(s.history_context, 140))}")
-            meta = f"{_tags(s)}  {_source_link(s)}"
-            if s.cross_ref:
-                meta += "  🔗 投資日報"
-            lines.append(meta)
+            lines.extend(_format_article_card(s))
             lines.append("")
             shown_items.append(s)
 
     shown_unscored: list[ArticleSummary] = []
     fallback_allowance = max(0, min(MAX_UNSCORED_TAIL, MAX_ITEMS_PER_DIGEST - len(shown_items)))
     if fallback_items and fallback_allowance:
-        lines.append("*其他快訊*")
+        lines.append("<b>其他快訊</b>")
         for s in fallback_items[:fallback_allowance]:
-            lines.append(_score_line(s))
-            lines.append(_verification_status(s))
-            lines.append(_published_line(s))
-            lines.append(escape(_truncate(_compose_structured_summary(s))))
-            if getattr(s, "history_context", ""):
-                lines.append(f"↳ {escape(_truncate(s.history_context, 140))}")
-            lines.append(_source_link(s))
+            lines.extend(_format_article_card(s))
             lines.append("")
             shown_unscored.append(s)
 
     if shown_items:
         avg = mean(s.score for s in shown_items)
-        avg_str = escape(f"{avg:.1f}")
-        n_themes = len(groups)
-        n_scored = len(shown_items)
-        n_low_score = sum(
-            1 for s in shown_unscored if getattr(s, "score_status", "") == "low_score_fallback"
-        )
-        n_unscored = len(shown_unscored) - n_low_score
-        # Footer counts must match the average: average is only over scored theme items.
-        parts: list[str] = [
-            f"已評分 {escape(str(n_scored))} 則（平均 {avg_str}）",
-        ]
-        if n_low_score > 0:
-            parts.append(f"附錄低信心 {escape(str(n_low_score))} 則")
-        if n_unscored > 0:
-            parts.append(f"附錄未評分 {escape(str(n_unscored))} 則")
-        parts.append(f"主題區 {escape(str(n_themes))} 個")
-        footer = "_" + " · ".join(parts) + "_"
-        lines.append(footer)
+        n_total = len(shown_items) + len(shown_unscored)
+        lines.append("─────────────────")
+        lines.append(f"📊 本期共 {n_total} 則  ·  平均分數 {avg:.1f}")
+        if groups:
+            cat_str = "　".join(f"{theme} ×{len(items)}" for theme, items in groups)
+            lines.append(f"📂 {cat_str}")
     elif shown_unscored:
+        n = len(shown_unscored)
         if any(getattr(s, "score_status", "") == "low_score_fallback" for s in shown_unscored):
-            lines.append(f"_低信心快訊 {escape(str(len(shown_unscored)))} 則_")
+            lines.append(f"📊 本期低信心快訊 {n} 則")
         else:
-            lines.append(f"_快訊 {escape(str(len(shown_unscored)))} 則_")
+            lines.append(f"📊 本期快訊 {n} 則")
     else:
-        fetched_esc = escape(str(total_fetched))
-        filtered_esc = escape(str(total_after_filter))
-        lines.append(f"_今日 {fetched_esc} 篇 → 過濾後 {filtered_esc} 篇_")
+        lines.append(f"今日 {total_fetched} 篇 → 過濾後 {total_after_filter} 篇")
 
     return "\n".join(lines)
 
@@ -422,7 +441,7 @@ def format_digest_v2(
     story_insights: Optional[list[StoryInsight]] = None,
     now: Optional[datetime] = None,
 ) -> str:
-    """Format digest in fixed v2 layout for Telegram MarkdownV2."""
+    """Format digest in fixed v2 layout for Telegram HTML."""
     ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
     top = ranked[:MAX_ITEMS_PER_DIGEST]
 
@@ -430,12 +449,12 @@ def format_digest_v2(
     if total_fetched > 0:
         quality = min(100.0, max(0.0, (total_after_filter / total_fetched) * 100))
 
-    date_str = escape(_digest_header_display_dt(now).strftime("%Y/%m/%d %H:%M"))
+    date_str = _digest_header_display_dt(now).strftime("%Y/%m/%d %H:%M")
     header = [
-        f"🧭 *科技脈搏 Digest v2 · {date_str}*",
-        f"總篇數: {escape(str(total_fetched))}",
-        f"過濾後篇數: {escape(str(total_after_filter))}",
-        f"資料品質指標: {escape(f'{quality:.1f}')}%",
+        f"🧭 <b>科技脈搏 Digest v2 · {escape(date_str)}</b>",
+        f"總篇數: {total_fetched}",
+        f"過濾後篇數: {total_after_filter}",
+        f"資料品質指標: {quality:.1f}%",
         "",
     ]
 
@@ -448,7 +467,7 @@ def format_digest_v2(
     takeaways = []
     for item in top[:3]:
         title = escape(getattr(item, "title", "") or item.entity)
-        takeaways.append(f"• {title} \\({escape(item.category)}\\)")
+        takeaways.append(f"• {title} ({escape(item.category)})")
     while len(takeaways) < 3:
         takeaways.append("• 暫無更多高信號條目，持續追蹤中。")
 
@@ -457,9 +476,9 @@ def format_digest_v2(
         theme_groups.setdefault(item.category, []).append(item)
 
     themes = sorted(theme_groups.items(), key=lambda kv: max(x.score for x in kv[1]), reverse=True)[:4]
-    theme_lines = [r"*3\) 主題區*"]
+    theme_lines = ["<b>3) 主題區</b>"]
     for theme, items in themes:
-        theme_lines.append(f"• *{escape(theme.replace('_', ' ').title())}*")
+        theme_lines.append(f"• <b>{escape(theme.replace('_', ' ').title())}</b>")
         for item in items[:2]:
             title = escape(getattr(item, "title", "") or item.entity)
             src = _source_link(item)
@@ -468,16 +487,16 @@ def format_digest_v2(
         theme_lines.append("• 今日主題資料不足。")
 
     cross_ref_items = [s for s in top if s.cross_ref]
-    focus_lines = [r"*4\) 焦點追蹤*"]
+    focus_lines = ["<b>4) 焦點追蹤</b>"]
     if cross_ref_items:
         for item in cross_ref_items[:5]:
             title = escape(getattr(item, "title", "") or item.entity)
-            focus_lines.append(f"• {title} \\\\- 跨日延續議題")
+            focus_lines.append(f"• {title} - 跨日延續議題")
     else:
         focus_lines.append("• 未偵測到跨日延續議題。")
 
     tomorrow_lines = [
-        r"*5\) 尾段：明日觀察指標*",
+        "<b>5) 尾段：明日觀察指標</b>",
         "• 財報節點：關注大型科技財報與指引變化。",
         "• 供應鏈訊號：關注 AI 伺服器與關鍵零組件交期。",
         "• 政策節點：追蹤監管與出口政策更新。",
@@ -485,14 +504,14 @@ def format_digest_v2(
 
     deep_lines: list[str] = []
     if story_insights:
-        deep_lines.extend(["*深度洞察*", ""])
+        deep_lines.extend(["<b>深度洞察</b>", ""])
         for story in story_insights[:3]:
             deep_lines.extend(_format_story_insight(story))
             deep_lines.append("")
 
     return "\n".join(
         header
-        + [r"*1\) Header*", "", r"*2\) 今日總覽*", headline, *takeaways, ""]
+        + ["<b>1) Header</b>", "", "<b>2) 今日總覽</b>", headline, *takeaways, ""]
         + deep_lines
         + theme_lines
         + [""]
@@ -537,41 +556,41 @@ def format_items_digest(
 
 
 def format_earnings(earnings: EarningsOutput) -> str:
-    """Format an EarningsOutput for Telegram MarkdownV2."""
+    """Format an EarningsOutput for Telegram HTML."""
     lines = [
-        f"*💰 財報速報 — {escape(earnings.company)}*",
+        f"<b>💰 財報速報 — {escape(earnings.company)}</b>",
         f"季度: {escape(earnings.quarter)}",
         "",
     ]
 
     if earnings.revenue.actual is not None:
-        rev_line = f"營收: \\${escape(f'{earnings.revenue.actual:,.2f}')}B"
+        rev_line = f"營收: ${escape(f'{earnings.revenue.actual:,.2f}')}B"
         if earnings.revenue.estimate is not None:
-            rev_line += f" \\(預期 \\${escape(f'{earnings.revenue.estimate:,.2f}')}B\\)"
+            rev_line += f" (預期 ${escape(f'{earnings.revenue.estimate:,.2f}')}B)"
         if earnings.revenue.beat_pct is not None:
             beat = "超出" if earnings.revenue.beat_pct >= 0 else "低於"
             rev_line += f" {beat} {escape(f'{abs(earnings.revenue.beat_pct):.1f}')}%"
         lines.append(rev_line)
 
     if earnings.eps.actual is not None:
-        eps_line = f"EPS: \\${escape(f'{earnings.eps.actual:.2f}')}"
+        eps_line = f"EPS: ${escape(f'{earnings.eps.actual:.2f}')}"
         if earnings.eps.estimate is not None:
-            eps_line += f" \\(預期 \\${escape(f'{earnings.eps.estimate:.2f}')}\\)"
+            eps_line += f" (預期 ${escape(f'{earnings.eps.estimate:.2f}')})"
         lines.append(eps_line)
 
     if earnings.guidance_next_q is not None:
-        lines.append(f"下季指引: \\${escape(f'{earnings.guidance_next_q:,.2f}')}B")
+        lines.append(f"下季指引: ${escape(f'{earnings.guidance_next_q:,.2f}')}B")
 
     if earnings.key_quotes:
         lines.append("")
-        lines.append("*重要引述:*")
+        lines.append("<b>重要引述:</b>")
         for quote in earnings.key_quotes[:2]:
             lines.append(f"> {escape(quote)}")
 
     lines.append("")
-    lines.append(f"_來源: {escape(earnings.source)} \\| 信心: {escape(earnings.confidence)}_")
+    lines.append(f"<i>來源: {escape(earnings.source)} | 信心: {escape(earnings.confidence)}</i>")
 
     if earnings.cross_ref:
-        lines.append("_cross\\_ref: true \\— 已同步 \\#投資日報_")
+        lines.append("<i>cross_ref: true — 已同步 #投資日報</i>")
 
     return "\n".join(lines)

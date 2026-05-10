@@ -131,7 +131,7 @@ class TelegramBot:
                 await self._bot.send_message(
                     chat_id=self._channel_id,
                     text=chunk,
-                    parse_mode="MarkdownV2",
+                    parse_mode="HTML",
                 )
                 logger.info("Sent digest chunk %d/%d (%d chars)", i + 1, len(chunks), len(chunk))
 
@@ -201,7 +201,7 @@ class TelegramBot:
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=escape(result),
-                parse_mode="MarkdownV2",
+                parse_mode="HTML",
             )
             logger.info("Callback handled: %s → %s", data, result)
         except Exception as exc:
@@ -209,16 +209,16 @@ class TelegramBot:
 
     def _format_digest(self, digest: DigestOutput) -> str:
         lines = [
-            f"*📡 科技脈搏 — {digest.date}*",
+            f"<b>📡 科技脈搏 — {escape(digest.date)}</b>",
             "",
-            f"*{escape(digest.headline)}*",
+            f"<b>{escape(digest.headline)}</b>",
             "",
         ]
 
         if digest.themes:
-            lines.append("*📌 今日主題*")
+            lines.append("<b>📌 今日主題</b>")
             for theme in digest.themes[:3]:
-                lines.append(f"• *{escape(theme.theme)}*: {escape(theme.description)}")
+                lines.append(f"• <b>{escape(theme.theme)}</b>: {escape(theme.description)}")
             lines.append("")
 
         if digest.narrative:
@@ -226,13 +226,13 @@ class TelegramBot:
             lines.append("")
 
         if digest.contradictions:
-            lines.append("*⚠️ 消息矛盾*")
+            lines.append("<b>⚠️ 消息矛盾</b>")
             for contradiction in digest.contradictions:
                 lines.append(f"• {escape(contradiction)}")
             lines.append("")
 
         if digest.cross_ref_count > 0:
-            lines.append(f"_投資相關新聞: {digest.cross_ref_count} 篇 \\(見 \\#投資日報\\)_")
+            lines.append(f"<i>投資相關新聞: {digest.cross_ref_count} 篇 (見 #投資日報)</i>")
 
         return "\n".join(lines)
 

@@ -60,16 +60,13 @@ def test_digest_groups_by_theme_and_uses_quality_footer():
     # Theme heading (one of the curated Chinese labels) appears.
     assert any(label in msg for label in ("財報焦點", "AI 基礎設施", "政策與監管", "產品與策略"))
 
-    # Quality footer: scored count matches average denominator (no mixing unscored tail).
-    assert re.search(
-        r"_已評分 \d+ 則（平均 \d+\\\.\d+） · 主題區 \d+ 個_",
-        msg,
-    )
+    # Quality footer: shows total count and average score.
+    assert re.search(r"📊 本期共 \d+ 則  ·  平均分數 \d+\.\d+", msg)
     assert "今日 12 篇" not in msg
     assert "過濾後 9 篇" not in msg
 
     # Theme bullets still appear before any item line.
-    idx_themes = msg.index("*🧭 今日主線*")
+    idx_themes = msg.index("🧭 今日主線")
     idx_first_item = msg.index("⭐")
     assert idx_themes < idx_first_item
 
@@ -87,15 +84,15 @@ def test_earnings_line_has_no_midcut_summary():
         score=7.6,
     )
     msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
-    # Locate the title line (starts with 📊) — this is where the mid-cut bug used to live.
-    title_line = next(line for line in msg.splitlines() if line.startswith("📊"))
-    # The old format produced "📊 *Meta Platforms Inc. — Meta Platforms Inc. shares fell after CEO Mark Zuckerberg ra*"
-    # — the title line must no longer contain any of the body summary content.
-    assert "Mark Zuckerberg" not in title_line
-    assert "shares fell" not in title_line
-    assert "Meta raises spend outlook" in title_line
-    # The earnings line should now show the score next to the 📊 prefix.
-    assert title_line.startswith("📊 7")
+    # Locate the title line (contains 📊 score prefix followed by confidence badge).
+    score_line = next(line for line in msg.splitlines() if line.startswith("📊"))
+    # Score line must NOT contain title or body content — those are on separate lines now.
+    assert "Meta Platforms" not in score_line
+    assert "shares fell" not in score_line
+    # The score line should start with 📊 and the score.
+    assert score_line.startswith("📊 7")
+    # Title must appear on its own bold line.
+    assert "<b>Meta raises spend outlook</b>" in msg
 
 
 def test_structured_summary_used_in_body():
@@ -129,7 +126,7 @@ def test_headline_and_narrative_lead_appear_above_items():
 
     idx_headline = msg.index("AI 資本支出全面上修")
     idx_narrative = msg.index("Meta")
-    idx_themes = msg.index("*🧭 今日主線*")
+    idx_themes = msg.index("🧭 今日主線")
     idx_first_item = msg.index("⭐")
     assert idx_headline < idx_narrative < idx_themes < idx_first_item
 
@@ -192,15 +189,13 @@ def test_low_score_fallback_is_labeled_as_low_confidence_brief():
 
     msg = format_items_digest([low_score], total_fetched=332, total_after_filter=1)
 
-    assert "*其他快訊*" in msg
+    assert "其他快訊" in msg
     assert "ByteDance AI infrastructure spending" in msg
     assert "低信心" in msg
-    assert "未達正式評分門檻" in msg
-    assert "主題區" not in msg
     assert "低信心快訊 1 則" in msg
 
 
-def test_item_contains_verification_and_published_time_lines():
+def test_item_contains_score_and_confidence_badge():
     summary = _sample_summary(
         0,
         category="product_launch",
@@ -213,12 +208,12 @@ def test_item_contains_verification_and_published_time_lines():
     summary.published_at = "2026-05-01T06:49:00+00:00"
 
     msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
-    assert "✅ 已驗證：高信心" in msg
-    assert "🕒 發布時間：2026\\-05\\-01 06:49:00 UTC" in msg
+    assert "✅ 高信心" in msg
+    assert "🕒 2026-05-01 06:49" in msg
 
 
-def test_digest_footer_splits_scored_and_unscored_when_fallback_tail_present():
-    """Regression: do not imply average covers unscored items (plan Tech Pulse fix)."""
+def test_digest_footer_shows_total_and_average():
+    """Regression: footer should show total shown and average over scored items only."""
     scored = _sample_summary(
         0,
         category="funding",
@@ -245,10 +240,8 @@ def test_digest_footer_splits_scored_and_unscored_when_fallback_tail_present():
     )
 
     assert "精選" not in msg
-    assert "附錄未評分 1 則" in msg
-    assert "已評分 1 則" in msg
-    assert "主題區 1 個" in msg
-    assert "（平均 8\\.2）" in msg
+    assert "📊 本期共 2 則" in msg
+    assert "平均分數 8.2" in msg
 
 
 def test_digest_header_shows_display_timezone_default_taipei(monkeypatch):
@@ -280,7 +273,7 @@ def test_digest_format_unknown_env_falls_back_to_v1(monkeypatch):
     summary = _sample_summary(0, title="Only Story", score=8.0)
     msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
     assert "Digest v2" not in msg
-    assert "*科技脈搏 ·" in msg
+    assert "科技脈搏 ·" in msg
 
 
 def test_digest_format_v2_opt_in(monkeypatch):
@@ -288,3 +281,41 @@ def test_digest_format_v2_opt_in(monkeypatch):
     summary = _sample_summary(0, title="Only Story", score=8.0)
     msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
     assert "Digest v2" in msg
+
+
+def test_zh_summary_shown_in_card_when_present():
+    summary = _sample_summary(
+        0,
+        category="product_launch",
+        title="NVIDIA H200 Breakthrough",
+        what_happened="NVIDIA shipped H200 GPUs to hyperscalers.",
+        score=9.0,
+    )
+    summary.zh_summary = "NVIDIA H200 GPU 達成推理速度十倍提升，打破記憶體頻寬瓶頸。此突破將加速 AI 基礎設施部署，對上游設備供應商有利。"
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "💡" in msg
+    assert "NVIDIA H200 GPU" in msg
+
+
+def test_zh_summary_omitted_when_none():
+    summary = _sample_summary(
+        0,
+        category="product_launch",
+        title="Some Article",
+        score=8.0,
+    )
+    assert summary.zh_summary is None
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "💡" not in msg
+
+
+def test_source_link_is_html_anchor():
+    summary = _sample_summary(0, score=8.0)
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert '<a href="https://example.com">原文連結</a>' in msg
+
+
+def test_title_is_bold_html():
+    summary = _sample_summary(0, title="My Test Title", score=8.0)
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "<b>My Test Title</b>" in msg

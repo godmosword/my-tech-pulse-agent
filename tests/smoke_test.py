@@ -465,7 +465,7 @@ def test_insight_brief_enforces_100_to_200_chars():
         _valid_brief(insight="太短", tech_rationale="不足", implication="不足")
 
 
-def test_format_insight_brief_markdownv2():
+def test_format_insight_brief_html():
     brief = _valid_brief(confidence="low", cross_ref=True)
 
     text = format_insight_brief(brief)
@@ -473,7 +473,7 @@ def test_format_insight_brief_markdownv2():
     assert "🧠" in text
     assert "低信心度" in text
     assert "洞見" in text
-    assert "[原文](https://example.com/deep)" in text
+    assert 'href="https://example.com/deep"' in text
     assert "投資日報" in text
 
 
@@ -688,13 +688,12 @@ def test_telegram_send_digest_returns_false_when_disabled():
     assert result is False
 
 
-def test_telegram_escape_special_chars():
-    """All MarkdownV2 special characters must be escaped."""
+def test_telegram_escape_html_special_chars():
+    """HTML special characters must be escaped for HTML parse_mode."""
     bot = TelegramBot.__new__(TelegramBot)  # bypass __init__
-    special = r"\_*[]()~`>#+-=|{}.!"
-    for ch in special:
-        escaped = bot._escape(ch)
-        assert escaped == f"\\{ch}", f"Expected \\{ch}, got {escaped}"
+    assert bot._escape("<") == "&lt;"
+    assert bot._escape(">") == "&gt;"
+    assert bot._escape("&") == "&amp;"
 
 
 def test_telegram_format_digest_contains_key_sections():
@@ -1208,10 +1207,14 @@ def test_article_summary_has_title_field():
 from delivery.message_formatter import escape, format_items_digest, format_earnings as fmt_earnings
 
 
-def test_escape_markdownv2_special_chars():
-    special = r"\_*[]()~`>#+-=|{}.!"
-    for ch in special:
-        assert escape(ch) == f"\\{ch}", f"char {ch!r} not escaped"
+def test_escape_html_special_chars():
+    assert escape("<") == "&lt;"
+    assert escape(">") == "&gt;"
+    assert escape("&") == "&amp;"
+    # These are not HTML special characters and should pass through unchanged.
+    assert escape("_") == "_"
+    assert escape("*") == "*"
+    assert escape("-") == "-"
 
 
 def test_format_items_digest_structure():
@@ -1249,9 +1252,8 @@ def test_format_items_digest_structure():
     assert "8" in text          # score
     assert "OpenAI" in text
     assert "投資日報" in text   # cross_ref indicator
-    assert "已評分" in text
-    assert "主題區" in text
-    assert "平均" in text
+    assert "📊 本期共" in text
+    assert "平均分數" in text
 
 
 def test_format_items_digest_sorted_by_score():
@@ -1294,12 +1296,12 @@ def test_format_items_digest_hides_zero_score_when_enough_valid_items():
     assert "ZeroScore" not in text
 
 
-def test_format_earnings_markdownv2():
+def test_format_earnings_html():
     earnings = _make_earnings()
     text = fmt_earnings(earnings)
     assert "Apple Inc" in text
     assert "124" in text
-    assert "2" in text and "40" in text   # EPS: escaped as 2\.40 in MarkdownV2
+    assert "2" in text and "40" in text   # EPS: 2.40
     assert "cross" in text.lower()
 
 

@@ -21,7 +21,6 @@ def test_fallback_summaries_keep_single_item_digest_non_empty():
     assert len(summaries) == 1
     assert "OpenAI launches a new enterprise AI product" in msg
     assert "OpenAI launched a new enterprise AI product" in msg
-    assert "Example News" in msg
     assert "今日 316 篇" not in msg
 
 

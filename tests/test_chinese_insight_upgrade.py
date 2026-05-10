@@ -129,11 +129,11 @@ def test_formatter_renders_three_part_story_and_translation_tag():
         story_insights=[story],
     )
 
-    assert "*【核心洞見】*" in msg
-    assert "*【底層邏輯】*" in msg
-    assert "*【生態影響】*" in msg
-    assert "\\[📝 原文為英文，已由 Q\\-Silicon 深度編譯\\]" in msg
-    assert "[Example Source](https://example.com/story)" in msg
+    assert "<b>【核心洞見】</b>" in msg
+    assert "<b>【底層邏輯】</b>" in msg
+    assert "<b>【生態影響】</b>" in msg
+    assert "Q-Silicon" in msg  # translation tag present for English source
+    assert 'href="https://example.com/story"' in msg
 
 
 def test_format_insight_brief_uses_display_source_and_skips_tag_for_zh_tw():
@@ -158,5 +158,5 @@ def test_format_insight_brief_uses_display_source_and_skips_tag_for_zh_tw():
     msg = format_insight_brief(brief)
 
     assert "曼報" in msg
-    assert "*【核心洞見】*" in msg
-    assert "Q\\-Silicon" not in msg
+    assert "<b>【核心洞見】</b>" in msg
+    assert "Q-Silicon" not in msg  # translation tag must be absent for zh-TW source

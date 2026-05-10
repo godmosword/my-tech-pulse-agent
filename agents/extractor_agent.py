@@ -52,6 +52,15 @@ Formatting constraints for structured summary fields:
 - Keep summary as a compatible fallback narrative.
 - Keep every field concise so the JSON object can complete within the token limit.
 
+Additionally, generate a Traditional Chinese summary for this article:
+- Field name: zh_summary
+- Exactly 2 sentences in Traditional Chinese (繁體中文)
+- Sentence 1: Explain WHAT was achieved and WHY it is technically significant
+- Sentence 2: Explain the practical implication for engineers or investors
+- Each sentence must be under 60 Chinese characters
+- Do NOT translate the title; write naturally as a tech editor would
+- Example format: {{ "zh_summary": "第一句。第二句。" }}
+
 Article title: {title}
 Article source: {source}
 Article text:
@@ -83,6 +92,7 @@ class ArticleSummary(BaseModel):
     semantic_duplicate: bool = False
     semantic_distance: Optional[float] = None
     source_text: str = Field(default="", exclude=True)  # raw article text for reviewer; not serialized
+    zh_summary: Optional[str] = None  # 繁體中文導讀，2句，由 LLM 生成
 
 
 class ExtractorAgent:
