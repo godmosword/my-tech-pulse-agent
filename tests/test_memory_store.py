@@ -124,6 +124,23 @@ def test_memory_archive_summaries_writes_expected_payload():
     assert len(payload["embedding"]) == 768
     assert payload["published_at"] == datetime(2026, 5, 1, tzinfo=timezone.utc)
     assert payload["expires_at"] > delivered_at
+    # zh_summary defaults to empty string when the extractor didn't produce one
+    # (e.g. the source was already in zh-TW or the LLM skipped it).
+    assert payload["zh_summary"] == ""
+
+
+def test_memory_archive_summaries_persists_zh_summary_when_present():
+    """Bilingual dashboard depends on zh_summary being archived; PORTAL_CONTRACT
+    v1 covers this via additive field — no schema version bump needed."""
+    collection = _FakeCollection()
+    service = _memory_service(collection)
+    summary = _summary()
+    summary.zh_summary = "NVIDIA 擴大 GPU 供應，AI 資料中心買家有望取得更多算力。"
+
+    service.archive_summaries([summary], delivered_at=datetime(2026, 5, 1, tzinfo=timezone.utc))
+
+    payload = next(iter(collection.writes.values()))["payload"]
+    assert payload["zh_summary"] == "NVIDIA 擴大 GPU 供應，AI 資料中心買家有望取得更多算力。"
 
 
 def test_memory_search_similar_uses_firestore_find_nearest():

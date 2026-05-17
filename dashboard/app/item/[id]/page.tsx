@@ -39,8 +39,15 @@ export default async function ItemPage({
         </h1>
       </header>
 
+      {item.zh_summary && (
+        <p className="text-base leading-relaxed text-ink">
+          <span aria-hidden className="mr-1">💡</span>
+          {item.zh_summary}
+        </p>
+      )}
+
       {item.summary && (
-        <p className="whitespace-pre-line text-base leading-relaxed text-ink">
+        <p className="whitespace-pre-line text-base leading-relaxed text-ink-muted">
           {item.summary}
         </p>
       )}

@@ -19,16 +19,19 @@ const config: Config = {
         ],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
+      // Semantic tokens map to CSS variables so the whole palette can flip
+      // under prefers-color-scheme without per-component `dark:` overrides.
+      // Concrete values live in app/globals.css.
       colors: {
         ink: {
-          DEFAULT: "#0f172a",
-          muted: "#475569",
-          subtle: "#94a3b8",
+          DEFAULT: "var(--color-ink)",
+          muted: "var(--color-ink-muted)",
+          subtle: "var(--color-ink-subtle)",
         },
         surface: {
-          DEFAULT: "#ffffff",
-          alt: "#f8fafc",
-          deep: "#0b1220",
+          DEFAULT: "var(--color-surface)",
+          alt: "var(--color-surface-alt)",
+          deep: "var(--color-surface-deep)",
         },
       },
     },

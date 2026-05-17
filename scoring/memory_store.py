@@ -170,6 +170,12 @@ class FirestoreMemoryService:
                 "item_id": item_id,
                 "title": summary.title or summary.entity,
                 "summary": text,
+                # zh_summary is additive (PORTAL_CONTRACT.md v1 compatible): the
+                # extractor already generates a 2-sentence Traditional Chinese
+                # paragraph; persisting it lets the dashboard render bilingual
+                # cards without re-translating at read time. Empty string when
+                # the source language is already zh-TW or the LLM skipped it.
+                "zh_summary": (getattr(summary, "zh_summary", "") or "").strip(),
                 "source_url": summary.source_url,
                 "source_name": summary.source_name,
                 "published_at": _parse_datetime(getattr(summary, "published_at", "")),

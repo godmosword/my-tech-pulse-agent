@@ -25,6 +25,13 @@ export function InstantCard({ item }: { item: RenderableItem }) {
         </Link>
       </h3>
 
+      {item.zh_summary && (
+        <p className="mt-2 text-sm leading-relaxed text-ink">
+          <span aria-hidden className="mr-1">💡</span>
+          {item.zh_summary}
+        </p>
+      )}
+
       {item.summary && (
         <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-muted">
           {item.summary}

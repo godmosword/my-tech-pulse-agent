@@ -53,6 +53,7 @@ function toRenderable(id: string, raw: unknown): RenderableItem | null {
     id: item.id,
     title: item.title,
     summary: item.summary,
+    zh_summary: item.zh_summary ?? "",
     source_url: item.source_url,
     source_name: item.source_name,
     entity: item.entity,

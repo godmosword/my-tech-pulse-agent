@@ -29,6 +29,9 @@ export const MemoryItemSchema = z.object({
   item_id: z.string().optional(),
   title: z.string().default(""),
   summary: z.string().default(""),
+  // Optional Traditional Chinese summary — pipeline started writing it after
+  // the bilingual dashboard work. Older docs lack the field; default to "".
+  zh_summary: z.string().default("").optional(),
   source_url: z.string().default(""),
   source_name: z.string().default(""),
   entity: z.string().default(""),
@@ -46,6 +49,7 @@ export interface RenderableItem {
   id: string;
   title: string;
   summary: string;
+  zh_summary: string;
   source_url: string;
   source_name: string;
   entity: string;
