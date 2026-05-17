@@ -69,6 +69,27 @@ break Portal contract v1) and have both consumers read it.
    curl -X POST "https://<host>/api/revalidate?path=/" \
      -H "x-revalidate-token: $REVALIDATE_TOKEN"
    ```
+   The pipeline does this automatically when both env vars are set:
+   - `DASHBOARD_REVALIDATE_URL` — full webhook URL, e.g.
+     `https://your-dashboard.vercel.app/api/revalidate`
+   - `DASHBOARD_REVALIDATE_TOKEN` — same value as `REVALIDATE_TOKEN` above
+
+   Hook: [`delivery/revalidate.py`](../delivery/revalidate.py). Unset either
+   variable to skip the call (local / CI runs).
+
+### Service account provisioning
+
+Run the helper script once from the repo root to create a read-only SA and
+download a key:
+
+```bash
+PROJECT_ID=my-tech-pulse-agent-494715 ./scripts/setup_dashboard_sa.sh
+```
+
+It creates `tech-pulse-dashboard@<project>.iam.gserviceaccount.com` with
+`roles/datastore.viewer` and writes the key to `dashboard-sa.json`
+(gitignored at the repo root). Base64-encode it into the Vercel
+`FIREBASE_SERVICE_ACCOUNT_JSON` env var.
 
 ## Read-only contract
 

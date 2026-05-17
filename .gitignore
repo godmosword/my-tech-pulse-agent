@@ -6,3 +6,7 @@ output/
 .pytest_cache/
 dist/
 build/
+
+# dashboard read-only SA key
+dashboard-sa.json
+dashboard-sa.json.b64

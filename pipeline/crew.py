@@ -18,6 +18,7 @@ from agents.earnings_agent import EarningsAgent, EarningsOutput
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.reviewer_agent import ReviewerAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
+from delivery.revalidate import revalidate_dashboard
 from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
 from scoring.memory_store import (
@@ -332,6 +333,16 @@ class TechPulseCrew:
             except Exception as exc:
                 logger.error("Telegram deep brief delivery failed: %s", exc, exc_info=True)
                 critical_errors.append("delivery:deep_brief")
+
+        # Best-effort: flush the dashboard's ISR cache so /tries pick up the
+        # latest archive without waiting out the 5-minute revalidate window.
+        # No-op when DASHBOARD_REVALIDATE_URL / DASHBOARD_REVALIDATE_TOKEN are
+        # unset (local dev / CI).
+        if delivery_succeeded > 0:
+            try:
+                revalidate_dashboard()
+            except Exception as exc:  # noqa: BLE001 — best-effort, must not block
+                logger.warning("Dashboard revalidate raised unexpectedly: %s", exc)
 
         low_score_fallback_count = sum(
             1 for s in summaries if getattr(s, "score_status", "") == "low_score_fallback"
