@@ -47,6 +47,8 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 export const config = {
-  // Run on every page and API route except Next.js internals.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Run on every page except Next.js internals AND `/api/revalidate`, which
+  // is the pipeline webhook — that endpoint has its own token check and must
+  // be reachable without Basic Auth credentials.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/revalidate).*)"],
 };
