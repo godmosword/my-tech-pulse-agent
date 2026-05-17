@@ -174,7 +174,21 @@ def _truncate_words(text: str, max_words: int = 80) -> str:
     return text
 
 
+# Score threshold above which we trust the score as a strong importance signal
+# even if the extractor labelled confidence as "low" — the red-dot badge would
+# otherwise contradict the headline score (e.g. ⭐ 8.1 · 🔴 低信心).
+HIGH_SCORE_CONFIDENCE_FLOOR = float(os.getenv("HIGH_SCORE_CONFIDENCE_FLOOR", "7.2"))
+
+
 def _confidence_badge(summary: ArticleSummary) -> str:
+    """Confidence badge, distinct from the numeric score.
+
+    Score reflects newsworthiness; confidence reflects how much we trust the
+    underlying facts. The two axes used to collapse into a single red dot, which
+    produced "⭐ 8.1 · 🔴 低信心" — visually self-contradictory. We now soften
+    explicit-low confidence on high-score items to 🟡 待驗證, and reserve 🔴 for
+    cases where the pipeline itself flagged the item as a fallback.
+    """
     status = getattr(summary, "score_status", "ok")
     if status in {"unscored", "fallback"}:
         return "⚠️ 待補驗證"
@@ -188,6 +202,9 @@ def _confidence_badge(summary: ArticleSummary) -> str:
         return "✅ 高信心"
     if confidence == "medium":
         return "🟡 中信心"
+    # confidence == "low": only show the loud red badge for low-score items.
+    if (getattr(summary, "score", 0.0) or 0.0) >= HIGH_SCORE_CONFIDENCE_FLOOR:
+        return "🟡 待驗證"
     return "🔴 低信心"
 
 
@@ -205,18 +222,111 @@ def _score_line(summary: ArticleSummary) -> str:
 
 
 def _published_line(summary: ArticleSummary) -> str:
+    """Return formatted publish line, or empty string when timestamp is missing.
+
+    Empty dash placeholders (🕒 —) added more noise than information, so callers
+    should skip the meta line entirely when no timestamp is available.
+    """
     ts = (getattr(summary, "published_at", "") or "").strip()
     if not ts:
-        return "🕒 —"
+        return ""
     return f"🕒 {escape(ts[:16].replace('T', ' '))}"
 
 
+# Fallback extractor category that carries no real signal — suppress in tag line.
+_UNINFORMATIVE_CATEGORIES = {"other"}
+
+
 def _tags(summary: ArticleSummary) -> str:
-    parts: list[str] = [f"#{summary.category}"]
+    parts: list[str] = []
+    if summary.category and summary.category not in _UNINFORMATIVE_CATEGORIES:
+        parts.append(f"#{summary.category}")
     raw_tag = re.sub(r"[^A-Za-z0-9]", "", summary.entity.replace(" ", ""))[:20]
     if raw_tag:
         parts.append(f"#{raw_tag}")
     return " ".join(parts)
+
+
+def _story_dedupe_keys(story: StoryInsight) -> tuple[str, str]:
+    """Return (source_url, title) identifiers used to suppress duplicate cards."""
+    return (
+        (getattr(story, "source_url", "") or "").strip(),
+        (getattr(story, "title", "") or "").strip().lower(),
+    )
+
+
+def _article_dedupe_keys(summary: ArticleSummary) -> tuple[str, str]:
+    return (
+        (getattr(summary, "source_url", "") or "").strip(),
+        (getattr(summary, "title", "") or "").strip().lower(),
+    )
+
+
+def _exclude_stories_from_pool(
+    pool: list[ArticleSummary],
+    stories: Optional[list[StoryInsight]],
+) -> list[ArticleSummary]:
+    """Drop articles already surfaced as 🧠 深度洞察 stories.
+
+    Match on source_url first (most stable), then case-insensitive title as a
+    fallback for stories that lost their URL during serialization.
+    """
+    if not stories:
+        return pool
+
+    url_blocklist: set[str] = set()
+    title_blocklist: set[str] = set()
+    for story in stories:
+        url, title = _story_dedupe_keys(story)
+        if url:
+            url_blocklist.add(url)
+        if title:
+            title_blocklist.add(title)
+
+    if not url_blocklist and not title_blocklist:
+        return pool
+
+    filtered: list[ArticleSummary] = []
+    for item in pool:
+        url, title = _article_dedupe_keys(item)
+        if url and url in url_blocklist:
+            continue
+        if title and title in title_blocklist:
+            continue
+        filtered.append(item)
+    return filtered
+
+
+_HISTORY_DISTANCE_BUCKETS: list[tuple[float, str]] = [
+    (0.20, "相似度高"),
+    (0.35, "相似度中"),
+    (0.50, "相似度低"),
+]
+
+
+def _bucket_history_context(history_context: str) -> str:
+    """Replace raw cosine distance numbers with reader-friendly buckets.
+
+    Pipeline writes `相關歷史：{title}（{source}），距離 0.31` — the float is
+    a leaky implementation detail. We re-label it as 相似度{高/中/低} and drop
+    the distance segment when the model didn't supply one.
+    """
+    if not history_context:
+        return history_context
+
+    def _replace(match: re.Match[str]) -> str:
+        try:
+            distance = float(match.group(1))
+        except (TypeError, ValueError):
+            return ""
+        label = "相似度低"
+        for threshold, bucket in _HISTORY_DISTANCE_BUCKETS:
+            if distance <= threshold:
+                label = bucket
+                break
+        return f"，{label}"
+
+    return re.sub(r"，距離\s*([0-9]+\.[0-9]+)", _replace, history_context)
 
 
 def _source_link(summary: ArticleSummary) -> str:
@@ -280,7 +390,7 @@ def _format_story_insight(story: StoryInsight) -> list[str]:
     source_name = escape(story.source_display_name or story.source_name or "source")
     source_url = story.source_url or ""
     source = f'<a href="{source_url}">{source_name}</a>' if source_url else source_name
-    return [
+    lines = [
         f"🧠 <b>{title}</b>",
         source,
         "",
@@ -291,6 +401,11 @@ def _format_story_insight(story: StoryInsight) -> list[str]:
             source_language=story.source_language,
         ),
     ]
+    # Inline 原文連結 so the deep-insight block is self-contained — readers no
+    # longer have to scroll past the three-part body to find the URL.
+    if source_url:
+        lines.extend(["", f'🔗 <a href="{source_url}">原文連結</a>'])
+    return lines
 
 
 def format_insight_brief(brief: InsightBrief) -> str:
@@ -334,11 +449,15 @@ def _format_article_card(s: ArticleSummary) -> list[str]:
     lines.append("")
     body = _truncate_words(_compose_structured_summary(s))
     lines.append(escape(body))
-    if getattr(s, "history_context", ""):
-        lines.append(f"↳ {escape(_truncate_words(s.history_context, 20))}")
+    history_context = _bucket_history_context(getattr(s, "history_context", "") or "")
+    if history_context:
+        lines.append(f"↳ {escape(_truncate_words(history_context, 20))}")
 
-    meta = f"{_published_line(s)}  {_tags(s)}"
-    lines.append(meta)
+    published = _published_line(s)
+    tags = _tags(s)
+    meta_parts = [part for part in (published, tags) if part]
+    if meta_parts:
+        lines.append("  ".join(meta_parts))
     url = s.source_url or ""
     if url:
         lines.append(f'🔗 <a href="{url}">原文連結</a>')
@@ -372,7 +491,10 @@ def _format_items_digest_v1(
     ]
     unscored = [s for s in ranked if getattr(s, "score_status", "ok") in {"fallback", "unscored"}]
     fallback_items = low_score_fallbacks + unscored
-    display_pool = valid_ranked[:MAX_ITEMS_PER_DIGEST * 2]
+    # Drop articles already promoted to 🧠 深度洞察 so the same headline doesn't
+    # show up twice in the same digest (once as a deep card, once as instant).
+    deduped_valid = _exclude_stories_from_pool(valid_ranked, story_insights)
+    display_pool = deduped_valid[:MAX_ITEMS_PER_DIGEST * 2]
 
     groups = _select_by_theme(display_pool) if display_pool else []
 

@@ -362,6 +362,159 @@ def test_allowed_themes_redirects_offtopic_kol():
     assert "產品與策略" in msg
 
 
+def test_high_score_low_confidence_softens_to_yellow_badge():
+    """Score 7.5+ should never collapse into the loud 🔴 低信心 badge.
+
+    The score and confidence axes used to merge — producing `⭐ 8.1 · 🔴 低信心`
+    which reads as self-contradictory. We now downgrade to 🟡 待驗證 once the
+    score clears HIGH_SCORE_CONFIDENCE_FLOOR.
+    """
+    summary = _sample_summary(0, title="AI agent commerce", score=8.1)
+    summary.confidence = "low"
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "🟡 待驗證" in msg
+    assert "🔴 低信心" not in msg
+
+
+def test_low_score_low_confidence_keeps_red_badge():
+    """Below the floor, 🔴 still surfaces so low-signal items stay obvious."""
+    summary = _sample_summary(0, title="Niche note", score=6.5)
+    summary.confidence = "low"
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "🔴 低信心" in msg
+
+
+def test_other_category_tag_is_filtered():
+    """`#other` is a fallback bucket with no informational value — drop it."""
+    summary = _sample_summary(
+        0,
+        category="other",
+        entity="Acme",
+        title="Some misc story",
+        score=7.5,
+    )
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "#other" not in msg
+    # Entity tag must still survive so readers retain at least one anchor.
+    assert "#Acme" in msg
+
+
+def test_empty_published_at_omits_clock_line():
+    """Missing publish timestamp should drop the 🕒 marker entirely (no dash)."""
+    summary = _sample_summary(0, category="funding", title="Quiet round", score=7.4)
+    summary.published_at = ""
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "🕒 —" not in msg
+    assert "🕒" not in msg
+
+
+def test_deep_story_is_removed_from_instant_section():
+    """A story surfaced in 🧠 深度洞察 must not also appear as an instant card."""
+    from agents.synthesizer_agent import StoryInsight
+
+    shared = _sample_summary(
+        0,
+        category="product_launch",
+        entity="Stripe",
+        title="Stripe agentic commerce",
+        what_happened="Stripe announced agentic commerce APIs.",
+        why_it_matters="Reshapes how brands appear to AI shopping agents.",
+        score=8.4,
+    )
+    shared.source_url = "https://example.com/stripe-agentic"
+    other = _sample_summary(
+        1,
+        category="funding",
+        entity="QuantWare",
+        title="QuantWare funding",
+        score=7.9,
+    )
+    story = StoryInsight(
+        entity="Stripe",
+        title="Stripe agentic commerce",
+        source_name="bloomberg_rss",
+        source_url="https://example.com/stripe-agentic",
+        source_language="en",
+        insight="代理商業將改寫零售",
+        tech_rationale="AI agent 取代關鍵字搜尋",
+        implication="零售品牌須重塑 SEO",
+        summary="",
+    )
+
+    msg = format_items_digest(
+        [shared, other],
+        total_fetched=2,
+        total_after_filter=2,
+        story_insights=[story],
+    )
+
+    # Deep insight section keeps the story once; instant section must not echo it.
+    assert msg.count("Stripe agentic commerce") == 1
+    assert "QuantWare funding" in msg
+
+
+def test_deep_story_dedupes_on_title_when_url_missing():
+    from agents.synthesizer_agent import StoryInsight
+
+    shared = _sample_summary(
+        0,
+        category="product_launch",
+        entity="SpaceX",
+        title="SpaceX prepares IPO filing",
+        score=8.0,
+    )
+    shared.source_url = ""
+    story = StoryInsight(
+        title="SpaceX prepares IPO filing",
+        source_language="en",
+        insight="x", tech_rationale="y", implication="z",
+    )
+    msg = format_items_digest(
+        [shared],
+        total_fetched=1,
+        total_after_filter=1,
+        story_insights=[story],
+    )
+    assert msg.count("SpaceX prepares IPO filing") == 1
+
+
+def test_deep_insight_block_contains_inline_source_link():
+    from agents.synthesizer_agent import StoryInsight
+
+    story = StoryInsight(
+        title="OpenAI ships Codex",
+        source_name="bloomberg_rss",
+        source_url="https://example.com/codex",
+        source_language="en",
+        insight="x", tech_rationale="y", implication="z",
+    )
+    summary = _sample_summary(0, title="Filler", score=8.5)
+    msg = format_items_digest(
+        [summary],
+        total_fetched=1,
+        total_after_filter=1,
+        story_insights=[story],
+    )
+    # The deep card must surface 原文連結 inline so readers don't have to scroll
+    # past the three-part body to find the URL.
+    deep_section = msg.split("<b>🧠 深度洞察</b>", 1)[1]
+    assert '<a href="https://example.com/codex">原文連結</a>' in deep_section
+
+
+def test_history_context_distance_renders_as_bucket():
+    """Raw cosine distance numbers leak implementation detail — bucket them."""
+    summary = _sample_summary(
+        0,
+        category="product_launch",
+        title="Followup story",
+        score=8.0,
+    )
+    summary.history_context = "相關歷史：Earlier headline（bloomberg_rss），距離 0.31"
+    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
+    assert "距離 0.31" not in msg
+    assert "相似度中" in msg
+
+
 def test_fallback_only_digest_shows_warning_banner():
     """When no scored items pass, surface a banner so users know it's a low-signal day."""
     fallback = _sample_summary(
