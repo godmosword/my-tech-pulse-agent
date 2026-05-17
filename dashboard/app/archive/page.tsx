@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { listLatestItems } from "@/lib/firestore";
-import { formatRelativeDate, formatScore } from "@/lib/digest";
-import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import {
+  categoryLabel,
+  formatEditorialDate,
+  formatScore,
+} from "@/lib/digest";
+import { Hairline } from "@/components/Hairline";
+import { Kicker, MetaDot } from "@/components/Kicker";
 
 export const revalidate = 300;
 
 const ARCHIVE_WINDOW_DAYS = 14;
+
+type Items = Awaited<ReturnType<typeof listLatestItems>>;
 
 export default async function ArchivePage() {
   const since = new Date(Date.now() - ARCHIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
@@ -14,45 +21,60 @@ export default async function ArchivePage() {
   const buckets = bucketByDay(items);
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">時間軸</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          近 {ARCHIVE_WINDOW_DAYS} 天歸檔（依 delivered_at 倒序）
+    <div className="space-y-12 pt-2">
+      <header className="space-y-4">
+        <Kicker>Archive · Last {ARCHIVE_WINDOW_DAYS} days</Kicker>
+        <h1 className="font-serif text-[34px] leading-[1.1] tracking-[-0.02em] text-ink sm:text-hero">
+          Today’s Paper, day by day.
+        </h1>
+        <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-faint">
+          Sorted by delivered_at · most recent first
         </p>
+        <Hairline />
       </header>
 
       {buckets.length === 0 && (
-        <p className="text-sm text-ink-muted">尚無資料</p>
+        <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
+          No items yet.
+        </p>
       )}
 
-      {buckets.map(({ day, items: dayItems }) => (
-        <section key={day} className="space-y-3">
-          <h2 className="text-sm font-semibold text-ink-muted">{day}</h2>
-          <ul className="divide-y divide-slate-200/60 rounded-md border border-slate-200/60 bg-surface-alt dark:divide-slate-700/40 dark:border-slate-700/40 dark:bg-slate-900/40">
+      {buckets.map(({ dayIso, items: dayItems }) => (
+        <section key={dayIso} className="space-y-4">
+          <h2 className="font-serif text-[22px] leading-tight tracking-[-0.018em] text-ink sm:text-[26px]">
+            {formatEditorialDate(dayIso) || "Undated"}
+          </h2>
+          <Hairline />
+          <ul className="divide-y divide-rule">
             {dayItems.map((item) => (
-              <li key={item.id} className="px-4 py-3">
+              <li key={item.id} className="py-4">
                 <Link
                   href={`/item/${encodeURIComponent(item.id)}`}
-                  className="flex flex-col gap-1 hover:underline"
+                  className="block space-y-2 hover:[&_h3]:underline"
                 >
-                  <div className="flex items-center gap-2 text-xs text-ink-subtle">
-                    <span className="font-mono">
-                      {item.kind === "deep_brief"
-                        ? "🧠"
-                        : item.kind === "earnings"
-                          ? "📊"
-                          : "⭐"}{" "}
+                  <Kicker as="div" className="flex flex-wrap items-center">
+                    <span>{kindLabel(item.kind)}</span>
+                    {item.category && (
+                      <>
+                        <MetaDot />
+                        <span>{categoryLabel(item.category)}</span>
+                      </>
+                    )}
+                    {item.source_name && (
+                      <>
+                        <MetaDot />
+                        <span>{item.source_name}</span>
+                      </>
+                    )}
+                  </Kicker>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
+                      {item.title || item.entity || "Untitled"}
+                    </h3>
+                    <span className="shrink-0 font-mono text-meta tabular-nums text-ink-soft">
                       {item.score > 0 ? formatScore(item.score) : "—"}
                     </span>
-                    <ConfidenceBadge item={item} />
-                    {item.delivered_at_iso && (
-                      <span>· {formatRelativeDate(item.delivered_at_iso)}</span>
-                    )}
                   </div>
-                  <span className="text-sm font-medium">
-                    {item.title || item.entity || "Untitled"}
-                  </span>
                 </Link>
               </li>
             ))}
@@ -63,21 +85,31 @@ export default async function ArchivePage() {
   );
 }
 
-interface DayBucket {
-  day: string;
-  items: Awaited<ReturnType<typeof listLatestItems>>;
+function kindLabel(kind: Items[number]["kind"]): string {
+  switch (kind) {
+    case "deep_brief":
+      return "Deep Insight";
+    case "earnings":
+      return "Earnings";
+    default:
+      return "Dispatch";
+  }
 }
 
-function bucketByDay(
-  items: Awaited<ReturnType<typeof listLatestItems>>
-): DayBucket[] {
-  const groups = new Map<string, DayBucket["items"]>();
+interface DayBucket {
+  /** ISO yyyy-mm-dd used for keying + sorting. */
+  dayIso: string;
+  items: Items;
+}
+
+function bucketByDay(items: Items): DayBucket[] {
+  const groups = new Map<string, Items>();
   for (const item of items) {
-    const key = (item.delivered_at_iso ?? "").slice(0, 10) || "未知";
+    const key = (item.delivered_at_iso ?? "").slice(0, 10) || "unknown";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(item);
   }
   return [...groups.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([day, dayItems]) => ({ day, items: dayItems }));
+    .map(([dayIso, dayItems]) => ({ dayIso, items: dayItems }));
 }

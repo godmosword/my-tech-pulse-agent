@@ -1,24 +1,30 @@
-import { THEME_EMOJI } from "@/lib/digest";
 import type { RenderableItem } from "@/lib/types";
+import { Hairline } from "./Hairline";
 import { InstantCard } from "./InstantCard";
+import { Kicker } from "./Kicker";
 
 interface Props {
   theme: string;
   items: RenderableItem[];
 }
 
+/**
+ * Editorial section: a kicker label + serif h2 above a stack of items, with
+ * hairline rules between items rather than card boxes. The section header
+ * carries the theme name; the kicker labels it as a section, so we don't need
+ * the bracket emojis the Telegram digest uses.
+ */
 export function ThemeSection({ theme, items }: Props) {
-  const emoji = THEME_EMOJI[theme] ?? "📡";
   return (
-    <section className="space-y-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-ink-muted">
-        <span aria-hidden>━━━</span>
-        <span>
-          {emoji} {theme}
-        </span>
-        <span aria-hidden>━━━</span>
-      </h2>
-      <div className="space-y-3">
+    <section className="pt-10">
+      <header className="mb-2 space-y-2">
+        <Kicker>Section</Kicker>
+        <h2 className="font-serif text-[22px] leading-tight tracking-[-0.018em] text-ink sm:text-[26px]">
+          {theme}
+        </h2>
+      </header>
+      <Hairline />
+      <div className="divide-y divide-rule">
         {items.map((item) => (
           <InstantCard key={item.id} item={item} />
         ))}

@@ -1,8 +1,15 @@
 import { notFound } from "next/navigation";
 import { getItemById } from "@/lib/firestore";
-import { formatRelativeDate, formatScore } from "@/lib/digest";
+import {
+  categoryLabel,
+  formatEditorialDate,
+  formatMetaDate,
+  formatScore,
+} from "@/lib/digest";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
+import { Hairline } from "@/components/Hairline";
+import { Kicker, MetaDot } from "@/components/Kicker";
 
 export const revalidate = 600;
 
@@ -17,37 +24,60 @@ export default async function ItemPage({
 
   if (item.kind === "deep_brief") {
     return (
-      <div className="space-y-6">
+      <article className="space-y-10 pt-2">
         <DeepInsightCard item={item} />
         <Meta item={item} />
-      </div>
+      </article>
     );
   }
 
+  const headline = item.title || item.entity || "Untitled";
+  const cat = categoryLabel(item.category);
+  const metaDate = formatMetaDate(
+    item.published_at_iso || item.delivered_at_iso
+  );
+
   return (
-    <article className="space-y-5">
-      <header>
-        <div className="flex items-center gap-2 text-sm text-ink-muted">
-          <span className="font-mono">
-            {item.kind === "earnings" ? "📊" : "⭐"}{" "}
-            {item.score > 0 ? formatScore(item.score) : "—"}
-          </span>
-          <ConfidenceBadge item={item} />
-        </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          {item.title || item.entity || "Untitled"}
+    <article className="space-y-7 pt-2">
+      <header className="space-y-5">
+        <Kicker as="div" className="flex flex-wrap items-center">
+          <span>{cat}</span>
+          {item.source_name && (
+            <>
+              <MetaDot />
+              <span>{item.source_name}</span>
+            </>
+          )}
+          {metaDate && (
+            <>
+              <MetaDot />
+              <span>{metaDate}</span>
+            </>
+          )}
+        </Kicker>
+        <h1 className="font-serif text-[34px] leading-[1.12] tracking-[-0.02em] text-ink sm:text-hero">
+          {headline}
         </h1>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <ConfidenceBadge item={item} />
+          <span aria-hidden className="text-ink-faint">
+            ·
+          </span>
+          <span className="font-mono text-meta tabular-nums text-ink-soft">
+            {item.score > 0 ? `${formatScore(item.score)} / 10` : "—"}
+          </span>
+        </div>
+        <Hairline />
       </header>
 
       {item.zh_summary && (
-        <p className="text-base leading-relaxed text-ink">
-          <span aria-hidden className="mr-1">💡</span>
+        <p className="font-sans text-[18px] leading-[1.6] text-ink">
           {item.zh_summary}
         </p>
       )}
 
       {item.summary && (
-        <p className="whitespace-pre-line text-base leading-relaxed text-ink-muted">
+        <p className="whitespace-pre-line font-serif text-[17px] leading-[1.7] text-ink">
           {item.summary}
         </p>
       )}
@@ -59,47 +89,48 @@ export default async function ItemPage({
 
 function Meta({ item }: { item: Awaited<ReturnType<typeof getItemById>> }) {
   if (!item) return null;
+  const rows: Array<{ label: string; value: string; mono?: boolean }> = [
+    { label: "Kind", value: item.kind, mono: true },
+    { label: "Category", value: item.category || "—", mono: true },
+    { label: "Entity", value: item.entity || "—" },
+    { label: "Source", value: item.source_name || "—" },
+    {
+      label: "Published",
+      value: formatEditorialDate(item.published_at_iso) || "—",
+    },
+    {
+      label: "Delivered",
+      value: formatEditorialDate(item.delivered_at_iso) || "—",
+    },
+    { label: "Score status", value: item.score_status, mono: true },
+  ];
+
   return (
-    <dl className="grid grid-cols-1 gap-2 rounded-md border border-slate-200/60 bg-surface-alt p-4 text-sm dark:border-slate-700/40 dark:bg-slate-900/40 sm:grid-cols-2">
-      <Row label="kind" value={item.kind} mono />
-      <Row label="category" value={item.category || "—"} mono />
-      <Row label="entity" value={item.entity || "—"} />
-      <Row label="source_name" value={item.source_name || "—"} />
-      <Row
-        label="published_at"
-        value={
-          item.published_at_iso
-            ? formatRelativeDate(item.published_at_iso)
-            : "—"
-        }
-      />
-      <Row
-        label="delivered_at"
-        value={
-          item.delivered_at_iso
-            ? formatRelativeDate(item.delivered_at_iso)
-            : "—"
-        }
-      />
-      <Row label="score_status" value={item.score_status} mono />
+    <section className="space-y-4 border-t border-rule pt-6">
+      <Kicker>Provenance</Kicker>
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+        {rows.map(({ label, value, mono }) => (
+          <Row key={label} label={label} value={value} mono={mono} />
+        ))}
+      </dl>
       {item.source_url ? (
-        <div className="sm:col-span-2">
-          <dt className="text-xs uppercase tracking-wider text-ink-subtle">
-            原文
+        <div>
+          <dt className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
+            Original
           </dt>
           <dd className="mt-1">
             <a
               href={item.source_url}
               target="_blank"
               rel="noreferrer"
-              className="break-all text-indigo-700 hover:underline dark:text-indigo-300"
+              className="break-all font-sans text-meta text-accent underline-offset-4 hover:underline"
             >
               {item.source_url}
             </a>
           </dd>
         </div>
       ) : null}
-    </dl>
+    </section>
   );
 }
 
@@ -114,10 +145,14 @@ function Row({
 }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wider text-ink-subtle">
+      <dt className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
         {label}
       </dt>
-      <dd className={`mt-1 ${mono ? "font-mono" : ""}`}>{value}</dd>
+      <dd
+        className={`mt-1 ${mono ? "font-mono text-meta text-ink" : "font-sans text-body text-ink"}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

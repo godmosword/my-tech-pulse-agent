@@ -9,30 +9,44 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: [
-          "-apple-system",
-          "BlinkMacSystemFont",
-          "PingFang TC",
-          "Noto Sans TC",
-          "Segoe UI",
-          "sans-serif",
+        // next/font assigns these vars on <body>; see app/layout.tsx
+        sans: ["var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        serif: [
+          "var(--font-serif)",
+          "ui-serif",
+          "Georgia",
+          "Cambria",
+          "Times New Roman",
+          "serif",
         ],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
-      // Semantic tokens map to CSS variables so the whole palette can flip
-      // under prefers-color-scheme without per-component `dark:` overrides.
-      // Concrete values live in app/globals.css.
+      // Semantic tokens — CSS vars defined in app/globals.css flip with
+      // prefers-color-scheme so no per-component `dark:` overrides needed.
       colors: {
+        paper: {
+          DEFAULT: "var(--color-paper)",
+          tint: "var(--color-paper-tint)",
+        },
         ink: {
           DEFAULT: "var(--color-ink)",
-          muted: "var(--color-ink-muted)",
-          subtle: "var(--color-ink-subtle)",
+          soft: "var(--color-ink-soft)",
+          faint: "var(--color-ink-faint)",
         },
-        surface: {
-          DEFAULT: "var(--color-surface)",
-          alt: "var(--color-surface-alt)",
-          deep: "var(--color-surface-deep)",
-        },
+        rule: "var(--color-rule)",
+        accent: "var(--color-accent)",
+      },
+      fontSize: {
+        // Editorial type scale — keep modest contrast so headlines breathe.
+        kicker: ["11px", { lineHeight: "1", letterSpacing: "0.12em" }],
+        meta: ["12px", { lineHeight: "1.45" }],
+        body: ["16px", { lineHeight: "1.65" }],
+        dek: ["17px", { lineHeight: "1.55" }],
+        headline: ["28px", { lineHeight: "1.18", letterSpacing: "-0.018em" }],
+        hero: ["40px", { lineHeight: "1.1", letterSpacing: "-0.02em" }],
+      },
+      maxWidth: {
+        column: "640px", // long-read text column
       },
     },
   },

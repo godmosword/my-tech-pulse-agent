@@ -2,6 +2,8 @@ import { listLatestItems } from "@/lib/firestore";
 import { buildDigest } from "@/lib/digest";
 import { DigestHeader } from "@/components/DigestHeader";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
+import { Hairline } from "@/components/Hairline";
+import { Kicker } from "@/components/Kicker";
 import { ThemeSection } from "@/components/ThemeSection";
 
 // ISR: pipeline runs a few times daily; rebuild on next request after 5 min.
@@ -23,7 +25,7 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="space-y-10">
+    <div>
       <DigestHeader
         latestDeliveredIso={latestDelivered}
         totalShown={view.totalShown}
@@ -31,11 +33,10 @@ export default async function HomePage() {
       />
 
       {view.deepInsights.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
-            🧠 深度洞察
-          </h2>
-          <div className="space-y-4">
+        <section className="pt-2">
+          <Kicker tone="accent">Deep Insights</Kicker>
+          <Hairline className="mt-3" />
+          <div className="divide-y divide-rule">
             {view.deepInsights.map((item) => (
               <DeepInsightCard key={item.id} item={item} />
             ))}
@@ -52,11 +53,11 @@ export default async function HomePage() {
 
 function EmptyState() {
   return (
-    <div className="rounded-lg border border-dashed border-slate-300 p-12 text-center text-ink-muted dark:border-slate-700">
-      <p className="text-lg">尚無資料</p>
-      <p className="mt-2 text-sm">
-        Firestore <code className="font-mono">tech_pulse_memory_items</code>{" "}
-        為空 — 請確認 pipeline 已執行並寫入歸檔。
+    <div className="border-y border-rule py-16 text-center">
+      <p className="font-serif text-[22px] text-ink">尚無資料</p>
+      <p className="mt-3 font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
+        Firestore tech_pulse_memory_items is empty —
+        confirm the pipeline has archived recent items.
       </p>
     </div>
   );

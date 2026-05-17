@@ -1,10 +1,28 @@
 import type { Metadata } from "next";
+import { Inter, Source_Serif_4 } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 
+// Variable fonts loaded via next/font for zero CLS + automatic preloading.
+// Inter handles body / UI; Source Serif 4 handles every headline and the
+// three-part deep brief body. The CSS variables match tailwind.config.ts.
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "600"],
+  variable: "--font-serif",
+});
+
 export const metadata: Metadata = {
-  title: "科技脈搏 · Tech Pulse",
-  description: "Daily tech intelligence digest — deep insights + curated headlines",
+  title: "Tech Pulse · 科技脈搏",
+  description:
+    "Daily editorial digest of technology, capital and silicon — deep insights, curated headlines.",
 };
 
 export default function RootLayout({
@@ -13,27 +31,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-TW">
-      <body>
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-          <header className="mb-8 flex items-center justify-between border-b border-slate-200/60 pb-4 dark:border-slate-700/40">
-            <Link href="/" className="text-lg font-semibold tracking-tight">
-              📡 <span className="ml-1">科技脈搏</span>
+    <html lang="zh-TW" className={`${inter.variable} ${sourceSerif.variable}`}>
+      <body className="font-sans">
+        <div className="mx-auto max-w-2xl px-5 pb-20 pt-8 sm:px-8 sm:pt-12">
+          <header className="flex items-baseline justify-between gap-4 pb-6">
+            <Link href="/" className="block">
+              <span className="font-serif text-[26px] font-semibold tracking-[-0.02em] text-ink sm:text-[32px]">
+                Tech Pulse
+              </span>
+              <span className="ml-3 font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
+                科技脈搏
+              </span>
             </Link>
-            <nav className="flex items-center gap-4 text-sm text-ink-muted">
-              <Link href="/" className="hover:text-ink">
-                最新
+            <nav className="flex items-center gap-5 font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
+              <Link href="/" className="hover:text-accent">
+                Today
               </Link>
-              <Link href="/archive" className="hover:text-ink">
-                時間軸
+              <Link href="/archive" className="hover:text-accent">
+                Archive
               </Link>
             </nav>
           </header>
-          <main>{children}</main>
-          <footer className="mt-16 border-t border-slate-200/60 pt-4 text-xs text-ink-subtle dark:border-slate-700/40">
-            視覺基準以 Telegram digest 為準 · Powered by Firestore
-            {" "}
-            <code className="font-mono">tech_pulse_memory_items</code>
+          <div className="h-px w-full bg-ink" />
+          <main className="mt-2">{children}</main>
+          <footer className="mt-24 border-t border-rule pt-6 font-sans text-meta uppercase tracking-[0.08em] text-ink-faint">
+            An editorial reading of the Tech Pulse pipeline · Powered by
+            Firestore <code className="font-mono normal-case">tech_pulse_memory_items</code>
           </footer>
         </div>
       </body>

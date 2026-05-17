@@ -210,41 +210,87 @@ function themeRankScore(items: RenderableItem[], maxPerTheme: number): number {
 }
 
 export function confidenceBadge(item: RenderableItem): {
-  emoji: string;
+  /** Editorial label, used by ConfidenceBadge component (text-only). */
   label: string;
+  /** Drives whether the badge picks up the accent color. */
   tone: "good" | "warn" | "bad" | "neutral";
 } {
   const status = item.score_status || "ok";
   if (status === "unscored" || status === "fallback") {
-    return { emoji: "⚠️", label: "待補驗證", tone: "warn" };
+    return { label: "Unverified", tone: "warn" };
   }
   if (status === "low_score_fallback") {
-    return { emoji: "🔴", label: "低信心", tone: "bad" };
+    return { label: "Low confidence", tone: "bad" };
   }
-  if (status === "high") return { emoji: "✅", label: "高信心", tone: "good" };
-  if (status === "medium") return { emoji: "🟡", label: "中信心", tone: "neutral" };
+  if (status === "high") return { label: "High confidence", tone: "good" };
+  if (status === "medium") return { label: "Medium confidence", tone: "neutral" };
   if (status === "low") {
     if (item.score >= HIGH_SCORE_CONFIDENCE_FLOOR) {
-      return { emoji: "🟡", label: "待驗證", tone: "warn" };
+      return { label: "Provisional", tone: "warn" };
     }
-    return { emoji: "🔴", label: "低信心", tone: "bad" };
+    return { label: "Low confidence", tone: "bad" };
   }
   // `score_status == "ok"` carries no explicit confidence — fall back to score.
   if (item.score >= HIGH_SCORE_CONFIDENCE_FLOOR) {
-    return { emoji: "✅", label: "高信心", tone: "good" };
+    return { label: "High confidence", tone: "good" };
   }
-  return { emoji: "🟡", label: "中信心", tone: "neutral" };
+  return { label: "Medium confidence", tone: "neutral" };
 }
 
 export function formatScore(score: number): string {
   return score.toFixed(1);
 }
 
+const TIMEZONE = process.env.DIGEST_HEADER_TIMEZONE || "Asia/Taipei";
+
+/**
+ * Long editorial date: "MAY 17, 2026". Masthead + archive day headers.
+ */
+export function formatEditorialDate(iso: string | null): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso)
+      .toLocaleDateString("en-US", {
+        timeZone: TIMEZONE,
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+      .toUpperCase();
+  } catch {
+    return iso;
+  }
+}
+
+/** Compact meta: "MAY 17 · 11:15" for inline kicker meta lines. */
+export function formatMetaDate(iso: string | null): string {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const day = d
+      .toLocaleDateString("en-US", {
+        timeZone: TIMEZONE,
+        month: "short",
+        day: "numeric",
+      })
+      .toUpperCase();
+    const time = d.toLocaleTimeString("en-GB", {
+      timeZone: TIMEZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `${day} · ${time}`;
+  } catch {
+    return iso;
+  }
+}
+
+/** Legacy zh-TW format — kept available but no longer used in editorial UI. */
 export function formatRelativeDate(iso: string | null): string {
   if (!iso) return "";
   try {
     return new Date(iso).toLocaleString("zh-TW", {
-      timeZone: process.env.DIGEST_HEADER_TIMEZONE || "Asia/Taipei",
+      timeZone: TIMEZONE,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -254,4 +300,26 @@ export function formatRelativeDate(iso: string | null): string {
   } catch {
     return iso;
   }
+}
+
+// Maps raw extractor categories (used across instant / deep / earnings kinds)
+// to editorial section labels rendered in kickers. Unknown values fall back
+// to a title-cased version so nothing silently disappears.
+const CATEGORY_LABELS: Record<string, string> = {
+  product_launch: "Product",
+  funding: "Capital",
+  acquisition: "M&A",
+  earnings: "Earnings",
+  regulation: "Policy",
+  research: "Research",
+  other: "Dispatch",
+  ai: "AI",
+  semiconductor: "Semis",
+  crypto: "Crypto",
+};
+
+export function categoryLabel(category: string): string {
+  const key = (category || "").toLowerCase();
+  if (!key) return "Dispatch";
+  return CATEGORY_LABELS[key] ?? category.replace(/_/g, " ");
 }
