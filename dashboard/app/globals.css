@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+html {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  @apply bg-surface text-ink min-h-screen;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-surface-deep text-slate-100;
+  }
+}
