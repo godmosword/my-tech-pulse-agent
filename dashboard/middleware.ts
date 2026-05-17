@@ -29,10 +29,13 @@ export function middleware(request: NextRequest): NextResponse {
     }
   }
 
+  // RFC 7235 restricts realm to ASCII. Non-ASCII (e.g. Chinese) trips Vercel's
+  // edge layer to strip the entire WWW-Authenticate header, which is why
+  // browsers were rendering the 401 body instead of prompting for credentials.
   return new NextResponse("Authentication required", {
     status: 401,
     headers: {
-      "WWW-Authenticate": 'Basic realm="科技脈搏 Dashboard", charset="UTF-8"',
+      "WWW-Authenticate": 'Basic realm="Tech Pulse Dashboard"',
     },
   });
 }
