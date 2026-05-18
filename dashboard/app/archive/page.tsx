@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { listLatestItems } from "@/lib/firestore";
 import {
@@ -8,7 +9,16 @@ import {
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
+/** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
+export const dynamic = "force-dynamic";
+
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: "歸檔",
+  description:
+    "依 delivered_at 排序的科技脈搏專欄歸檔（標題公開；完整內文可登入閱讀）。",
+};
 
 const ARCHIVE_WINDOW_DAYS = 14;
 

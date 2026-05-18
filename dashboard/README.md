@@ -10,6 +10,21 @@ renders three views:
 - `/archive` — last 14 days grouped by delivery day.
 - `/item/[id]` — single-doc detail (full deep brief or expanded instant card).
 
+## 公開讀（乙 + B）
+
+若設定 `DASHBOARD_PUBLIC_READ=true`（或 `1`）：
+
+- **匿名訪客**：可看標題與公開摘要（`zh_summary` 優先，否則截斷英文）；`sitemap.xml` /
+  `robots.txt` 與每頁 `metadata` 僅使用摘要層級，不把完整 `summary` 放進 HTML。
+- **完整正文**：使用 `/login` 表單登入；帳密與 `DASHBOARD_BASIC_AUTH_USER` /
+  `DASHBOARD_BASIC_AUTH_PASS` 相同；登入後寫入簽名 cookie（需
+  `DASHBOARD_SESSION_SECRET`，建議至少 32 字元）。
+- **Middleware**：公開讀模式下 **不再** 對全站套用 HTTP Basic（避免與 SEO 衝突）。
+  未啟用公開讀時，行為與先前一致（有設帳密則全站 Basic）。
+
+部署公開站請設定 **`NEXT_PUBLIC_SITE_URL`**（公開 HTTPS origin，無結尾斜線），供
+`metadataBase` 與 sitemap canonical 使用。
+
 ## Quick start
 
 ```bash
@@ -22,8 +37,10 @@ pnpm dev
 ```
 
 Open <http://localhost:3000>. With `DASHBOARD_BASIC_AUTH_USER` /
-`DASHBOARD_BASIC_AUTH_PASS` set, the middleware challenges with HTTP Basic
-Auth; leave both blank to disable the gate during local dev.
+`DASHBOARD_BASIC_AUTH_PASS` set **and** `DASHBOARD_PUBLIC_READ` unset, the
+middleware challenges with HTTP Basic Auth; leave both blank to disable the
+gate during local dev. See **公開讀（乙 + B）** above when `DASHBOARD_PUBLIC_READ`
+is enabled.
 
 ## Architecture
 
@@ -33,13 +50,16 @@ dashboard/
 │  ├─ page.tsx          # latest digest (ISR 5min)
 │  ├─ archive/page.tsx  # 14-day timeline
 │  ├─ item/[id]/page.tsx
-│  └─ api/revalidate/   # webhook for the pipeline to flush ISR
+│  ├─ login/page.tsx     # reader login (public read mode)
+│  ├─ sitemap.ts / robots.ts
+│  ├─ api/revalidate/   # webhook for the pipeline to flush ISR
+│  └─ api/auth/         # reader login + logout (public read mode)
 ├─ lib/
 │  ├─ firestore.ts      # Admin SDK init + readers (server-only)
 │  ├─ types.ts          # Zod schema for MemoryItem + ISO coercion
 │  └─ digest.ts         # theme grouping / dedupe / badge logic
 ├─ components/          # presentation, no Firestore imports
-└─ middleware.ts        # Basic Auth gate (Edge runtime)
+└─ middleware.ts        # Basic Auth gate (Edge); skipped when public read on
 ```
 
 The `lib/digest.ts` module is a TypeScript port of
@@ -61,8 +81,15 @@ break Portal contract v1) and have both consumers read it.
    - `FIREBASE_SERVICE_ACCOUNT_JSON` — base64-encoded JSON of a service
      account with `roles/datastore.viewer`. **Server-only** — never expose
      in client components.
-   - `DASHBOARD_BASIC_AUTH_USER` / `DASHBOARD_BASIC_AUTH_PASS` — Basic Auth
-     credentials.
+   - `DASHBOARD_BASIC_AUTH_USER` / `DASHBOARD_BASIC_AUTH_PASS` — reader
+     credentials (Basic gate when public read **off**; same pair for `/login`
+     when public read **on**).
+   - `DASHBOARD_PUBLIC_READ` — set `true` for public title/summary + cookie
+     gated body (see README section above).
+   - `DASHBOARD_SESSION_SECRET` — HMAC secret for reader cookie when public read
+     is on.
+   - `NEXT_PUBLIC_SITE_URL` — canonical site origin for SEO (recommended in
+     production).
    - `REVALIDATE_TOKEN` — shared secret for the ISR webhook.
 4. After each pipeline run, POST:
    ```bash

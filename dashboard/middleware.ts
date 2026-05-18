@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function publicReadEnabled(): boolean {
+  const v = process.env.DASHBOARD_PUBLIC_READ?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 /**
  * Basic Auth gate via env vars. Runs on Edge, so we use `atob` rather than
  * Node's Buffer.
  *
  * Skipped entirely when DASHBOARD_BASIC_AUTH_USER is unset — useful for local
  * dev or Vercel preview deploys behind their own auth.
+ *
+ * When `DASHBOARD_PUBLIC_READ` is enabled, Basic Auth is not applied at the edge
+ * (標題／摘要公開、正文改由站內登入 cookie). Pipeline `/api/revalidate` stays open.
  */
 export function middleware(request: NextRequest): NextResponse {
+  if (publicReadEnabled()) {
+    return NextResponse.next();
+  }
+
   const user = process.env.DASHBOARD_BASIC_AUTH_USER;
   const pass = process.env.DASHBOARD_BASIC_AUTH_PASS;
   if (!user || !pass) return NextResponse.next();

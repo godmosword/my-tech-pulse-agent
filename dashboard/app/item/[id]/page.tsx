@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getItemById } from "@/lib/firestore";
 import {
@@ -6,12 +8,47 @@ import {
   formatMetaDate,
   formatScore,
 } from "@/lib/digest";
+import { isPublicReadMode } from "@/lib/env-public-read";
+import { englishExcerpt, publicSummaryLine } from "@/lib/public-excerpt";
+import { getReaderSession } from "@/lib/session";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
+/** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
+export const dynamic = "force-dynamic";
+
 export const revalidate = 600;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const item = await getItemById(decodeURIComponent(id));
+  if (!item) {
+    return { title: "找不到內容" };
+  }
+  const title = item.title || item.entity || "Untitled";
+  const description =
+    publicSummaryLine(item) || "科技脈搏專欄 — 技術、資本與矽谷的編輯視角。";
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
+  };
+}
 
 export default async function ItemPage({
   params,
@@ -19,13 +56,28 @@ export default async function ItemPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const item = await getItemById(decodeURIComponent(id));
+  const decodedId = decodeURIComponent(id);
+  const item = await getItemById(decodedId);
   if (!item) notFound();
+
+  const authenticated =
+    !isPublicReadMode() || (await getReaderSession()) !== null;
+  const returnToPath = `/item/${encodeURIComponent(decodedId)}`;
+  const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
+  const hasMoreBody =
+    Boolean(item.summary?.trim()) &&
+    (item.summary.length > englishExcerpt(item.summary).length ||
+      (Boolean(item.zh_summary?.trim()) && Boolean(item.summary?.trim())));
+  const previewLine = publicSummaryLine(item);
 
   if (item.kind === "deep_brief") {
     return (
       <article className="space-y-10 pt-2">
-        <DeepInsightCard item={item} />
+        <DeepInsightCard
+          item={item}
+          authenticated={authenticated}
+          returnToPath={returnToPath}
+        />
         <Meta item={item} />
       </article>
     );
@@ -70,16 +122,37 @@ export default async function ItemPage({
         <Hairline />
       </header>
 
-      {item.zh_summary && (
-        <p className="font-sans text-[18px] leading-[1.6] text-ink">
-          {item.zh_summary}
-        </p>
-      )}
-
-      {item.summary && (
-        <p className="whitespace-pre-line font-serif text-[17px] leading-[1.7] text-ink">
-          {item.summary}
-        </p>
+      {authenticated ? (
+        <>
+          {item.zh_summary && (
+            <p className="font-sans text-[18px] leading-[1.6] text-ink">
+              {item.zh_summary}
+            </p>
+          )}
+          {item.summary && (
+            <p className="whitespace-pre-line font-serif text-[17px] leading-[1.7] text-ink">
+              {item.summary}
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          {previewLine && (
+            <p className="font-sans text-[18px] leading-[1.6] text-ink">
+              {previewLine}
+            </p>
+          )}
+          {hasMoreBody && (
+            <p className="font-sans text-meta text-ink-soft">
+              <Link
+                href={loginHref}
+                className="text-accent underline-offset-4 hover:underline"
+              >
+                登入以閱讀完整內文
+              </Link>
+            </p>
+          )}
+        </>
       )}
 
       <Meta item={item} />

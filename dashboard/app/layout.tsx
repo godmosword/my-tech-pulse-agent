@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 import Link from "next/link";
+
+import { AuthNav } from "@/components/AuthNav";
+import { siteOrigin } from "@/lib/site-url";
+
 import "./globals.css";
 
 // Variable fonts loaded via next/font for zero CLS + automatic preloading.
@@ -20,7 +24,11 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "Tech Pulse · 科技脈搏",
+  metadataBase: new URL(siteOrigin()),
+  title: {
+    default: "Tech Pulse · 科技脈搏",
+    template: "%s · Tech Pulse",
+  },
   description:
     "Daily editorial digest of technology, capital and silicon — deep insights, curated headlines.",
 };
@@ -50,6 +58,7 @@ export default function RootLayout({
               <Link href="/archive" className="hover:text-accent">
                 Archive
               </Link>
+              <AuthNav />
             </nav>
           </header>
           <div className="h-px w-full bg-ink" />
