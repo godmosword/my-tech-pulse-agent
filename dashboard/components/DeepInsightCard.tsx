@@ -1,6 +1,13 @@
 import Link from "next/link";
 import type { RenderableItem } from "@/lib/types";
+import { publicSummaryLine } from "@/lib/public-excerpt";
 import { Kicker } from "./Kicker";
+
+interface DeepInsightCardProps {
+  item: RenderableItem;
+  authenticated: boolean;
+  returnToPath: string;
+}
 
 /**
  * Editorial deep brief. Replaces the indigo card with:
@@ -18,9 +25,15 @@ import { Kicker } from "./Kicker";
  * relying on background tints. Three-part body uses the same serif as
  * instant cards but sits in larger leading for a reading rhythm.
  */
-export function DeepInsightCard({ item }: { item: RenderableItem }) {
+export function DeepInsightCard({
+  item,
+  authenticated,
+  returnToPath,
+}: DeepInsightCardProps) {
   const parts = splitThreePart(item.summary);
   const headline = item.title || item.entity || "Untitled";
+  const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
+  const teaser = publicSummaryLine(item);
 
   return (
     <article className="border-l-2 border-accent pl-6 py-6 space-y-5">
@@ -49,11 +62,28 @@ export function DeepInsightCard({ item }: { item: RenderableItem }) {
         </p>
       </header>
 
-      <dl className="space-y-5">
-        <Section label="核心洞見" body={parts.insight} />
-        <Section label="底層邏輯" body={parts.tech_rationale} />
-        <Section label="生態影響" body={parts.implication} />
-      </dl>
+      {authenticated ? (
+        <dl className="space-y-5">
+          <Section label="核心洞見" body={parts.insight} />
+          <Section label="底層邏輯" body={parts.tech_rationale} />
+          <Section label="生態影響" body={parts.implication} />
+        </dl>
+      ) : (
+        <div className="space-y-3">
+          {teaser && (
+            <p className="whitespace-pre-line font-serif text-[17px] leading-[1.65] text-ink">
+              {teaser}
+            </p>
+          )}
+          {(parts.insight || parts.tech_rationale || parts.implication) && (
+            <p className="font-sans text-meta text-ink-soft">
+              <Link href={loginHref} className="text-accent underline-offset-4 hover:underline">
+                登入以閱讀完整洞見
+              </Link>
+            </p>
+          )}
+        </div>
+      )}
 
       {item.source_url && (
         <a

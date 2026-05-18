@@ -1,16 +1,30 @@
+import type { Metadata } from "next";
 import { listLatestItems } from "@/lib/firestore";
 import { buildDigest } from "@/lib/digest";
+import { isPublicReadMode } from "@/lib/env-public-read";
+import { getReaderSession } from "@/lib/session";
 import { DigestHeader } from "@/components/DigestHeader";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker } from "@/components/Kicker";
 import { ThemeSection } from "@/components/ThemeSection";
 
+/** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
+export const dynamic = "force-dynamic";
+
 // ISR: pipeline runs a few times daily; rebuild on next request after 5 min.
 // /api/revalidate flushes this on-demand right after a pipeline run.
 export const revalidate = 300;
 
+export const metadata: Metadata = {
+  title: "今日",
+  description:
+    "科技脈搏每日編輯精選：深度洞見與主題分組快訊（公開摘要；完整正文可登入閱讀）。",
+};
+
 export default async function HomePage() {
+  const authenticated =
+    !isPublicReadMode() || (await getReaderSession()) !== null;
   const items = await listLatestItems({ limit: 80 });
   const view = buildDigest(items);
 
@@ -38,14 +52,24 @@ export default async function HomePage() {
           <Hairline className="mt-3" />
           <div className="divide-y divide-rule">
             {view.deepInsights.map((item) => (
-              <DeepInsightCard key={item.id} item={item} />
+              <DeepInsightCard
+                key={item.id}
+                item={item}
+                authenticated={authenticated}
+                returnToPath={`/item/${encodeURIComponent(item.id)}`}
+              />
             ))}
           </div>
         </section>
       )}
 
       {view.themes.map(({ theme, items: themeItems }) => (
-        <ThemeSection key={theme} theme={theme} items={themeItems} />
+        <ThemeSection
+          key={theme}
+          theme={theme}
+          items={themeItems}
+          authenticated={authenticated}
+        />
       ))}
     </div>
   );

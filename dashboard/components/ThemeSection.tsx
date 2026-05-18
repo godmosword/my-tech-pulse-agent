@@ -6,6 +6,7 @@ import { Kicker } from "./Kicker";
 interface Props {
   theme: string;
   items: RenderableItem[];
+  authenticated: boolean;
 }
 
 /**
@@ -14,7 +15,7 @@ interface Props {
  * carries the theme name; the kicker labels it as a section, so we don't need
  * the bracket emojis the Telegram digest uses.
  */
-export function ThemeSection({ theme, items }: Props) {
+export function ThemeSection({ theme, items, authenticated }: Props) {
   return (
     <section className="pt-10">
       <header className="mb-2 space-y-2">
@@ -26,7 +27,12 @@ export function ThemeSection({ theme, items }: Props) {
       <Hairline />
       <div className="divide-y divide-rule">
         {items.map((item) => (
-          <InstantCard key={item.id} item={item} />
+          <InstantCard
+            key={item.id}
+            item={item}
+            authenticated={authenticated}
+            returnToPath={`/item/${encodeURIComponent(item.id)}`}
+          />
         ))}
       </div>
     </section>
