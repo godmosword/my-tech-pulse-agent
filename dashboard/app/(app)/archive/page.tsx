@@ -5,6 +5,14 @@ import {
   categoryLabel,
   formatEditorialDate,
 } from "@/lib/digest";
+import {
+  applyFilters,
+  buildArchiveHref,
+  buildFacets,
+  monthLabel,
+  parseFilterState,
+} from "@/lib/archive-filters";
+import { ArchiveSidebar } from "@/components/ArchiveSidebar";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
@@ -19,19 +27,28 @@ export const metadata: Metadata = {
     "依 delivered_at 排序的科技脈搏專欄歸檔（標題公開；完整內文可登入閱讀）。",
 };
 
-const ARCHIVE_WINDOW_DAYS = 14;
+const ARCHIVE_WINDOW_DAYS = 90;
 
 type Items = Awaited<ReturnType<typeof listLatestItems>>;
 
-export default async function ArchivePage() {
+export default async function ArchivePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const state = parseFilterState(await searchParams);
   const since = new Date(Date.now() - ARCHIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-  const items = await listLatestItems({ limit: 200, since });
+  const items = await listLatestItems({ limit: 400, since });
 
-  const buckets = bucketByDay(items);
+  // Facets are built from the full window so users can pivot to any
+  // category/month even when their current filter narrows the visible set.
+  const facets = buildFacets(items);
+  const filtered = applyFilters(items, state);
+  const buckets = bucketByDay(filtered);
 
   return (
-    <div className="space-y-12 pt-2">
-      <header className="space-y-4">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-2 sm:grid-cols-[1fr_160px]">
+      <header className="space-y-4 sm:col-span-2">
         <Kicker>Archive · Last {ARCHIVE_WINDOW_DAYS} days</Kicker>
         <h1 className="font-serif text-[34px] leading-[1.1] tracking-[-0.02em] text-ink sm:text-hero">
           Today’s Paper, day by day.
@@ -40,52 +57,86 @@ export default async function ArchivePage() {
           Sorted by delivered_at · most recent first
         </p>
         <Hairline />
+        <ActiveFilters state={state} />
       </header>
 
-      {buckets.length === 0 && (
-        <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
-          No items yet.
-        </p>
-      )}
+      <div className="space-y-12">
+        {buckets.length === 0 && (
+          <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
+            {items.length === 0
+              ? "No items yet."
+              : "目前篩選沒有符合的文章。"}
+          </p>
+        )}
 
-      {buckets.map(({ dayIso, items: dayItems }) => (
-        <section key={dayIso} className="space-y-4">
-          <h2 className="font-serif text-[22px] leading-tight tracking-[-0.018em] text-ink sm:text-[26px]">
-            {formatEditorialDate(dayIso) || "Undated"}
-          </h2>
-          <Hairline />
-          <ul className="divide-y divide-rule">
-            {dayItems.map((item) => (
-              <li key={item.id} className="py-4">
-                <Link
-                  href={`/item/${encodeURIComponent(item.id)}`}
-                  className="block space-y-2 hover:[&_h3]:underline"
-                >
-                  <Kicker as="div" className="flex flex-wrap items-center">
-                    <span>{kindLabel(item.kind)}</span>
-                    {item.category && (
-                      <>
-                        <MetaDot />
-                        <span>{categoryLabel(item.category)}</span>
-                      </>
-                    )}
-                    {item.source_name && (
-                      <>
-                        <MetaDot />
-                        <span>{item.source_name}</span>
-                      </>
-                    )}
-                  </Kicker>
-                  <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
-                    {item.title || item.entity || "Untitled"}
-                  </h3>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+        {buckets.map(({ dayIso, items: dayItems }) => (
+          <section key={dayIso} className="space-y-4">
+            <h2 className="font-serif text-[22px] leading-tight tracking-[-0.018em] text-ink sm:text-[26px]">
+              {formatEditorialDate(dayIso) || "Undated"}
+            </h2>
+            <Hairline />
+            <ul className="divide-y divide-rule">
+              {dayItems.map((item) => (
+                <li key={item.id} className="py-4">
+                  <Link
+                    href={`/item/${encodeURIComponent(item.id)}`}
+                    className="block space-y-2 hover:[&_h3]:underline"
+                  >
+                    <Kicker as="div" className="flex flex-wrap items-center">
+                      <span>{kindLabel(item.kind)}</span>
+                      {item.category && (
+                        <>
+                          <MetaDot />
+                          <span>{categoryLabel(item.category)}</span>
+                        </>
+                      )}
+                      {item.source_name && (
+                        <>
+                          <MetaDot />
+                          <span>{item.source_name}</span>
+                        </>
+                      )}
+                    </Kicker>
+                    <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
+                      {item.title || item.entity || "Untitled"}
+                    </h3>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+
+      <div className="sm:sticky sm:top-8 sm:self-start">
+        <ArchiveSidebar facets={facets} state={state} />
+      </div>
     </div>
+  );
+}
+
+function ActiveFilters({
+  state,
+}: {
+  state: ReturnType<typeof parseFilterState>;
+}) {
+  if (!state.category && !state.month) return null;
+  return (
+    <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
+      <span>篩選中：</span>
+      {state.category && (
+        <span className="ml-2 text-ink">{categoryLabel(state.category)}</span>
+      )}
+      {state.month && (
+        <span className="ml-2 text-ink">{monthLabel(state.month)}</span>
+      )}
+      <Link
+        href={buildArchiveHref(state, { category: null, month: null })}
+        className="ml-3 text-ink-faint hover:text-accent"
+      >
+        清除
+      </Link>
+    </p>
   );
 }
 
