@@ -554,9 +554,10 @@ class TechPulseCrew:
             )
             if len(zh_sum) < 8:
                 zh_sum = strip_weak_summary_openers(to_traditional_zh_tw(what_happened[:200]))
-            zh_body = strip_weak_summary_openers(to_traditional_zh_tw(raw_text[:6000]))
-            if len(zh_body) < 40:
-                zh_body = zh_sum + "\n\n" + strip_weak_summary_openers(to_traditional_zh_tw(raw_text[:2000]))
+            # Mechanical character conversion is not translation; emitting it as
+            # zh_body misleads dashboard readers into thinking it's a real 繁中 譯本.
+            # The UI falls back to the English summary when zh_body is empty.
+            zh_body = None
             summaries.append(
                 ArticleSummary(
                     entity=article.source or "Unknown",
@@ -581,7 +582,7 @@ class TechPulseCrew:
                     allowed_themes=list(getattr(article, "allowed_themes", []) or []),
                     source_text=raw_text[:4000],
                     zh_summary=zh_sum or None,
-                    zh_body=zh_body or None,
+                    zh_body=zh_body,
                 )
             )
         return summaries

@@ -141,6 +141,7 @@ class ExtractorAgent:
                     title[:80],
                 )
                 return None
+            self._enforce_zh_quality(summary, title)
             summary.source_url = source_url
             summary.source_name = source_name
             logger.info(
@@ -235,10 +236,20 @@ class ExtractorAgent:
     @staticmethod
     def _has_required_fields(summary: ArticleSummary) -> bool:
         required = (summary.entity, summary.summary, summary.what_happened)
-        if not all(isinstance(value, str) and bool(value.strip()) for value in required):
-            return False
+        return all(isinstance(value, str) and bool(value.strip()) for value in required)
+
+    # zh fields are additive (PORTAL_CONTRACT.md): when the LLM under-produces them
+    # we keep the English summary and null the zh side so the dashboard falls back
+    # to English instead of dropping the article entirely.
+    @staticmethod
+    def _enforce_zh_quality(summary: ArticleSummary, title: str) -> None:
         zs = (summary.zh_summary or "").strip()
         zb = (summary.zh_body or "").strip()
-        if len(zs) < 8 or len(zb) < 40:
-            return False
-        return True
+        if len(zs) < 8:
+            if zs:
+                logger.info("zh_summary too short for '%s' (len=%d); dropping", title[:80], len(zs))
+            summary.zh_summary = None
+        if len(zb) < 40:
+            if zb:
+                logger.info("zh_body too short for '%s' (len=%d); dropping", title[:80], len(zb))
+            summary.zh_body = None
