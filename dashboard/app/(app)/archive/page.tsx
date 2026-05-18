@@ -4,7 +4,6 @@ import { listLatestItems } from "@/lib/firestore";
 import {
   categoryLabel,
   formatEditorialDate,
-  formatScore,
 } from "@/lib/digest";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
@@ -77,14 +76,9 @@ export default async function ArchivePage() {
                       </>
                     )}
                   </Kicker>
-                  <div className="flex items-baseline justify-between gap-4">
-                    <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
-                      {item.title || item.entity || "Untitled"}
-                    </h3>
-                    <span className="shrink-0 font-mono text-meta tabular-nums text-ink-soft">
-                      {item.score > 0 ? formatScore(item.score) : "—"}
-                    </span>
-                  </div>
+                  <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
+                    {item.title || item.entity || "Untitled"}
+                  </h3>
                 </Link>
               </li>
             ))}

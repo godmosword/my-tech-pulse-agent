@@ -31,7 +31,7 @@ export default async function LoginPage({
   const err = sp.error === "1";
 
   return (
-    <div className="mx-auto max-w-md space-y-8 pt-4">
+    <div className="space-y-8">
       <header className="space-y-2">
         <h1 className="font-serif text-[28px] tracking-[-0.02em] text-ink">讀者登入</h1>
         <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">

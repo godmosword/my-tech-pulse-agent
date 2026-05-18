@@ -17,6 +17,8 @@
 | `summary` | string | ✅ | Gemini 生成的 1–3 句摘要（或 deep brief 合併正文，見 alias） |
 | `source_url` | string | ✅ | 原文 URL（Portal 強制顯示；earnings 列可能為空字串） |
 | `source_name` | string | ✅ | 來源域名（如 `techcrunch.com`） |
+| `zh_summary` | string | ❌ | 繁中兩句導讀（additive；舊稿可能為空） |
+| `zh_body` | string | ❌ | 繁中全文譯寫／深度稿正文載體（additive） |
 | `published_at` | timestamp | ✅ | 文章發佈時間（UTC）；deep brief／earnings 列可能為 null，Portal 應容錯 |
 | `themes` | string[] | ✅ | 主題標籤（如 `["AI", "Semis"]`）；見 alias — pipeline 目前未寫入陣列 |
 | `confidence` | float | ✅ | 信心相關數值語意；見 alias — 實體為 `score` 等，非 0.0–1.0 機率欄 |
@@ -40,6 +42,8 @@ tech-pulse 寫入的 document **body** 鍵（見 `FirestoreMemoryService.archive
 | `delivered_at` | 對應合約 `delivered_at` |
 | `category` | **對應合約 `pillar` 的實體載體**，語意依 `kind` 而變：`instant_summary` 為 extractor 類別（如 `product_launch`、`funding`、`research`、`other` 等）；`deep_brief` 為 `ai` / `semiconductor` / `crypto` / `other`；`earnings` 為字串 `earnings`。與合約表列 `AI`/`Semis`/`Macro` 等 **非一對一**，由 Portal 自行映射或顯示 raw 值 |
 | `entity` | 額外欄位；instant 為實體名，deep 常為 title |
+| `zh_summary` | （additive）繁中導讀；dashboard 公開層與 Portal 可讀 |
+| `zh_body` | （additive）繁中全文譯；`deep_brief` 時通常與 `summary` 同步之正文 |
 | `score` | **對應合約 `confidence` 的數值載體之一**：Flash 文章分數（約 0–10 量級，見 scorer），**不是** 0.0–1.0 的 Gemini 機率 |
 | `score_status` | 字串（如 `ok`、`fallback`）；deep／earnings 上可承載 `high`/`medium`/`low` 類語意，與數值 `score` 並存 |
 | `kind` | `instant_summary` \| `deep_brief` \| `earnings`；Portal 可依此區分深度稿與快訊 |

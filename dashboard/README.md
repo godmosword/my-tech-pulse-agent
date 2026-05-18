@@ -16,7 +16,7 @@ renders three views:
 
 - **匿名訪客**：可看標題與公開摘要（`zh_summary` 優先，否則截斷英文）；`sitemap.xml` /
   `robots.txt` 與每頁 `metadata` 僅使用摘要層級，不把完整 `summary` 放進 HTML。
-- **完整正文**：使用 `/login` 表單登入；帳密與 `DASHBOARD_BASIC_AUTH_USER` /
+- **完整繁中正文**：登入後讀取 Firestore `zh_body`（pipeline 寫入）；舊稿可能僅有英文 `summary`，Dashboard 會 fallback。帳密與 `DASHBOARD_BASIC_AUTH_USER` /
   `DASHBOARD_BASIC_AUTH_PASS` 相同；登入後寫入簽名 cookie（需
   `DASHBOARD_SESSION_SECRET`，建議至少 32 字元）。
 - **Middleware**：公開讀模式下 **不再** 對全站套用 HTTP Basic（避免與 SEO 衝突）。
@@ -46,11 +46,13 @@ is enabled.
 
 ```
 dashboard/
-├─ app/                 # Next.js App Router pages
-│  ├─ page.tsx          # latest digest (ISR 5min)
-│  ├─ archive/page.tsx  # 14-day timeline
-│  ├─ item/[id]/page.tsx
-│  ├─ login/page.tsx     # reader login (public read mode)
+├─ app/
+│  ├─ layout.tsx         # 根：字型 + globals（無主站導覽）
+│  ├─ (app)/layout.tsx   # 主站 shell：Today / Archive / AuthNav
+│  ├─ (app)/page.tsx
+│  ├─ (app)/archive/page.tsx
+│  ├─ (app)/item/[id]/page.tsx
+│  ├─ (auth)/login/      # 獨立登入版面（無主站導覽）
 │  ├─ sitemap.ts / robots.ts
 │  ├─ api/revalidate/   # webhook for the pipeline to flush ISR
 │  └─ api/auth/         # reader login + logout (public read mode)

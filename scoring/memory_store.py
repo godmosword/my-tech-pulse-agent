@@ -176,6 +176,7 @@ class FirestoreMemoryService:
                 # cards without re-translating at read time. Empty string when
                 # the source language is already zh-TW or the LLM skipped it.
                 "zh_summary": (getattr(summary, "zh_summary", "") or "").strip(),
+                "zh_body": (getattr(summary, "zh_body", "") or "").strip(),
                 "source_url": summary.source_url,
                 "source_name": summary.source_name,
                 "published_at": _parse_datetime(getattr(summary, "published_at", "")),
@@ -198,10 +199,13 @@ class FirestoreMemoryService:
             return
 
         item_id = _item_id(brief.url or brief.item_id or brief.title)
+        zh_summary = (brief.insight or "").strip()
         payload = {
             "item_id": item_id,
             "title": brief.title,
             "summary": text,
+            "zh_summary": zh_summary[:500] if zh_summary else "",
+            "zh_body": text,
             "source_url": brief.url,
             "source_name": brief.source_name,
             "published_at": None,
@@ -224,10 +228,13 @@ class FirestoreMemoryService:
             return
 
         item_id = _item_id(f"earnings:{earnings.company}:{earnings.quarter}:{earnings.source}")
+        zh_sum, zh_body = _earnings_zh_fields(earnings)
         payload = {
             "item_id": item_id,
             "title": f"{earnings.company} {earnings.quarter}",
             "summary": text,
+            "zh_summary": zh_sum,
+            "zh_body": zh_body,
             "source_url": "",
             "source_name": earnings.source,
             "published_at": None,
@@ -333,6 +340,33 @@ def _summary_text(summary: ArticleSummary) -> str:
     if fact:
         return fact
     return (summary.summary or "").strip()
+
+
+def _earnings_zh_fields(earnings: EarningsOutput) -> tuple[str, str]:
+    """繁中摘要 + 全文（模板化，無額外 LLM）。"""
+    headline = f"{earnings.company} {earnings.quarter} 財報重點"
+    lines: list[str] = [
+        f"【{earnings.company} · {earnings.quarter}】",
+        f"資料來源：{earnings.source}。",
+    ]
+    if earnings.revenue.actual is not None:
+        lines.append(f"營收（實績）：{earnings.revenue.actual}")
+    if earnings.revenue.estimate is not None:
+        lines.append(f"營收（預估）：{earnings.revenue.estimate}")
+    if earnings.revenue.beat_pct is not None:
+        lines.append(f"營收相對預估：{earnings.revenue.beat_pct}%")
+    if earnings.eps.actual is not None:
+        lines.append(f"每股盈餘（實績）：{earnings.eps.actual}")
+    if earnings.eps.estimate is not None:
+        lines.append(f"每股盈餘（預估）：{earnings.eps.estimate}")
+    if earnings.guidance_next_q is not None:
+        lines.append(f"下季／下期指引相關數值：{earnings.guidance_next_q}")
+    for q in earnings.key_quotes[:3]:
+        q = (q or "").strip()
+        if q:
+            lines.append(f"原文摘錄：{q}")
+    body = "\n".join(lines)
+    return headline, body
 
 
 def _earnings_text(earnings: EarningsOutput) -> str:

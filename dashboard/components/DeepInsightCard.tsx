@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { RenderableItem } from "@/lib/types";
 import { publicSummaryLine } from "@/lib/public-excerpt";
+import {
+  authenticatedPrimaryBody,
+  hasGatedLongContent,
+} from "@/lib/zh-content";
 import { Kicker } from "./Kicker";
 
 interface DeepInsightCardProps {
@@ -14,16 +18,7 @@ interface DeepInsightCardProps {
  *
  *   ▍ DEEP INSIGHT · CATEGORY
  *   Headline in serif
- *   ── 核心洞見 ─────────────────
- *   body…
- *   ── 底層邏輯 ─────────────────
- *   body…
- *   ── 生態影響 ─────────────────
- *   body…
- *
- * The left rule (2px oxblood) marks the section as "long form" without
- * relying on background tints. Three-part body uses the same serif as
- * instant cards but sits in larger leading for a reading rhythm.
+ *   繁中導讀 +（登入後）完整洞見正文
  */
 export function DeepInsightCard({
   item,
@@ -34,6 +29,8 @@ export function DeepInsightCard({
   const headline = item.title || item.entity || "Untitled";
   const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
   const teaser = publicSummaryLine(item);
+  const bodyZh = authenticatedPrimaryBody(item);
+  const useFlatZhBody = Boolean(item.zh_body?.trim());
 
   return (
     <article className="border-l-2 border-accent pl-6 py-6 space-y-5">
@@ -63,11 +60,24 @@ export function DeepInsightCard({
       </header>
 
       {authenticated ? (
-        <dl className="space-y-5">
-          <Section label="核心洞見" body={parts.insight} />
-          <Section label="底層邏輯" body={parts.tech_rationale} />
-          <Section label="生態影響" body={parts.implication} />
-        </dl>
+        useFlatZhBody ? (
+          <div className="space-y-4">
+            {item.zh_summary?.trim() && (
+              <p className="font-sans text-dek text-ink">{item.zh_summary}</p>
+            )}
+            {bodyZh && (
+              <p className="whitespace-pre-line font-serif text-[17px] leading-[1.65] text-ink">
+                {bodyZh}
+              </p>
+            )}
+          </div>
+        ) : (
+          <dl className="space-y-5">
+            <Section label="核心洞見" body={parts.insight} />
+            <Section label="底層邏輯" body={parts.tech_rationale} />
+            <Section label="生態影響" body={parts.implication} />
+          </dl>
+        )
       ) : (
         <div className="space-y-3">
           {teaser && (
@@ -75,7 +85,7 @@ export function DeepInsightCard({
               {teaser}
             </p>
           )}
-          {(parts.insight || parts.tech_rationale || parts.implication) && (
+          {hasGatedLongContent(item) && (
             <p className="font-sans text-meta text-ink-soft">
               <Link href={loginHref} className="text-accent underline-offset-4 hover:underline">
                 登入以閱讀完整洞見
