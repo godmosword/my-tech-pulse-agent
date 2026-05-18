@@ -28,6 +28,18 @@ export const metadata: Metadata = {
     "Daily editorial digest of technology, capital and silicon — deep insights, curated headlines.",
 };
 
+// Runs synchronously in <head> before the first paint so the manual theme
+// choice is applied without a flash. `data-theme="light|dark"` forces the
+// palette in globals.css; absence falls back to prefers-color-scheme.
+const themeBootstrap = `
+try {
+  var v = localStorage.getItem("tech-pulse-theme");
+  if (v === "light" || v === "dark") {
+    document.documentElement.setAttribute("data-theme", v);
+  }
+} catch (_) {}
+`.trim();
+
 export default function RootLayout({
   children,
 }: {
@@ -35,6 +47,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW" className={`${inter.variable} ${sourceSerif.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body className="font-sans">{children}</body>
     </html>
   );

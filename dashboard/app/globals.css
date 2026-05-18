@@ -20,8 +20,12 @@
   --color-accent: #8b3a2f;     /* oxblood — used for kickers / pull-quotes */
 }
 
+/* System dark — only applies when the user hasn't picked a manual mode.
+ * `:root:not([data-theme])` lets layout.tsx's no-FOUC script flip the page
+ * to forced light / forced dark by setting `data-theme="light|dark"` on <html>
+ * before the first paint. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-paper: #16120e;
     --color-paper-tint: #1f1a14;
     --color-ink: #efe8db;
@@ -30,6 +34,24 @@
     --color-rule: #3a3329;
     --color-accent: #c97a6d;
   }
+}
+
+/* Manual dark — wins regardless of system preference. */
+:root[data-theme="dark"] {
+  --color-paper: #16120e;
+  --color-paper-tint: #1f1a14;
+  --color-ink: #efe8db;
+  --color-ink-soft: #aa9d8c;
+  --color-ink-faint: #7d7264;
+  --color-rule: #3a3329;
+  --color-accent: #c97a6d;
+}
+
+/* Manual light — explicit reset for users on a dark-by-system OS who want
+ * a paper surface. The default light values in :root above already apply
+ * here; this empty rule is a no-op left for clarity if values diverge. */
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 html {

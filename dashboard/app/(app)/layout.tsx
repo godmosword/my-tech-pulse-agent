@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AuthNav } from "@/components/AuthNav";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function AppChromeLayout({
   children,
@@ -9,7 +10,7 @@ export default function AppChromeLayout({
 }) {
   return (
     <div className="mx-auto max-w-2xl px-5 pb-20 pt-8 sm:px-8 sm:pt-12">
-      <header className="flex items-baseline justify-between gap-4 pb-6">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-3 pb-6">
         <Link href="/" className="block">
           <span className="font-serif text-[26px] font-semibold tracking-[-0.02em] text-ink sm:text-[32px]">
             Tech Pulse
@@ -18,7 +19,7 @@ export default function AppChromeLayout({
             科技脈搏
           </span>
         </Link>
-        <nav className="flex items-center gap-5 font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
           <Link href="/" className="hover:text-accent">
             Today
           </Link>
@@ -26,6 +27,7 @@ export default function AppChromeLayout({
             Archive
           </Link>
           <AuthNav />
+          <ThemeToggle />
         </nav>
       </header>
       <div className="h-px w-full bg-ink" />
