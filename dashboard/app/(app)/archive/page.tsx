@@ -8,11 +8,9 @@ import {
 import {
   applyFilters,
   buildArchiveHref,
-  buildFacets,
   monthLabel,
   parseFilterState,
 } from "@/lib/archive-filters";
-import { ArchiveSidebar } from "@/components/ArchiveSidebar";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
@@ -40,15 +38,12 @@ export default async function ArchivePage({
   const since = new Date(Date.now() - ARCHIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const items = await listLatestItems({ limit: 400, since });
 
-  // Facets are built from the full window so users can pivot to any
-  // category/month even when their current filter narrows the visible set.
-  const facets = buildFacets(items);
   const filtered = applyFilters(items, state);
   const buckets = bucketByDay(filtered);
 
   return (
-    <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-2 sm:grid-cols-[1fr_160px]">
-      <header className="space-y-4 sm:col-span-2">
+    <div className="pt-2">
+      <header className="space-y-4">
         <Kicker>Archive · Last {ARCHIVE_WINDOW_DAYS} days</Kicker>
         <h1 className="font-serif text-[34px] leading-[1.1] tracking-[-0.02em] text-ink sm:text-hero">
           Today’s Paper, day by day.
@@ -60,7 +55,7 @@ export default async function ArchivePage({
         <ActiveFilters state={state} />
       </header>
 
-      <div className="space-y-12">
+      <div className="mt-10 space-y-12">
         {buckets.length === 0 && (
           <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
             {items.length === 0
@@ -106,10 +101,6 @@ export default async function ArchivePage({
             </ul>
           </section>
         ))}
-      </div>
-
-      <div className="sm:sticky sm:top-8 sm:self-start">
-        <ArchiveSidebar facets={facets} state={state} />
       </div>
     </div>
   );
