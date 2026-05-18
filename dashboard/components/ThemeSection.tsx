@@ -1,7 +1,10 @@
+import Link from "next/link";
+
 import type { RenderableItem } from "@/lib/types";
+import { formatMetaDate } from "@/lib/digest";
+
 import { Hairline } from "./Hairline";
-import { InstantCard } from "./InstantCard";
-import { Kicker } from "./Kicker";
+import { Kicker, MetaDot } from "./Kicker";
 
 interface Props {
   theme: string;
@@ -10,12 +13,12 @@ interface Props {
 }
 
 /**
- * Editorial section: a kicker label + serif h2 above a stack of items, with
- * hairline rules between items rather than card boxes. The section header
- * carries the theme name; the kicker labels it as a section, so we don't need
- * the bracket emojis the Telegram digest uses.
+ * Editorial section: kicker + serif h2, then a bilingual title list.
+ * Each row shows source/date kicker, the English headline, and (when present)
+ * the zh_summary directly underneath as a Chinese "對照" line. Tapping the
+ * headline goes to the item detail page for the full read.
  */
-export function ThemeSection({ theme, items, authenticated }: Props) {
+export function ThemeSection({ theme, items }: Props) {
   return (
     <section className="pt-10">
       <header className="mb-2 space-y-2">
@@ -25,16 +28,36 @@ export function ThemeSection({ theme, items, authenticated }: Props) {
         </h2>
       </header>
       <Hairline />
-      <div className="divide-y divide-rule">
+      <ul className="divide-y divide-rule">
         {items.map((item) => (
-          <InstantCard
-            key={item.id}
-            item={item}
-            authenticated={authenticated}
-            returnToPath={`/item/${encodeURIComponent(item.id)}`}
-          />
+          <li key={item.id} className="py-4">
+            <Link
+              href={`/item/${encodeURIComponent(item.id)}`}
+              className="block space-y-2 hover:[&_h3]:underline"
+            >
+              <Kicker as="div" className="flex flex-wrap items-center">
+                {item.source_name && <span>{item.source_name}</span>}
+                {formatMetaDate(item.published_at_iso || item.delivered_at_iso) && (
+                  <>
+                    {item.source_name && <MetaDot />}
+                    <span>
+                      {formatMetaDate(item.published_at_iso || item.delivered_at_iso)}
+                    </span>
+                  </>
+                )}
+              </Kicker>
+              <h3 className="font-serif text-[19px] leading-snug tracking-[-0.015em] text-ink sm:text-[21px]">
+                {item.title || item.entity || "Untitled"}
+              </h3>
+              {item.zh_summary?.trim() && (
+                <p className="font-sans text-[15px] leading-snug text-ink-soft">
+                  {item.zh_summary}
+                </p>
+              )}
+            </Link>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }

@@ -10,10 +10,7 @@ import {
 import { isPublicReadMode } from "@/lib/env-public-read";
 import { publicSummaryLine } from "@/lib/public-excerpt";
 import { getReaderSession } from "@/lib/session";
-import {
-  authenticatedPrimaryBody,
-  hasGatedLongContent,
-} from "@/lib/zh-content";
+import { hasGatedLongContent } from "@/lib/zh-content";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
@@ -114,24 +111,28 @@ export default async function ItemPage({
       {authenticated ? (
         <>
           {item.zh_summary?.trim() && (
-            <p className="font-sans text-[18px] leading-[1.6] text-ink">
-              {item.zh_summary}
-            </p>
+            <div className="space-y-2">
+              <Kicker>導讀</Kicker>
+              <p className="font-sans text-[18px] leading-[1.6] text-ink">
+                {item.zh_summary}
+              </p>
+            </div>
           )}
-          {authenticatedPrimaryBody(item) && (
-            <p className="whitespace-pre-line font-serif text-[17px] leading-[1.7] text-ink">
-              {authenticatedPrimaryBody(item)}
-            </p>
+          {item.zh_body?.trim() && (
+            <div className="space-y-2">
+              <Kicker>中文全文</Kicker>
+              <p className="whitespace-pre-line font-serif text-[17px] leading-[1.7] text-ink">
+                {item.zh_body}
+              </p>
+            </div>
           )}
-          {item.zh_body?.trim() && item.summary?.trim() && (
-            <details className="font-sans text-meta text-ink-soft">
-              <summary className="cursor-pointer text-accent underline-offset-4 hover:underline">
-                英文原文摘要
-              </summary>
-              <p className="mt-2 whitespace-pre-line text-body text-ink-soft">
+          {item.summary?.trim() && (
+            <div className="space-y-2 border-t border-rule pt-6">
+              <Kicker>English summary</Kicker>
+              <p className="whitespace-pre-line font-sans text-[16px] leading-[1.65] text-ink-soft">
                 {item.summary}
               </p>
-            </details>
+            </div>
           )}
         </>
       ) : (
@@ -161,9 +162,9 @@ export default async function ItemPage({
 
 function Meta({ item }: { item: Awaited<ReturnType<typeof getItemById>> }) {
   if (!item) return null;
-  const rows: Array<{ label: string; value: string; mono?: boolean }> = [
-    { label: "Kind", value: item.kind, mono: true },
-    { label: "Category", value: item.category || "—", mono: true },
+  const rows: Array<{ label: string; value: string }> = [
+    { label: "Kind", value: kindLabel(item.kind) },
+    { label: "Category", value: item.category ? categoryLabel(item.category) : "—" },
     { label: "Entity", value: item.entity || "—" },
     { label: "Source", value: item.source_name || "—" },
     {
@@ -180,8 +181,8 @@ function Meta({ item }: { item: Awaited<ReturnType<typeof getItemById>> }) {
     <section className="space-y-4 border-t border-rule pt-6">
       <Kicker>Provenance</Kicker>
       <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-        {rows.map(({ label, value, mono }) => (
-          <Row key={label} label={label} value={value} mono={mono} />
+        {rows.map(({ label, value }) => (
+          <Row key={label} label={label} value={value} />
         ))}
       </dl>
       {item.source_url ? (
@@ -194,7 +195,7 @@ function Meta({ item }: { item: Awaited<ReturnType<typeof getItemById>> }) {
               href={item.source_url}
               target="_blank"
               rel="noreferrer"
-              className="break-all font-sans text-meta text-accent underline-offset-4 hover:underline"
+              className="break-all font-sans text-body text-accent underline-offset-4 hover:underline"
             >
               {item.source_url}
             </a>
@@ -205,25 +206,24 @@ function Meta({ item }: { item: Awaited<ReturnType<typeof getItemById>> }) {
   );
 }
 
-function Row({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
+function kindLabel(kind: "instant_summary" | "deep_brief" | "earnings"): string {
+  switch (kind) {
+    case "deep_brief":
+      return "Deep Insight";
+    case "earnings":
+      return "Earnings";
+    default:
+      return "Dispatch";
+  }
+}
+
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
         {label}
       </dt>
-      <dd
-        className={`mt-1 ${mono ? "font-mono text-meta text-ink" : "font-sans text-body text-ink"}`}
-      >
-        {value}
-      </dd>
+      <dd className="mt-1 font-sans text-body text-ink">{value}</dd>
     </div>
   );
 }
