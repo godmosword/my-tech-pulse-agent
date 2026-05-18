@@ -16,4 +16,4 @@ def test_extractor_prompt_zh_summary_requires_specific_entity():
     assert "實用見解" in text
     assert "重要討論" in text
     # Must allow null when source is too thin
-    assert "set zh_summary to null" in text
+    assert "set BOTH zh_summary and zh_body to null" in text
