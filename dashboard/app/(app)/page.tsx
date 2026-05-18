@@ -43,7 +43,6 @@ export default async function HomePage() {
       <DigestHeader
         latestDeliveredIso={latestDelivered}
         totalShown={view.totalShown}
-        averageScore={view.averageScore}
       />
 
       {view.deepInsights.length > 0 && (

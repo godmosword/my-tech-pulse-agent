@@ -9,6 +9,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
+from llm.localization import strip_weak_summary_openers, to_traditional_zh_tw
 
 logger = logging.getLogger(__name__)
 
@@ -58,15 +59,21 @@ Quality gate (CRITICAL — set confidence="low" and why_it_matters="" if ANY app
 - key_facts cannot include at least 1 specific number, company name, or product version pulled directly from the article body (not the title alone).
 - Title contains any of: "roundup", "wisdom", "best of", "this week in", "what we learned", "what we're reading".
 
-Additionally, generate a Traditional Chinese summary for this article:
+Additionally, generate Traditional Chinese reader-facing copy:
 - Field name: zh_summary
 - Exactly 2 sentences in Traditional Chinese (繁體中文)
 - Sentence 1: Explain WHAT was achieved and WHY it is technically significant. MUST cite at least one specific entity, number, or product mentioned in the article body — not generic phrases like "實用見解" or "重要討論".
 - Sentence 2: Explain the practical implication for engineers or investors
 - Each sentence must be under 60 Chinese characters
-- If the article lacks concrete facts (e.g. it is a roundup or pure opinion), set zh_summary to null instead of inventing content.
+- If the article lacks concrete facts (e.g. it is a roundup or pure opinion), set BOTH zh_summary and zh_body to null (do not invent).
 - Do NOT translate the title; write naturally as a tech editor would
-- Example format: {{ "zh_summary": "第一句。第二句。" }}
+
+- Field name: zh_body
+- Full Traditional Chinese translation of the article's factual narrative for a professional reader.
+- Translate and weave together: what_happened, why_it_matters (if non-empty), and the most important key_facts (do not omit contradictory facts when present).
+- Use 2–5 short paragraphs separated by a single blank line (\\n\\n). Total roughly 350–900 Chinese characters unless the source is very thin.
+- Preserve English product names, tickers, units, and URLs when translation would reduce precision.
+- Must not introduce facts absent from the English fields above.
 
 Article title: {title}
 Article source: {source}
@@ -100,6 +107,7 @@ class ArticleSummary(BaseModel):
     semantic_distance: Optional[float] = None
     source_text: str = Field(default="", exclude=True)  # raw article text for reviewer; not serialized
     zh_summary: Optional[str] = None  # 繁體中文導讀，2句，由 LLM 生成
+    zh_body: Optional[str] = None  # 繁體中文全文譯寫
     allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
 
 
@@ -120,12 +128,13 @@ class ExtractorAgent:
             data, raw = generate_json(
                 self._gemini_client,
                 model=MODEL,
-                max_output_tokens=2048,
+                max_output_tokens=4096,
                 system_instruction=SYSTEM_PROMPT,
                 prompt=prompt,
                 response_schema=ArticleSummary,
             )
             summary = ArticleSummary(**data)
+            self._normalize_zh_fields(summary)
             if not self._has_required_fields(summary):
                 logger.warning(
                     "Extractor returned incomplete JSON for '%s' | missing_required_field",
@@ -152,7 +161,7 @@ class ExtractorAgent:
 
     def extract_batch(self, articles: list[dict]) -> list[ArticleSummary]:
         results = []
-        max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "8"))
+        max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "12"))
         candidates = articles[:max_articles]
         if len(articles) > len(candidates):
             logger.info(
@@ -217,6 +226,19 @@ class ExtractorAgent:
         summary.cross_ref = any(re.search(p, corpus) for p in investment_signals)
 
     @staticmethod
+    def _normalize_zh_fields(summary: ArticleSummary) -> None:
+        for field in ("zh_summary", "zh_body"):
+            raw = getattr(summary, field, None) or ""
+            cleaned = strip_weak_summary_openers(to_traditional_zh_tw(str(raw).strip()))
+            setattr(summary, field, cleaned or None)
+
+    @staticmethod
     def _has_required_fields(summary: ArticleSummary) -> bool:
         required = (summary.entity, summary.summary, summary.what_happened)
-        return all(isinstance(value, str) and bool(value.strip()) for value in required)
+        if not all(isinstance(value, str) and bool(value.strip()) for value in required):
+            return False
+        zs = (summary.zh_summary or "").strip()
+        zb = (summary.zh_body or "").strip()
+        if len(zs) < 8 or len(zb) < 40:
+            return False
+        return True

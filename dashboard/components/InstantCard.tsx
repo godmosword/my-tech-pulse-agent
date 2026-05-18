@@ -2,11 +2,13 @@ import Link from "next/link";
 import {
   categoryLabel,
   formatMetaDate,
-  formatScore,
 } from "@/lib/digest";
-import { englishExcerpt, publicSummaryLine } from "@/lib/public-excerpt";
+import { publicSummaryLine } from "@/lib/public-excerpt";
+import {
+  authenticatedPrimaryBody,
+  hasGatedLongContent,
+} from "@/lib/zh-content";
 import type { RenderableItem } from "@/lib/types";
-import { ConfidenceBadge } from "./ConfidenceBadge";
 import { Kicker, MetaDot } from "./Kicker";
 
 interface InstantCardProps {
@@ -22,9 +24,7 @@ interface InstantCardProps {
  *
  *   KICKER (category · source · date)
  *   Headline in serif
- *   💡 Chinese dek — the hero translation
- *   English summary in muted body
- *   confidence small caps                              7.6 / 10
+ *   繁中導讀 +（登入後）完整中譯正文
  *
  * The hairline between entries is owned by ThemeSection, not this component,
  * so groups of items share one rhythm without doubled rules.
@@ -34,10 +34,6 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
   const meta = formatMetaDate(item.published_at_iso || item.delivered_at_iso);
   const cat = categoryLabel(item.category);
   const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
-  const hasMoreBody =
-    Boolean(item.summary?.trim()) &&
-    (item.summary.length > englishExcerpt(item.summary).length ||
-      (Boolean(item.zh_summary?.trim()) && Boolean(item.summary?.trim())));
   const previewLine = publicSummaryLine(item);
 
   return (
@@ -69,10 +65,20 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
           {item.zh_summary && (
             <p className="font-sans text-dek text-ink">{item.zh_summary}</p>
           )}
-          {item.summary && (
-            <p className="whitespace-pre-line font-sans text-body text-ink-soft">
-              {item.summary}
+          {authenticatedPrimaryBody(item) && (
+            <p className="whitespace-pre-line font-serif text-[17px] leading-[1.65] text-ink">
+              {authenticatedPrimaryBody(item)}
             </p>
+          )}
+          {item.zh_body?.trim() && item.summary?.trim() && (
+            <details className="font-sans text-meta text-ink-soft">
+              <summary className="cursor-pointer text-accent underline-offset-4 hover:underline">
+                英文原文摘要
+              </summary>
+              <p className="mt-2 whitespace-pre-line text-body text-ink-soft">
+                {item.summary}
+              </p>
+            </details>
           )}
         </>
       ) : (
@@ -80,10 +86,10 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
           {previewLine && (
             <p className="font-sans text-dek text-ink">{previewLine}</p>
           )}
-          {hasMoreBody && (
+          {hasGatedLongContent(item) && (
             <p className="font-sans text-meta text-ink-soft">
               <Link href={loginHref} className="text-accent underline-offset-4 hover:underline">
-                登入以閱讀完整內文
+                登入以閱讀完整中文全文
               </Link>
             </p>
           )}
@@ -92,7 +98,6 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
 
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pt-1">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <ConfidenceBadge item={item} />
           {item.source_url && (
             <a
               href={item.source_url}
@@ -104,9 +109,6 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
             </a>
           )}
         </div>
-        <span className="font-mono text-meta tabular-nums text-ink-soft">
-          {item.score > 0 ? `${formatScore(item.score)} / 10` : "—"}
-        </span>
       </div>
     </article>
   );

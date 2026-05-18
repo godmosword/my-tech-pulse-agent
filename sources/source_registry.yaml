@@ -44,6 +44,60 @@ sources:
     enabled: true
     weight: 1.0
 
+  - name: coindesk_rss
+    url: https://www.coindesk.com/arc/outboundfeeds/rss/
+    priority: 6
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: decrypt_rss
+    url: https://decrypt.co/feed
+    priority: 7
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: theblock_rss
+    url: https://www.theblock.co/rss.xml
+    priority: 8
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: anandtech_rss
+    url: https://www.anandtech.com/rss/
+    priority: 9
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: ieee_spectrum_rss
+    url: https://spectrum.ieee.org/rss/blog/feed/fulltext
+    priority: 10
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: theregister_rss
+    url: https://www.theregister.com/headlines.atom
+    priority: 11
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
   - name: sec_edgar_rss
     # startdt is injected dynamically (rolling 7-day window) by earnings_fetcher.py
     url: https://efts.sec.gov/LATEST/search-index?q=%228-K%22&dateRange=custom&forms=8-K

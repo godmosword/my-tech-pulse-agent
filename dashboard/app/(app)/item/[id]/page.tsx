@@ -6,12 +6,14 @@ import {
   categoryLabel,
   formatEditorialDate,
   formatMetaDate,
-  formatScore,
 } from "@/lib/digest";
 import { isPublicReadMode } from "@/lib/env-public-read";
-import { englishExcerpt, publicSummaryLine } from "@/lib/public-excerpt";
+import { publicSummaryLine } from "@/lib/public-excerpt";
 import { getReaderSession } from "@/lib/session";
-import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import {
+  authenticatedPrimaryBody,
+  hasGatedLongContent,
+} from "@/lib/zh-content";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
@@ -64,10 +66,6 @@ export default async function ItemPage({
     !isPublicReadMode() || (await getReaderSession()) !== null;
   const returnToPath = `/item/${encodeURIComponent(decodedId)}`;
   const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
-  const hasMoreBody =
-    Boolean(item.summary?.trim()) &&
-    (item.summary.length > englishExcerpt(item.summary).length ||
-      (Boolean(item.zh_summary?.trim()) && Boolean(item.summary?.trim())));
   const previewLine = publicSummaryLine(item);
 
   if (item.kind === "deep_brief") {
@@ -110,29 +108,30 @@ export default async function ItemPage({
         <h1 className="font-serif text-[34px] leading-[1.12] tracking-[-0.02em] text-ink sm:text-hero">
           {headline}
         </h1>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <ConfidenceBadge item={item} />
-          <span aria-hidden className="text-ink-faint">
-            ·
-          </span>
-          <span className="font-mono text-meta tabular-nums text-ink-soft">
-            {item.score > 0 ? `${formatScore(item.score)} / 10` : "—"}
-          </span>
-        </div>
         <Hairline />
       </header>
 
       {authenticated ? (
         <>
-          {item.zh_summary && (
+          {item.zh_summary?.trim() && (
             <p className="font-sans text-[18px] leading-[1.6] text-ink">
               {item.zh_summary}
             </p>
           )}
-          {item.summary && (
+          {authenticatedPrimaryBody(item) && (
             <p className="whitespace-pre-line font-serif text-[17px] leading-[1.7] text-ink">
-              {item.summary}
+              {authenticatedPrimaryBody(item)}
             </p>
+          )}
+          {item.zh_body?.trim() && item.summary?.trim() && (
+            <details className="font-sans text-meta text-ink-soft">
+              <summary className="cursor-pointer text-accent underline-offset-4 hover:underline">
+                英文原文摘要
+              </summary>
+              <p className="mt-2 whitespace-pre-line text-body text-ink-soft">
+                {item.summary}
+              </p>
+            </details>
           )}
         </>
       ) : (
@@ -142,13 +141,13 @@ export default async function ItemPage({
               {previewLine}
             </p>
           )}
-          {hasMoreBody && (
+          {hasGatedLongContent(item) && (
             <p className="font-sans text-meta text-ink-soft">
               <Link
                 href={loginHref}
                 className="text-accent underline-offset-4 hover:underline"
               >
-                登入以閱讀完整內文
+                登入以閱讀完整中文全文
               </Link>
             </p>
           )}
@@ -175,7 +174,6 @@ function Meta({ item }: { item: Awaited<ReturnType<typeof getItemById>> }) {
       label: "Delivered",
       value: formatEditorialDate(item.delivered_at_iso) || "—",
     },
-    { label: "Score status", value: item.score_status, mono: true },
   ];
 
   return (

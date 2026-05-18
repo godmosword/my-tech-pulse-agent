@@ -35,6 +35,8 @@ from sources.rss_fetcher import Article, clean_feed_text
 from sources.rss_fetcher import RSSFetcher
 from sources.social_tracker import SocialTracker
 
+from llm.localization import strip_weak_summary_openers, to_traditional_zh_tw
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -47,7 +49,7 @@ PIPELINE_TIMEOUT_SECONDS = int(os.getenv("PIPELINE_TIMEOUT_SECONDS", "540"))
 MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "2"))
 MAX_DEEP_ARTICLES = int(os.getenv("MAX_DEEP_ARTICLES", "3"))
 MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
-MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "3"))
+MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "5"))
 SEMANTIC_DUP_DROP_ENABLED = os.getenv("SEMANTIC_DUP_DROP_ENABLED", "0") == "1"
 MEMORY_CONTEXT_MAX_DISTANCE = float(os.getenv("MEMORY_CONTEXT_MAX_DISTANCE", "0.35"))
 SEMANTIC_PREFILTER_ENABLED = os.getenv("SEMANTIC_PREFILTER_ENABLED", "0") == "1"
@@ -537,7 +539,7 @@ class TechPulseCrew:
         return results
 
     def _fallback_summaries(self, articles: list[Article]) -> list[ArticleSummary]:
-        max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "8"))
+        max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "12"))
         summaries: list[ArticleSummary] = []
         for article in articles[:max_articles]:
             raw_text = clean_feed_text(article.content or article.summary or "")
@@ -547,6 +549,14 @@ class TechPulseCrew:
             sentences = [s.strip() for s in raw_text.replace("。", ". ").split(". ") if s.strip()]
             what_happened = sentences[0] if sentences else raw_text
             why_it_matters = ". ".join(sentences[1:]) if len(sentences) > 1 else ""
+            zh_sum = strip_weak_summary_openers(
+                to_traditional_zh_tw((what_happened + " " + (why_it_matters or "")).strip()[:200])
+            )
+            if len(zh_sum) < 8:
+                zh_sum = strip_weak_summary_openers(to_traditional_zh_tw(what_happened[:200]))
+            zh_body = strip_weak_summary_openers(to_traditional_zh_tw(raw_text[:6000]))
+            if len(zh_body) < 40:
+                zh_body = zh_sum + "\n\n" + strip_weak_summary_openers(to_traditional_zh_tw(raw_text[:2000]))
             summaries.append(
                 ArticleSummary(
                     entity=article.source or "Unknown",
@@ -570,6 +580,8 @@ class TechPulseCrew:
                     published_at=article.published_at.isoformat() if article.published_at else "",
                     allowed_themes=list(getattr(article, "allowed_themes", []) or []),
                     source_text=raw_text[:4000],
+                    zh_summary=zh_sum or None,
+                    zh_body=zh_body or None,
                 )
             )
         return summaries
