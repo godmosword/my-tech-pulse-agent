@@ -3,7 +3,6 @@ import {
   type ArchiveFacets,
   type FilterState,
 } from "@/lib/archive-filters";
-import { type PriorityLevel } from "@/lib/types";
 
 import { ClearFiltersLink } from "./ClearFiltersLink";
 import { Kicker } from "./Kicker";
@@ -12,12 +11,6 @@ interface Props {
   facets: ArchiveFacets;
   state: FilterState;
 }
-
-const PRIORITY_ITEMS: { value: PriorityLevel; label: string }[] = [
-  { value: "high", label: "🔴 HIGH" },
-  { value: "med",  label: "🟡 MED"  },
-  { value: "low",  label: "⚪ LOW"  },
-];
 
 export function ArchiveSidebar({ facets, state }: Props) {
   return (
@@ -29,16 +22,6 @@ export function ArchiveSidebar({ facets, state }: Props) {
         activeValue={state.category}
         buildHref={(value) => buildArchiveHref(state, { category: value })}
         clearHref={buildArchiveHref(state, { category: null })}
-      />
-      <FilterGroup
-        kicker="優先程度"
-        emptyLabel=""
-        items={PRIORITY_ITEMS}
-        activeValue={state.priority}
-        buildHref={(value) =>
-          buildArchiveHref(state, { priority: value as PriorityLevel })
-        }
-        clearHref={buildArchiveHref(state, { priority: null })}
       />
       <FilterGroup
         kicker="月份"

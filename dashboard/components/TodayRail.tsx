@@ -3,10 +3,6 @@ import Link from "next/link";
 import { categoryLabel } from "@/lib/digest";
 import { buildArchiveHref } from "@/lib/archive-filters";
 import {
-  PRIORITY_DOT_CLASS,
-  PRIORITY_LABEL,
-  priorityLevel,
-  type PriorityLevel,
   type RenderableItem,
 } from "@/lib/types";
 
@@ -26,15 +22,14 @@ const CATEGORY_DOT: Record<string, string> = {
   other: "bg-ink-faint",
 };
 
-const EMPTY_FILTER = { category: null, month: null, priority: null };
+const EMPTY_FILTER = { category: null, month: null };
 
-/** Right-rail dashboard for the homepage. Aggregates today's items into three
- *  glanceable groups: category counts, top mentioned tickers, priority counts.
- *  Categories and priority rows link to /archive with the corresponding filter. */
+/** Right-rail dashboard for the homepage. Aggregates today's items into two
+ *  glanceable groups: category counts and top mentioned tickers.
+ *  Category rows link to /archive with the corresponding filter. */
 export function TodayRail({ items }: Props) {
   const categoryRows = aggregateCategories(items);
   const tickerRows = aggregateTickers(items);
-  const priorityRows = aggregatePriorities(items);
 
   return (
     <aside className="space-y-8 font-sans text-meta">
@@ -88,29 +83,6 @@ export function TodayRail({ items }: Props) {
         )}
       </Section>
 
-      <Section kicker="優先程度">
-        <ul className="space-y-1.5">
-          {priorityRows.map((row) => (
-            <li key={row.level}>
-              <Link
-                href={`/archive?priority=${row.level}`}
-                className="flex items-baseline justify-between gap-2 text-ink-soft hover:text-accent"
-              >
-                <span className="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className={`inline-block h-2 w-2 rounded-full ${PRIORITY_DOT_CLASS[row.level]}`}
-                  />
-                  <span>{PRIORITY_LABEL[row.level]}</span>
-                </span>
-                <span className="tabular-nums text-ink-faint">
-                  {row.count}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Section>
     </aside>
   );
 }
@@ -172,19 +144,3 @@ function aggregateTickers(items: RenderableItem[]): TickerRow[] {
     .slice(0, 5);
 }
 
-interface PriorityRow {
-  level: PriorityLevel;
-  count: number;
-}
-
-function aggregatePriorities(items: RenderableItem[]): PriorityRow[] {
-  const counts: Record<PriorityLevel, number> = { high: 0, med: 0, low: 0 };
-  for (const it of items) {
-    if (it.score_status === "fallback" || it.score <= 0) continue;
-    counts[priorityLevel(it.score)] += 1;
-  }
-  return (["high", "med", "low"] as const).map((level) => ({
-    level,
-    count: counts[level],
-  }));
-}
