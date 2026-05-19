@@ -15,7 +15,7 @@
   --color-paper-tint: #f3ede0; /* same hue, slightly deeper — section bands */
   --color-ink: #1a1612;        /* warm near-black — body text */
   --color-ink-soft: #5b4f44;   /* secondary copy, meta lines */
-  --color-ink-faint: #877a6b;  /* timestamps, weakest text */
+  --color-ink-faint: #786a59;  /* timestamps, weakest text — WCAG AA 4.74:1 on paper */
   --color-rule: #d9d2c5;       /* hairline dividers */
   --color-accent: #8b3a2f;     /* oxblood — used for kickers / pull-quotes */
 }
@@ -65,6 +65,23 @@ body {
   background-color: var(--color-paper);
   color: var(--color-ink);
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* CJK justification — `inter-ideograph` distributes space between ideographs
+ * rather than between words, which is what long-form 繁中 paragraphs want. */
+.text-justify-cjk {
+  text-align: justify;
+  text-justify: inter-ideograph;
+  /* Avoid breaking inside Latin words inside a CJK run. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* Reading column — clamps long-form copy to ~35–45 CJK characters per line
+ * by reusing the `column` max-width token. Applied to article bodies. */
+.reading-column {
+  @apply max-w-column;
 }
 
 /* Editorial micro-utilities used across components. */
