@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { categoryLabel } from "@/lib/digest";
+import { buildArchiveHref } from "@/lib/archive-filters";
 import {
   PRIORITY_DOT_CLASS,
   PRIORITY_LABEL,
@@ -23,8 +26,11 @@ const CATEGORY_DOT: Record<string, string> = {
   other: "bg-ink-faint",
 };
 
+const EMPTY_FILTER = { category: null, month: null, priority: null };
+
 /** Right-rail dashboard for the homepage. Aggregates today's items into three
- *  glanceable groups: category counts, top mentioned tickers, priority counts. */
+ *  glanceable groups: category counts, top mentioned tickers, priority counts.
+ *  Categories and priority rows link to /archive with the corresponding filter. */
 export function TodayRail({ items }: Props) {
   const categoryRows = aggregateCategories(items);
   const tickerRows = aggregateTickers(items);
@@ -38,22 +44,24 @@ export function TodayRail({ items }: Props) {
         ) : (
           <ul className="space-y-1.5">
             {categoryRows.map((row) => (
-              <li
-                key={row.value}
-                className="flex items-baseline justify-between gap-2 text-ink-soft"
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <span
-                    aria-hidden="true"
-                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-                      CATEGORY_DOT[row.value] ?? "bg-ink-faint"
-                    }`}
-                  />
-                  <span className="truncate">{row.label}</span>
-                </span>
-                <span className="shrink-0 tabular-nums text-ink-faint">
-                  {row.count}
-                </span>
+              <li key={row.value}>
+                <Link
+                  href={buildArchiveHref(EMPTY_FILTER, { category: row.value })}
+                  className="flex items-baseline justify-between gap-2 text-ink-soft hover:text-accent"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <span
+                      aria-hidden="true"
+                      className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                        CATEGORY_DOT[row.value] ?? "bg-ink-faint"
+                      }`}
+                    />
+                    <span className="truncate">{row.label}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-ink-faint">
+                    {row.count}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -83,20 +91,22 @@ export function TodayRail({ items }: Props) {
       <Section kicker="優先程度">
         <ul className="space-y-1.5">
           {priorityRows.map((row) => (
-            <li
-              key={row.level}
-              className="flex items-baseline justify-between gap-2 text-ink-soft"
-            >
-              <span className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className={`inline-block h-2 w-2 rounded-full ${PRIORITY_DOT_CLASS[row.level]}`}
-                />
-                <span>{PRIORITY_LABEL[row.level]}</span>
-              </span>
-              <span className="tabular-nums text-ink-faint">
-                {row.count}
-              </span>
+            <li key={row.level}>
+              <Link
+                href={`/archive?priority=${row.level}`}
+                className="flex items-baseline justify-between gap-2 text-ink-soft hover:text-accent"
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block h-2 w-2 rounded-full ${PRIORITY_DOT_CLASS[row.level]}`}
+                  />
+                  <span>{PRIORITY_LABEL[row.level]}</span>
+                </span>
+                <span className="tabular-nums text-ink-faint">
+                  {row.count}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

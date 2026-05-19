@@ -89,9 +89,9 @@ export function priorityLevel(score: number): PriorityLevel {
 }
 
 export const PRIORITY_LABEL: Record<PriorityLevel, string> = {
-  high: "HIGH",
-  med: "MED",
-  low: "LOW",
+  high: "🔴 HIGH",
+  med: "🟡 MED",
+  low: "⚪ LOW",
 };
 
 /** Tailwind dot color per priority level. */
