@@ -45,10 +45,15 @@ Fields:
 - sentiment: one of ["positive", "negative", "neutral"]
 - confidence: one of ["high", "medium", "low"]
 - cross_ref: true if this story is likely relevant to investment decisions (bool)
-- tickers: list of up to 5 stock tickers / public company symbols explicitly mentioned or directly
-  named in the article (e.g. ["NVDA", "TSM", "2330.TW"]). Uppercase only. Include an exchange suffix
-  (".TW", ".HK") only when the article specifies the local listing. Empty list when no public
-  ticker is named — do not infer parents or holding companies.
+- tickers: list of up to 5 stock tickers for publicly listed companies that are the subject of
+  this article. Include the primary US or local ticker whenever the article directly names the
+  company, even if the ticker symbol itself is not written — e.g. "Meta Platforms" → "META",
+  "NVIDIA" or "輝達" → "NVDA", "Apple" → "AAPL", "Taiwan Semiconductor" or "台積電" → "TSM",
+  "Alphabet" or "Google" → "GOOGL", "Microsoft" → "MSFT", "Amazon" → "AMZN",
+  "Tesla" → "TSLA", "Samsung" → "005930.KS", "ASML" → "ASML".
+  Uppercase only. Include an exchange suffix (".TW", ".HK") for local listings.
+  Do not infer subsidiaries or private companies. Empty list only when no clearly public
+  company is named.
 - tldr_tier: one of ["headline", "deep_dive", "tool_or_repo", "number", "standard"].
   Use "headline" for the day's top news (major announcement, earnings beat, product launch).
   Use "deep_dive" for analysis/explainer pieces with multi-step reasoning.

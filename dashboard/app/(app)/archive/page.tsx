@@ -13,7 +13,7 @@ import {
 } from "@/lib/archive-filters";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
-import { displayTitle } from "@/lib/types";
+import { displayTitle, PRIORITY_LABEL } from "@/lib/types";
 import { ClearFiltersLink } from "@/components/ClearFiltersLink";
 
 /** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
@@ -113,7 +113,7 @@ function ActiveFilters({
 }: {
   state: ReturnType<typeof parseFilterState>;
 }) {
-  if (!state.category && !state.month) return null;
+  if (!state.category && !state.month && !state.priority) return null;
   return (
     <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
       <span>篩選中：</span>
@@ -123,8 +123,11 @@ function ActiveFilters({
       {state.month && (
         <span className="ml-2 text-ink">{monthLabel(state.month)}</span>
       )}
+      {state.priority && (
+        <span className="ml-2 text-ink">{PRIORITY_LABEL[state.priority]}</span>
+      )}
       <ClearFiltersLink
-        href={buildArchiveHref(state, { category: null, month: null })}
+        href={buildArchiveHref(state, { category: null, month: null, priority: null })}
         className="ml-3 text-ink-faint hover:text-accent"
       >
         清除

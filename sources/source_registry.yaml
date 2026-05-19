@@ -98,6 +98,42 @@ sources:
     enabled: true
     weight: 1.0
 
+  - name: huggingface_blog_rss
+    url: https://huggingface.co/blog/feed.xml
+    priority: 12
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: openai_news_rss
+    url: https://openai.com/blog/rss.xml
+    priority: 13
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: reuters_tech_rss
+    url: https://feeds.reuters.com/reuters/technologyNews
+    priority: 14
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: semianalysis_rss
+    url: https://semianalysis.com/feed/
+    priority: 15
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
   - name: sec_edgar_rss
     # startdt is injected dynamically (rolling 7-day window) by earnings_fetcher.py
     url: https://efts.sec.gov/LATEST/search-index?q=%228-K%22&dateRange=custom&forms=8-K

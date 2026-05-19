@@ -1,5 +1,5 @@
 thresholds:
-  default: 7.2        # general news items (raised for higher signal)
+  default: 6.8        # general news items (lowered from 7.2 to let crypto/semi/AI signal through)
   earnings: 7.5       # stricter — financial facts require higher quality
   social_signal: 4.0  # looser — social is signal-only, not content
   kol: 5.5            # looser — older analysis pieces still carry value
@@ -22,6 +22,18 @@ source_weights:
   theverge_rss: 1.0
   ars_technica_rss: 1.05
   wired_rss: 1.0
+  # crypto sources — boosted so they can clear the default threshold
+  coindesk_rss: 1.15
+  decrypt_rss: 1.10
+  theblock_rss: 1.10
+  # semiconductor & AI analysis
+  anandtech_rss: 1.10
+  ieee_spectrum_rss: 1.05
+  semianalysis_rss: 1.15
+  huggingface_blog_rss: 1.10
+  openai_news_rss: 1.10
+  reuters_tech_rss: 1.05
+  # KOL / newsletter sources
   simon_willison: 1.05
   latent_space: 1.05
   interconnects_ai: 1.05

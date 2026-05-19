@@ -3,6 +3,7 @@ import {
   type ArchiveFacets,
   type FilterState,
 } from "@/lib/archive-filters";
+import { type PriorityLevel } from "@/lib/types";
 
 import { ClearFiltersLink } from "./ClearFiltersLink";
 import { Kicker } from "./Kicker";
@@ -12,6 +13,12 @@ interface Props {
   state: FilterState;
 }
 
+const PRIORITY_ITEMS: { value: PriorityLevel; label: string }[] = [
+  { value: "high", label: "🔴 HIGH" },
+  { value: "med",  label: "🟡 MED"  },
+  { value: "low",  label: "⚪ LOW"  },
+];
+
 export function ArchiveSidebar({ facets, state }: Props) {
   return (
     <aside className="space-y-8 font-sans text-meta">
@@ -20,10 +27,18 @@ export function ArchiveSidebar({ facets, state }: Props) {
         emptyLabel="尚無分類資料"
         items={facets.categories}
         activeValue={state.category}
-        buildHref={(value) =>
-          buildArchiveHref(state, { category: value })
-        }
+        buildHref={(value) => buildArchiveHref(state, { category: value })}
         clearHref={buildArchiveHref(state, { category: null })}
+      />
+      <FilterGroup
+        kicker="優先程度"
+        emptyLabel=""
+        items={PRIORITY_ITEMS}
+        activeValue={state.priority}
+        buildHref={(value) =>
+          buildArchiveHref(state, { priority: value as PriorityLevel })
+        }
+        clearHref={buildArchiveHref(state, { priority: null })}
       />
       <FilterGroup
         kicker="月份"
@@ -40,7 +55,7 @@ export function ArchiveSidebar({ facets, state }: Props) {
 interface FilterGroupProps {
   kicker: string;
   emptyLabel: string;
-  items: { value: string; label: string; count: number }[];
+  items: { value: string; label: string; count?: number }[];
   activeValue: string | null;
   buildHref: (value: string) => string;
   clearHref: string;
@@ -87,9 +102,11 @@ function FilterGroup({
                   }
                 >
                   <span className="truncate">{it.label}</span>
-                  <span className="shrink-0 tabular-nums text-ink-faint">
-                    {it.count}
-                  </span>
+                  {it.count !== undefined && (
+                    <span className="shrink-0 tabular-nums text-ink-faint">
+                      {it.count}
+                    </span>
+                  )}
                 </ClearFiltersLink>
               </li>
             );
