@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-19
+
+### Added
+- **Dashboard** (`dashboard/`): Next.js 15 web reader for `tech_pulse_memory_items` — Today (`/`)、Archive (`/archive`)、item detail (`/item/[id]`). Editorial layout (paper / serif / kicker), bilingual cards, facet sidebar, manual light/dark/system theme. TypeScript port of digest grouping in `lib/digest.ts` (theme tables, score badges, deep↔instant dedupe) aligned with `delivery/message_formatter.py`.
+- **Public read mode**: `DASHBOARD_PUBLIC_READ` exposes title + `zh_summary` (or truncated English) to anonymous visitors; full `zh_body` behind `/login` + signed cookie (`DASHBOARD_SESSION_SECRET`). SEO via `sitemap.xml` / `robots.txt` without leaking full `summary` in HTML. See [`dashboard/README.md`](dashboard/README.md).
+- **Pipeline → Dashboard ISR**: `delivery/revalidate.py` POSTs to `/api/revalidate` after delivery when `DASHBOARD_REVALIDATE_URL` + `DASHBOARD_REVALIDATE_TOKEN` are set; `scripts/setup_dashboard_sa.sh` provisions a read-only Firestore SA for Vercel.
+- **繁中欄位**: Pipeline writes additive `zh_summary` / `zh_body` on memory archive; dashboard and Portal contract document the fields ([`docs/PORTAL_CONTRACT.md`](docs/PORTAL_CONTRACT.md)).
+- **GDELT backfill**: `scripts/backfill_gdelt.py` seeds historical AI / semiconductor / crypto articles from GDELT 2.0 Doc API (dry-run default; `--commit` for score/extract/Firestore write).
+- **RSS sources**: Additional feeds in `sources/source_registry.yaml`; KOL registry tweaks.
+- **Tests**: `test_dashboard_revalidate.py`, `test_zh_field_handling.py`, `test_extractor_quality_gate.py`, `test_regression_lenny_misclassification.py`, expanded formatter/smoke coverage for HTML digests.
+
+### Changed
+- **Telegram delivery**: Digest and deep cards use **`parse_mode=HTML`** (was MarkdownV2). `message_formatter.py` escapes dynamic text; `zh_summary` surfaces as card lead where present.
+- **Digest formatter (v1)**: De-dupe deep insights from instant theme sections; softer score/confidence badges; cleaner meta lines (aligned with dashboard display).
+- **Heuristic prefilter**: Topic whitelist — articles must hit at least one of AI / semiconductor / crypto term clusters before Gemini scoring (`scoring/heuristic_filter.py`).
+- **Chinese quality**: Softer extractor gate for zh fields; drop mechanical `zh_body` from English-summary fallback (dashboard falls back to English `summary` when `zh_body` empty).
+- **Web reader UX**: Scores hidden on public dashboard cards; standalone login route; `/api/revalidate` excluded from Basic Auth middleware.
+
+### Fixed
+- **Empty digest**: Fallback path when instant pool is thin after scoring/dedup.
+- **KOL theme guard**: Reject deep briefs outside allowed theme set (`test_kol_allowed_themes.py`).
+- **Dashboard auth**: Non-ASCII removed from `WWW-Authenticate` realm; logout route restores `Request` param for redirect URL.
+- **Extractor tests**: Prompt null-assertion wording aligned with current extractor instructions.
+
 ## [0.1.4] — 2026-05-09
 
 ### Fixed
@@ -49,11 +73,11 @@ All notable changes to this project will be documented in this file.
 ## [2026-05-02]
 
 ### Fixed
-- **Smart Telegram message chunking at theme boundaries**: Messages exceeding 4096 characters are now intelligently split at newline (theme) boundaries instead of hard character limits. This prevents formatting corruption and broken MarkdownV2 escape sequences. Added:
+- **Smart Telegram message chunking at theme boundaries**: Messages exceeding 4096 characters are now intelligently split at newline (theme) boundaries instead of hard character limits. This prevents formatting corruption and broken escape sequences under HTML `parse_mode`. Added:
   - `_smart_chunk_text()`: Splits text at theme boundaries when possible, falls back to character splitting only for oversized single lines
-  - `_validate_markdown_boundaries()`: Validates that each chunk has balanced backslash escape sequences
+  - `_validate_markdown_boundaries()`: Validates chunk boundaries (legacy name; used for HTML escape integrity)
   - `TELEGRAM_CHUNK_DELAY_MS`: Configurable inter-message delay to prevent rate limiting (default 500ms)
-  - Comprehensive test suite (`tests/test_telegram_chunking.py`) with 15 tests covering chunking logic, markdown validation, and edge cases
+  - Comprehensive test suite (`tests/test_telegram_chunking.py`) with 15 tests covering chunking logic and edge cases
 
 ## [2026-04-25]
 
