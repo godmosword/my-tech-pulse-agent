@@ -60,6 +60,13 @@ Quality gate (CRITICAL — set confidence="low" and why_it_matters="" if ANY app
 - Title contains any of: "roundup", "wisdom", "best of", "this week in", "what we learned", "what we're reading".
 
 Additionally, generate Traditional Chinese reader-facing copy:
+- Field name: zh_title
+- A concise Traditional Chinese (繁體中文) headline, ≤ 28 characters, that conveys the same news as the original title.
+- Must mention the primary entity (company / product / person) when present in the article.
+- No trailing punctuation, no quote marks, no editorializing adjectives ("驚爆", "重磅"). Write like a serious tech editor.
+- If the source title is already in Traditional Chinese and reads naturally, you may reuse it verbatim.
+- If the article is too thin to support a faithful headline, set zh_title to null.
+
 - Field name: zh_summary
 - Exactly 2 sentences in Traditional Chinese (繁體中文)
 - Sentence 1: Explain WHAT was achieved and WHY it is technically significant. MUST cite at least one specific entity, number, or product mentioned in the article body — not generic phrases like "實用見解" or "重要討論".
@@ -106,6 +113,7 @@ class ArticleSummary(BaseModel):
     semantic_duplicate: bool = False
     semantic_distance: Optional[float] = None
     source_text: str = Field(default="", exclude=True)  # raw article text for reviewer; not serialized
+    zh_title: Optional[str] = None  # 繁體中文標題，≤28 字
     zh_summary: Optional[str] = None  # 繁體中文導讀，2句，由 LLM 生成
     zh_body: Optional[str] = None  # 繁體中文全文譯寫
     allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
@@ -232,6 +240,15 @@ class ExtractorAgent:
             raw = getattr(summary, field, None) or ""
             cleaned = strip_weak_summary_openers(to_traditional_zh_tw(str(raw).strip()))
             setattr(summary, field, cleaned or None)
+        raw_title = (getattr(summary, "zh_title", None) or "").strip()
+        if raw_title:
+            cleaned_title = to_traditional_zh_tw(raw_title).strip().strip("「」\"'“”")
+            # Cap to a hard 40-char ceiling so a chatty LLM can't break layout.
+            if len(cleaned_title) > 40:
+                cleaned_title = cleaned_title[:40].rstrip()
+            summary.zh_title = cleaned_title or None
+        else:
+            summary.zh_title = None
 
     @staticmethod
     def _has_required_fields(summary: ArticleSummary) -> bool:

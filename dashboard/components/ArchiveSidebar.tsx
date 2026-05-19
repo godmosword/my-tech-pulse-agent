@@ -1,11 +1,10 @@
-import Link from "next/link";
-
 import {
   buildArchiveHref,
   type ArchiveFacets,
   type FilterState,
 } from "@/lib/archive-filters";
 
+import { ClearFiltersLink } from "./ClearFiltersLink";
 import { Kicker } from "./Kicker";
 
 interface Props {
@@ -63,7 +62,7 @@ function FilterGroup({
       ) : (
         <ul className="space-y-1.5">
           <li>
-            <Link
+            <ClearFiltersLink
               href={clearHref}
               className={
                 activeValue === null
@@ -72,13 +71,13 @@ function FilterGroup({
               }
             >
               全部
-            </Link>
+            </ClearFiltersLink>
           </li>
           {items.map((it) => {
             const isActive = activeValue === it.value;
             return (
               <li key={it.value}>
-                <Link
+                <ClearFiltersLink
                   href={buildHref(it.value)}
                   className={
                     "flex items-baseline justify-between gap-2 " +
@@ -91,7 +90,7 @@ function FilterGroup({
                   <span className="shrink-0 tabular-nums text-ink-faint">
                     {it.count}
                   </span>
-                </Link>
+                </ClearFiltersLink>
               </li>
             );
           })}

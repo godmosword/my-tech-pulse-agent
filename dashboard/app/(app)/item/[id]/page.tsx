@@ -11,6 +11,7 @@ import { isPublicReadMode } from "@/lib/env-public-read";
 import { publicSummaryLine } from "@/lib/public-excerpt";
 import { getReaderSession } from "@/lib/session";
 import { hasGatedLongContent } from "@/lib/zh-content";
+import { displayTitle } from "@/lib/types";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
@@ -30,7 +31,7 @@ export async function generateMetadata({
   if (!item) {
     return { title: "找不到內容" };
   }
-  const title = item.title || item.entity || "Untitled";
+  const title = displayTitle(item);
   const description =
     publicSummaryLine(item) || "科技脈搏專欄 — 技術、資本與矽谷的編輯視角。";
   return {
@@ -78,7 +79,7 @@ export default async function ItemPage({
     );
   }
 
-  const headline = item.title || item.entity || "Untitled";
+  const headline = displayTitle(item);
   const cat = categoryLabel(item.category);
   const metaDate = formatMetaDate(
     item.published_at_iso || item.delivered_at_iso

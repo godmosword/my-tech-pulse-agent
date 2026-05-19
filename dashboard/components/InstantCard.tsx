@@ -8,7 +8,7 @@ import {
   authenticatedPrimaryBody,
   hasGatedLongContent,
 } from "@/lib/zh-content";
-import type { RenderableItem } from "@/lib/types";
+import { displayTitle, type RenderableItem } from "@/lib/types";
 import { Kicker, MetaDot } from "./Kicker";
 
 interface InstantCardProps {
@@ -30,7 +30,7 @@ interface InstantCardProps {
  * so groups of items share one rhythm without doubled rules.
  */
 export function InstantCard({ item, authenticated, returnToPath }: InstantCardProps) {
-  const headline = item.title || item.entity || "Untitled";
+  const headline = displayTitle(item);
   const meta = formatMetaDate(item.published_at_iso || item.delivered_at_iso);
   const cat = categoryLabel(item.category);
   const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;

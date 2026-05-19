@@ -144,6 +144,10 @@ export function buildDigest(
 ): DigestView {
   const deepInsights = items
     .filter((i) => i.kind === "deep_brief")
+    .sort(
+      (a, b) =>
+        (b.delivered_at_iso || "").localeCompare(a.delivered_at_iso || "")
+    )
     .slice(0, 3);
 
   const deepKeys = new Set<string>();
@@ -160,7 +164,13 @@ export function buildDigest(
         !deepKeys.has((i.source_url || "").trim()) &&
         !deepKeys.has((i.title || "").trim().toLowerCase())
     )
-    .sort((a, b) => b.score - a.score);
+    // Time-first: newest delivered_at on top so the homepage matches the
+    // chronological expectation. Theme ordering uses each group's freshest
+    // delivered_at below.
+    .sort(
+      (a, b) =>
+        (b.delivered_at_iso || "").localeCompare(a.delivered_at_iso || "")
+    );
 
   const grouped = new Map<string, RenderableItem[]>();
   for (const item of instant) {
@@ -172,10 +182,16 @@ export function buildDigest(
   const ranked = [...grouped.entries()]
     .map(([theme, list]) => ({
       theme,
+      // Items already in DESC delivered_at order from the parent sort.
       items: list,
-      score: themeRankScore(list, maxPerTheme),
+      // Use the freshest delivered_at as the theme's sort key so the most
+      // recently updated section surfaces first.
+      latestIso: list.reduce(
+        (acc, x) => (x.delivered_at_iso && x.delivered_at_iso > acc ? x.delivered_at_iso : acc),
+        ""
+      ),
     }))
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.latestIso.localeCompare(a.latestIso))
     .slice(0, maxThemes);
 
   const themes: ThemeGroup[] = [];
@@ -201,13 +217,6 @@ export function buildDigest(
   };
 }
 
-function themeRankScore(items: RenderableItem[], maxPerTheme: number): number {
-  if (!items.length) return 0;
-  const avg = items.reduce((a, x) => a + x.score, 0) / items.length;
-  const max = Math.max(...items.map((x) => x.score));
-  const sizeWeight = Math.min(items.length, maxPerTheme) / maxPerTheme;
-  return avg * 0.45 + max * 0.35 + sizeWeight * 10 * 0.2;
-}
 
 export function confidenceBadge(item: RenderableItem): {
   /** Editorial label, used by ConfidenceBadge component (text-only). */

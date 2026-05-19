@@ -52,6 +52,7 @@ function toRenderable(id: string, raw: unknown): RenderableItem | null {
   return {
     id: item.id,
     title: item.title,
+    zh_title: item.zh_title ?? "",
     summary: item.summary,
     zh_summary: item.zh_summary ?? "",
     zh_body: item.zh_body ?? "",

@@ -169,6 +169,7 @@ class FirestoreMemoryService:
             payload = {
                 "item_id": item_id,
                 "title": summary.title or summary.entity,
+                "zh_title": (getattr(summary, "zh_title", "") or "").strip(),
                 "summary": text,
                 # zh_summary is additive (PORTAL_CONTRACT.md v1 compatible): the
                 # extractor already generates a 2-sentence Traditional Chinese

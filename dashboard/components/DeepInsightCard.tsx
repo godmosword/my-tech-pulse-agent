@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { RenderableItem } from "@/lib/types";
+import { displayTitle, type RenderableItem } from "@/lib/types";
 import { publicSummaryLine } from "@/lib/public-excerpt";
 import {
   authenticatedPrimaryBody,
@@ -26,7 +26,7 @@ export function DeepInsightCard({
   returnToPath,
 }: DeepInsightCardProps) {
   const parts = splitThreePart(item.summary);
-  const headline = item.title || item.entity || "Untitled";
+  const headline = displayTitle(item);
   const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
   const teaser = publicSummaryLine(item);
   const bodyZh = authenticatedPrimaryBody(item);
