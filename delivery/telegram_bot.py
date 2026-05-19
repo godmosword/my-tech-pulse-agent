@@ -10,7 +10,13 @@ from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput, StoryInsight, Theme
 from delivery.feedback_handler import handle_callback
-from delivery.message_formatter import escape, format_earnings, format_insight_brief, format_items_digest
+from delivery.message_formatter import (
+    build_items_digest_messages,
+    escape,
+    format_earnings,
+    format_insight_brief,
+    format_items_digest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +49,16 @@ class TelegramBot:
         narrative_excerpt: Optional[str] = None,
         story_insights: Optional[list[StoryInsight]] = None,
     ) -> bool:
-        """Send a ranked item digest built from ArticleSummary list."""
+        """Send a ranked item digest as intro + per-card messages + footer.
+
+        Per-card messages carry an inline 「📖 讀原文」button (when URL exists),
+        replacing the in-text HTML link so each tap goes straight to source.
+        """
         if not self._bot:
             logger.info("Telegram bot not configured; skipping items digest delivery")
             return False
         theme_labels = [t.theme for t in themes[:3]] if themes else None
-        text = format_items_digest(
+        messages = build_items_digest_messages(
             summaries,
             total_fetched,
             total_after_filter,
@@ -58,7 +68,12 @@ class TelegramBot:
             narrative_excerpt=narrative_excerpt,
             story_insights=story_insights,
         )
-        return self._send(text)
+        try:
+            asyncio.run(self._async_send_messages(messages))
+            return True
+        except Exception as exc:
+            logger.error("Telegram digest delivery failed: %s", exc)
+            return False
 
     def send_digest(self, digest: DigestOutput) -> bool:
         """Send a synthesizer DigestOutput (narrative format)."""
@@ -115,6 +130,45 @@ class TelegramBot:
         except Exception as exc:
             logger.error("Telegram send failed: %s", exc)
             return False
+
+    async def _async_send_messages(self, messages) -> None:
+        """Send a structured digest: each DigestMessage becomes one Telegram message.
+
+        Messages with a non-empty `url` carry an inline 「📖 讀原文」button.
+        Long card text is still chunk-safe via _smart_chunk_text — only the
+        FIRST chunk receives the button (subsequent chunks are continuations).
+        """
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup  # noqa: PLC0415
+
+        total = len(messages)
+        for i, msg in enumerate(messages):
+            text = (msg.text or "").strip()
+            if not text:
+                continue
+            chunks = self._smart_chunk_text(text)
+            keyboard = None
+            if msg.url:
+                keyboard = InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("📖 讀原文", url=msg.url)]]
+                )
+            for j, chunk in enumerate(chunks):
+                attach_button = keyboard if j == len(chunks) - 1 else None
+                try:
+                    await self._bot.send_message(
+                        chat_id=self._channel_id,
+                        text=chunk,
+                        parse_mode="HTML",
+                        reply_markup=attach_button,
+                        disable_web_page_preview=True,
+                    )
+                except Exception as exc:
+                    logger.error(
+                        "Digest message %d/%d chunk %d delivery failed: %s",
+                        i + 1, total, j + 1, exc,
+                    )
+                    raise
+                if not (i == total - 1 and j == len(chunks) - 1):
+                    await asyncio.sleep(TELEGRAM_CHUNK_DELAY_MS / 1000.0)
 
     async def _async_send(self, text: str) -> None:
         """Send message with smart chunking at theme boundaries to preserve formatting."""
