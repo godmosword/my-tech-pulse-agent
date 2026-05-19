@@ -72,9 +72,11 @@ export function DeepInsightCard({
             )}
           </div>
         ) : (
-          <dl className="max-w-column space-y-5">
+          <dl className="max-w-column">
             <Section label="核心洞見" body={parts.insight} />
+            {parts.tech_rationale && <Fleuron />}
             <Section label="底層邏輯" body={parts.tech_rationale} />
+            {parts.implication && <Fleuron />}
             <Section label="生態影響" body={parts.implication} />
           </dl>
         )
@@ -103,17 +105,39 @@ export function DeepInsightCard({
         </div>
       )}
 
-      {item.source_url && (
-        <a
-          href={item.source_url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-accent underline-offset-4 hover:underline"
+      <div className="flex items-center gap-4">
+        {item.source_url && (
+          <a
+            href={item.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-accent underline-offset-4 hover:underline"
+          >
+            Read original
+          </a>
+        )}
+        <span
+          aria-hidden
+          className="ml-auto font-serif text-base leading-none text-ink-faint"
+          title="end of article"
         >
-          Read original
-        </a>
-      )}
+          ※
+        </span>
+      </div>
     </article>
+  );
+}
+
+function Fleuron() {
+  return (
+    <div
+      aria-hidden
+      className="my-5 flex items-center justify-center gap-3 text-ink-faint"
+    >
+      <span className="h-px w-10 bg-rule" />
+      <span className="font-serif text-sm leading-none">❦</span>
+      <span className="h-px w-10 bg-rule" />
+    </div>
   );
 }
 
