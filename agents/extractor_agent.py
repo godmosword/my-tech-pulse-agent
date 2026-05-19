@@ -45,6 +45,10 @@ Fields:
 - sentiment: one of ["positive", "negative", "neutral"]
 - confidence: one of ["high", "medium", "low"]
 - cross_ref: true if this story is likely relevant to investment decisions (bool)
+- tickers: list of up to 5 stock tickers / public company symbols explicitly mentioned or directly
+  named in the article (e.g. ["NVDA", "TSM", "2330.TW"]). Uppercase only. Include an exchange suffix
+  (".TW", ".HK") only when the article specifies the local listing. Empty list when no public
+  ticker is named — do not infer parents or holding companies.
 - tldr_tier: one of ["headline", "deep_dive", "tool_or_repo", "number", "standard"].
   Use "headline" for the day's top news (major announcement, earnings beat, product launch).
   Use "deep_dive" for analysis/explainer pieces with multi-step reasoning.
@@ -127,6 +131,7 @@ class ArticleSummary(BaseModel):
     zh_body: Optional[str] = None  # 繁體中文全文譯寫
     tldr_tier: Literal["headline", "deep_dive", "tool_or_repo", "number", "standard"] = "standard"
     hook: str = ""  # ≤24 字繁中 reader hook（formatter 會回退到 zh_summary 第一句）
+    tickers: list[str] = Field(default_factory=list)  # public stock tickers explicitly named in article
     allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
 
 

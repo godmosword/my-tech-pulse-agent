@@ -10,13 +10,23 @@ const config: Config = {
     extend: {
       fontFamily: {
         // next/font assigns these vars on <body>; see app/layout.tsx
-        sans: ["var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: [
+          "var(--font-sans)",
+          "var(--font-sans-cjk)",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "PingFang TC",
+          "Microsoft JhengHei",
+          "sans-serif",
+        ],
         serif: [
           "var(--font-serif)",
+          "var(--font-serif-cjk)",
           "ui-serif",
           "Georgia",
           "Cambria",
           "Times New Roman",
+          "Songti TC",
           "serif",
         ],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],

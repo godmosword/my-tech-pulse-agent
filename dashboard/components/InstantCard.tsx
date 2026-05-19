@@ -8,7 +8,13 @@ import {
   authenticatedPrimaryBody,
   hasGatedLongContent,
 } from "@/lib/zh-content";
-import { displayTitle, type RenderableItem } from "@/lib/types";
+import {
+  PRIORITY_DOT_CLASS,
+  PRIORITY_LABEL,
+  displayTitle,
+  priorityLevel,
+  type RenderableItem,
+} from "@/lib/types";
 import { Kicker, MetaDot } from "./Kicker";
 
 interface InstantCardProps {
@@ -96,20 +102,96 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
         </>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pt-1">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          {item.source_url && (
-            <a
-              href={item.source_url}
-              target="_blank"
-              rel="noreferrer"
-              className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft underline-offset-4 hover:text-accent hover:underline"
-            >
-              Read original
-            </a>
-          )}
-        </div>
-      </div>
+      <CardFooter item={item} authenticated={authenticated} />
     </article>
+  );
+}
+
+function CardFooter({
+  item,
+  authenticated,
+}: {
+  item: RenderableItem;
+  authenticated: boolean;
+}) {
+  const level = priorityLevel(item.score);
+  const showScore = item.score_status !== "fallback" && item.score > 0;
+  const tickers = item.tickers ?? [];
+  const wh = item.what_happened?.trim() ?? "";
+  const why = item.why_it_matters?.trim() ?? "";
+  const canExpand = authenticated && (Boolean(wh) || Boolean(why));
+
+  return (
+    <div className="space-y-2 pt-1">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
+        {showScore && (
+          <span className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className={`inline-block h-2 w-2 rounded-full ${PRIORITY_DOT_CLASS[level]}`}
+            />
+            <span className="font-mono normal-case tracking-normal text-ink">
+              {item.score.toFixed(1)}
+            </span>
+            <span className="text-ink-faint">/ 10</span>
+            <span className="text-ink">{PRIORITY_LABEL[level]}</span>
+          </span>
+        )}
+        {tickers.length > 0 && (
+          <span
+            aria-label="Related tickers"
+            className="flex flex-wrap items-center gap-1.5 normal-case tracking-normal"
+          >
+            <span aria-hidden="true" className="text-ink-faint">
+              📊
+            </span>
+            {tickers.map((t) => (
+              <span
+                key={t}
+                className="rounded-sm border border-rule px-1.5 py-0.5 font-mono text-[11px] text-ink"
+              >
+                {t}
+              </span>
+            ))}
+          </span>
+        )}
+        {item.source_url && (
+          <a
+            href={item.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="underline-offset-4 hover:text-accent hover:underline"
+          >
+            Read original
+          </a>
+        )}
+      </div>
+
+      {canExpand && (
+        <details className="font-sans text-meta text-ink-soft">
+          <summary className="cursor-pointer text-kicker font-semibold uppercase tracking-[0.12em] text-accent underline-offset-4 hover:underline">
+            展開分析
+          </summary>
+          <div className="mt-3 space-y-3 text-body text-ink">
+            {wh && (
+              <div>
+                <p className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                  事實
+                </p>
+                <p className="mt-1 whitespace-pre-line">{wh}</p>
+              </div>
+            )}
+            {why && (
+              <div>
+                <p className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                  含義
+                </p>
+                <p className="mt-1 whitespace-pre-line">{why}</p>
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
   );
 }

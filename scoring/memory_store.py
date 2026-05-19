@@ -180,6 +180,9 @@ class FirestoreMemoryService:
                 "zh_body": (getattr(summary, "zh_body", "") or "").strip(),
                 "tldr_tier": getattr(summary, "tldr_tier", "standard") or "standard",
                 "hook": (getattr(summary, "hook", "") or "").strip(),
+                "tickers": _clean_tickers(getattr(summary, "tickers", []) or []),
+                "what_happened": (getattr(summary, "what_happened", "") or "").strip(),
+                "why_it_matters": (getattr(summary, "why_it_matters", "") or "").strip(),
                 "source_url": summary.source_url,
                 "source_name": summary.source_name,
                 "published_at": _parse_datetime(getattr(summary, "published_at", "")),
@@ -333,6 +336,23 @@ def make_memory_service() -> MemoryService:
     except Exception as exc:
         logger.warning("Firestore memory unavailable; continuing without memory: %s", exc)
         return DisabledMemoryService()
+
+
+def _clean_tickers(raw: list) -> list[str]:
+    """Normalize ticker list: uppercase, strip, dedupe, cap at 5."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in raw:
+        if not isinstance(t, str):
+            continue
+        cleaned = t.strip().upper()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        out.append(cleaned)
+        if len(out) >= 5:
+            break
+    return out
 
 
 def _summary_text(summary: ArticleSummary) -> str:

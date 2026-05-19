@@ -127,6 +127,22 @@ def test_memory_archive_summaries_writes_expected_payload():
     # zh_summary defaults to empty string when the extractor didn't produce one
     # (e.g. the source was already in zh-TW or the LLM skipped it).
     assert payload["zh_summary"] == ""
+    # tickers default to empty list when the extractor names none.
+    assert payload["tickers"] == []
+    # Analytical fields propagate verbatim so the dashboard can expand them.
+    assert payload["what_happened"] == "NVIDIA expanded GPU supply."
+    assert payload["why_it_matters"] == "AI data center buyers may get more capacity."
+
+
+def test_memory_archive_summaries_normalizes_tickers():
+    """Tickers are uppercased, deduped, capped at 5, and skip empty strings."""
+    collection = _FakeCollection()
+    service = _memory_service(collection)
+    summary = _summary()
+    summary.tickers = ["nvda", " AAPL ", "nvda", "", "TSM", "META", "AMZN", "GOOG"]
+    service.archive_summaries([summary], delivered_at=datetime(2026, 5, 1, tzinfo=timezone.utc))
+    payload = next(iter(collection.writes.values()))["payload"]
+    assert payload["tickers"] == ["NVDA", "AAPL", "TSM", "META", "AMZN"]
 
 
 def test_memory_archive_summaries_persists_zh_summary_when_present():

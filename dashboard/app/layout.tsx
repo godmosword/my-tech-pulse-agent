@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Source_Serif_4 } from "next/font/google";
+import { Inter, Noto_Sans_TC, Noto_Serif_TC, Source_Serif_4 } from "next/font/google";
 
 import { siteOrigin } from "@/lib/site-url";
 
@@ -16,6 +16,23 @@ const sourceSerif = Source_Serif_4({
   display: "swap",
   weight: ["400", "600"],
   variable: "--font-serif",
+});
+
+// CJK glyphs — Inter/Source Serif only ship Latin subsets, so Chinese text
+// falls back to whatever system font is available. Loading Noto TC ensures
+// 繁體中文 renders correctly on any device (Vercel preview, mobile, etc.).
+const notoSansTc = Noto_Sans_TC({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-sans-cjk",
+});
+
+const notoSerifTc = Noto_Serif_TC({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  display: "swap",
+  variable: "--font-serif-cjk",
 });
 
 export const metadata: Metadata = {
@@ -46,7 +63,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-TW" className={`${inter.variable} ${sourceSerif.variable}`}>
+    <html
+      lang="zh-TW"
+      className={`${inter.variable} ${sourceSerif.variable} ${notoSansTc.variable} ${notoSerifTc.variable}`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
