@@ -25,7 +25,16 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const authenticated =
     !isPublicReadMode() || (await getReaderSession()) !== null;
-  const items = await listLatestItems({ limit: 80 });
+
+  // 1) Try "today" in Asia/Taipei first so the homepage reflects the latest
+  //    Telegram dispatch. 2) Fall back to the most recent batch when today
+  //    is empty (e.g. early morning before the pipeline runs) so the page
+  //    is never blank.
+  const todayStart = startOfTodayTaipeiUtc();
+  let items = await listLatestItems({ limit: 80, since: todayStart });
+  if (items.length === 0) {
+    items = await listLatestItems({ limit: 80 });
+  }
   const view = buildDigest(items);
 
   const latestDelivered = items
@@ -72,6 +81,17 @@ export default async function HomePage() {
       ))}
     </div>
   );
+}
+
+/** Returns the UTC instant that corresponds to 00:00 today in Asia/Taipei. */
+function startOfTodayTaipeiUtc(): Date {
+  // Asia/Taipei is a fixed UTC+8 offset (no DST), so we can derive the wall
+  // date with toLocaleDateString and rebuild the boundary in UTC directly.
+  const todayTpe = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Taipei",
+  }); // "YYYY-MM-DD"
+  // 00:00 Asia/Taipei == 16:00 UTC the previous day.
+  return new Date(`${todayTpe}T00:00:00+08:00`);
 }
 
 function EmptyState() {

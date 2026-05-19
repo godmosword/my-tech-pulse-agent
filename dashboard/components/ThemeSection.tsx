@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import type { RenderableItem } from "@/lib/types";
+import { displayTitle, type RenderableItem } from "@/lib/types";
 import { formatMetaDate } from "@/lib/digest";
 
 import { Hairline } from "./Hairline";
@@ -47,7 +47,7 @@ export function ThemeSection({ theme, items }: Props) {
                 )}
               </Kicker>
               <h3 className="font-serif text-[19px] leading-snug tracking-[-0.015em] text-ink sm:text-[21px]">
-                {item.title || item.entity || "Untitled"}
+                {displayTitle(item)}
               </h3>
               {item.zh_summary?.trim() && (
                 <p className="font-sans text-[15px] leading-snug text-ink-soft">

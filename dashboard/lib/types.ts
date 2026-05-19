@@ -28,6 +28,7 @@ export const MemoryItemSchema = z.object({
   id: z.string(),
   item_id: z.string().optional(),
   title: z.string().default(""),
+  zh_title: z.string().default("").optional(),
   summary: z.string().default(""),
   // Optional Traditional Chinese summary — pipeline started writing it after
   // the bilingual dashboard work. Older docs lack the field; default to "".
@@ -50,6 +51,7 @@ export type MemoryItem = z.infer<typeof MemoryItemSchema>;
 export interface RenderableItem {
   id: string;
   title: string;
+  zh_title: string;
   summary: string;
   zh_summary: string;
   zh_body: string;
@@ -63,6 +65,20 @@ export interface RenderableItem {
   published_at_iso: string | null;
   delivered_at_iso: string | null;
   themes: string[];
+}
+
+/** 顯示用標題：優先 zh_title（繁中），其次 LLM 給的 title，最後 entity。 */
+export function displayTitle(item: {
+  zh_title?: string;
+  title?: string;
+  entity?: string;
+}): string {
+  return (
+    item.zh_title?.trim() ||
+    item.title?.trim() ||
+    item.entity?.trim() ||
+    "Untitled"
+  );
 }
 
 export function toIsoString(value: unknown): string | null {

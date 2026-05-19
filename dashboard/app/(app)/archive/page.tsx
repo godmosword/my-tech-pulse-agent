@@ -13,6 +13,8 @@ import {
 } from "@/lib/archive-filters";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
+import { displayTitle } from "@/lib/types";
+import { ClearFiltersLink } from "@/components/ClearFiltersLink";
 
 /** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
 export const dynamic = "force-dynamic";
@@ -93,7 +95,7 @@ export default async function ArchivePage({
                       )}
                     </Kicker>
                     <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
-                      {item.title || item.entity || "Untitled"}
+                      {displayTitle(item)}
                     </h3>
                   </Link>
                 </li>
@@ -121,12 +123,12 @@ function ActiveFilters({
       {state.month && (
         <span className="ml-2 text-ink">{monthLabel(state.month)}</span>
       )}
-      <Link
+      <ClearFiltersLink
         href={buildArchiveHref(state, { category: null, month: null })}
         className="ml-3 text-ink-faint hover:text-accent"
       >
         清除
-      </Link>
+      </ClearFiltersLink>
     </p>
   );
 }
