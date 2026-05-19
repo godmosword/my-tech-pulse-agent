@@ -106,20 +106,6 @@ Provision a read-only Firestore SA: `PROJECT_ID=<gcp-project> ./scripts/setup_da
 
 Portal / third-party readers: [`docs/PORTAL_CONTRACT.md`](docs/PORTAL_CONTRACT.md)
 
-## Historical backfill (GDELT)
-
-RSS feeds only retain ~20 recent items. To seed older archive days:
-
-```bash
-# Dry run (no LLM, no Firestore writes)
-python -m scripts.backfill_gdelt --start 2026-05-01 --end 2026-05-18
-
-# Commit (scores, extracts, writes memory_items; uses Gemini quota)
-python -m scripts.backfill_gdelt --start 2026-05-01 --end 2026-05-18 --commit
-```
-
-See `scripts/backfill_gdelt.py` for `--theme` and rate-limit notes.
-
 ## Deployment
 
 The pipeline is packaged for container deployment. Run `python scripts/preflight.py` in

@@ -11,12 +11,10 @@
 - [x] 送報後 ISR webhook（`DASHBOARD_REVALIDATE_*`）
 - [x] Heuristic 三大主題白名單（AI / 半導體 / 加密）
 - [x] Heuristic edge-case 測試 + 複合品質閘（主題 + 深度/具體數據）
-- [x] GDELT 歷史回填腳本 `scripts/backfill_gdelt.py`
 - [x] Dashboard Archive：弱 `zh_title` fallback 至 `title`、精簡 kicker、列表顯示 `zh_summary`
 
 ## 進行中 / 下一步
 
-- [ ] **回填驗證**：對目標日期區間跑 `backfill_gdelt` dry-run → `--commit`，抽查 `/archive` 日桶與 Firestore `delivered_at`
 - [ ] **舊稿繁中**：既有 `memory_items` 無 `zh_body` 者，評估批次重跑 extractor 或接受英文 fallback
 - [ ] **`.env.example`**：補上 `DASHBOARD_REVALIDATE_URL` / `DASHBOARD_REVALIDATE_TOKEN` / `DASHBOARD_REVALIDATE_TIMEOUT` 說明（pipeline 端）
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約

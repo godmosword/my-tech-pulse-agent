@@ -19,7 +19,6 @@ All notable changes to this project will be documented in this file.
 - **Public read mode**: `DASHBOARD_PUBLIC_READ` exposes title + `zh_summary` (or truncated English) to anonymous visitors; full `zh_body` behind `/login` + signed cookie (`DASHBOARD_SESSION_SECRET`). SEO via `sitemap.xml` / `robots.txt` without leaking full `summary` in HTML. See [`dashboard/README.md`](dashboard/README.md).
 - **Pipeline → Dashboard ISR**: `delivery/revalidate.py` POSTs to `/api/revalidate` after delivery when `DASHBOARD_REVALIDATE_URL` + `DASHBOARD_REVALIDATE_TOKEN` are set; `scripts/setup_dashboard_sa.sh` provisions a read-only Firestore SA for Vercel.
 - **繁中欄位**: Pipeline writes additive `zh_summary` / `zh_body` on memory archive; dashboard and Portal contract document the fields ([`docs/PORTAL_CONTRACT.md`](docs/PORTAL_CONTRACT.md)).
-- **GDELT backfill**: `scripts/backfill_gdelt.py` seeds historical AI / semiconductor / crypto articles from GDELT 2.0 Doc API (dry-run default; `--commit` for score/extract/Firestore write).
 - **RSS sources**: Additional feeds in `sources/source_registry.yaml`; KOL registry tweaks.
 - **Tests**: `test_dashboard_revalidate.py`, `test_zh_field_handling.py`, `test_extractor_quality_gate.py`, `test_regression_lenny_misclassification.py`, expanded formatter/smoke coverage for HTML digests.
 
