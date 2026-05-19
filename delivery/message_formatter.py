@@ -2,6 +2,7 @@
 
 import os
 import re
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from html import escape as _html_escape
 from statistics import mean
@@ -208,17 +209,29 @@ def _confidence_badge(summary: ArticleSummary) -> str:
     return "🔴 低信心"
 
 
+FIRE_TIER_HIGH = float(os.getenv("FIRE_TIER_HIGH", "8.5"))
+FIRE_TIER_MID = float(os.getenv("FIRE_TIER_MID", "6.5"))
+
+
+def _fire_badge(score: float) -> str:
+    """🔥×N 火焰分階：≥8.5 → 🔥🔥🔥，≥6.5 → 🔥🔥，>0 → 🔥。"""
+    if score is None or score <= 0:
+        return "⚪"
+    if score >= FIRE_TIER_HIGH:
+        return "🔥🔥🔥"
+    if score >= FIRE_TIER_MID:
+        return "🔥🔥"
+    return "🔥"
+
+
 def _score_line(summary: ArticleSummary) -> str:
-    """Return score + confidence badge line."""
+    """Return fire badge + confidence badge line. Numeric score moved to footer."""
     status = getattr(summary, "score_status", "ok")
     if status in {"unscored", "fallback"} or summary.score <= 0:
         return "⚪ 未評分  ·  ⚠️ 待補驗證"
-    score_str = f"{summary.score:.1f}"
+    fire = _fire_badge(summary.score)
     badge = _confidence_badge(summary)
-    if status == "low_score_fallback":
-        return f"🟡 {score_str}  ·  {badge}"
-    prefix = "📊" if summary.category == "earnings" else "⭐"
-    return f"{prefix} {score_str}  ·  {badge}"
+    return f"{fire}  ·  {badge}"
 
 
 def _published_line(summary: ArticleSummary) -> str:
@@ -435,16 +448,39 @@ def format_insight_brief(brief: InsightBrief) -> str:
     return "\n".join(lines)
 
 
+def _card_display_title(s: ArticleSummary) -> str:
+    """zh_title 優先，其次 LLM 給的 title，最後 entity — 對齊 dashboard。"""
+    zh_title = (getattr(s, "zh_title", "") or "").strip()
+    if zh_title:
+        return zh_title
+    return (getattr(s, "title", "") or "").strip() or s.entity or "Untitled"
+
+
+def _card_hook(s: ArticleSummary) -> str:
+    """讀者鉤子：優先 LLM 給的 hook，回退 zh_summary 第一句。"""
+    hook = (getattr(s, "hook", "") or "").strip()
+    if hook:
+        return hook
+    zs = (getattr(s, "zh_summary", "") or "").strip()
+    if not zs:
+        return ""
+    # 取第一個句號前的內容（中文句號或英文句號），長度上限 50。
+    for sep in ("。", ". ", ".\n"):
+        if sep in zs:
+            return zs.split(sep, 1)[0][:50]
+    return zs[:50]
+
+
 def _format_article_card(s: ArticleSummary) -> list[str]:
-    """Format one article as an HTML card."""
+    """Format one article as an HTML card (no inline URL — URL goes to button)."""
     lines: list[str] = []
     lines.append(_score_line(s))
-    title = escape(getattr(s, "title", "") or s.entity)
+    title = escape(_card_display_title(s))
     lines.append(f"<b>{title}</b>")
 
-    zh_summary = getattr(s, "zh_summary", None)
-    if zh_summary:
-        lines.append(f"\n💡 <i>{escape(zh_summary)}</i>")
+    hook = _card_hook(s)
+    if hook:
+        lines.append(f"💡 <i>{escape(hook)}</i>")
 
     lines.append("")
     body = _truncate_words(_compose_structured_summary(s))
@@ -458,9 +494,6 @@ def _format_article_card(s: ArticleSummary) -> list[str]:
     meta_parts = [part for part in (published, tags) if part]
     if meta_parts:
         lines.append("  ".join(meta_parts))
-    url = s.source_url or ""
-    if url:
-        lines.append(f'🔗 <a href="{url}">原文連結</a>')
     if s.cross_ref:
         lines.append("📌 投資日報")
 
@@ -664,6 +697,210 @@ def format_digest_v2(
         + [""]
         + tomorrow_lines
     )
+
+
+@dataclass
+class DigestMessage:
+    """One Telegram message: HTML text, optional URL for inline 「📖 讀原文」button."""
+    text: str
+    url: Optional[str] = None
+
+
+def _section_header(label: str) -> str:
+    return f"━━━ <b>{escape(label)}</b> ━━━"
+
+
+def _intro_text(
+    *,
+    date_str: str,
+    headline: Optional[str],
+    themes: Optional[list[str]],
+    narrative_excerpt: Optional[str],
+    market_takeaway: Optional[str],
+    degraded: bool,
+    fallback_only: bool,
+) -> str:
+    lines = [f"📡 <b>科技脈搏 · {escape(date_str)}</b>"]
+    if degraded:
+        lines.append("⚠️ 模型評分降級")
+    lines.append("")
+    if fallback_only:
+        lines.append("⚠️ <b>今日無 ≥7.2 高信心頭條，以下為次選快訊</b>")
+        lines.append("")
+    if headline:
+        lines.append(f"<b>🗞️ {escape(headline)}</b>")
+        lines.append("")
+    if narrative_excerpt:
+        lines.append(escape(narrative_excerpt))
+        lines.append("")
+    if themes:
+        lines.append("<b>🧭 今日主線</b>")
+        for theme in themes[:3]:
+            lines.append(f"• {escape(theme)}")
+        lines.append("")
+    if market_takeaway:
+        lines.append("<b>📈 市場含義</b>")
+        lines.append(escape(market_takeaway))
+    return "\n".join(lines).rstrip()
+
+
+def _card_message(s: ArticleSummary) -> DigestMessage:
+    text = "\n".join(_format_article_card(s)).rstrip()
+    return DigestMessage(text=text, url=(s.source_url or None))
+
+
+def _story_message(story: StoryInsight) -> DigestMessage:
+    text = "\n".join(_format_story_insight(story)).rstrip()
+    # Strip the inline 🔗 原文連結 footer that _format_story_insight appends —
+    # the same URL will surface as an inline button.
+    text = re.sub(r"\n*🔗 <a [^>]+>原文連結</a>\s*$", "", text).rstrip()
+    return DigestMessage(text=text, url=(story.source_url or None))
+
+
+def build_items_digest_messages(
+    summaries: list[ArticleSummary],
+    total_fetched: int,
+    total_after_filter: int,
+    *,
+    themes: Optional[list[str]] = None,
+    market_takeaway: Optional[str] = None,
+    headline: Optional[str] = None,
+    narrative_excerpt: Optional[str] = None,
+    story_insights: Optional[list[StoryInsight]] = None,
+    now: Optional[datetime] = None,
+) -> list[DigestMessage]:
+    """TLDR-style structured digest: intro → cards (with inline button) → footer.
+
+    Returns a list of DigestMessage. The caller (TelegramBot) decides whether
+    to attach an inline 「📖 讀原文」button when `url` is non-empty.
+    """
+    date_str = _digest_header_display_dt(now).strftime("%Y/%m/%d %H:%M")
+
+    ranked = sorted(summaries, key=lambda s: s.score, reverse=True)
+    valid_ranked = [
+        s for s in ranked
+        if s.score > 0 and getattr(s, "score_status", "ok") not in {"fallback", "low_score_fallback"}
+    ]
+    low_score_fallbacks = [
+        s for s in ranked if getattr(s, "score_status", "ok") == "low_score_fallback"
+    ]
+    unscored = [s for s in ranked if getattr(s, "score_status", "ok") in {"fallback", "unscored"}]
+    fallback_items = low_score_fallbacks + unscored
+    deduped_valid = _exclude_stories_from_pool(valid_ranked, story_insights)
+    display_pool = deduped_valid[:MAX_ITEMS_PER_DIGEST * 2]
+
+    # Split tiers — LLM 在 extractor 標記，回退預設 standard。
+    def tier(s: ArticleSummary) -> str:
+        return getattr(s, "tldr_tier", "standard") or "standard"
+
+    used_urls: set[str] = set()
+
+    def _take(pool: list[ArticleSummary], limit: int) -> list[ArticleSummary]:
+        out: list[ArticleSummary] = []
+        for item in pool:
+            if len(out) >= limit:
+                break
+            url = (item.source_url or "").strip()
+            key = url or (item.title or "").lower()
+            if key in used_urls:
+                continue
+            used_urls.add(key)
+            out.append(item)
+        return out
+
+    # Headlines: tier=headline 優先；不足時以 standard 補。
+    # 不從 tool_or_repo / number 抽，否則會稀釋專屬區塊。
+    headline_pool = [s for s in display_pool if tier(s) == "headline"] + [
+        s for s in display_pool if tier(s) == "standard"
+    ]
+    headlines = _take(headline_pool, 3)
+
+    # Tools & Repos / Numbers sections only appear when the LLM tagged some.
+    tools = _take([s for s in display_pool if tier(s) == "tool_or_repo"], 3)
+    numbers = _take([s for s in display_pool if tier(s) == "number"], 3)
+
+    # Remaining go through the existing theme grouping.
+    remaining = [s for s in display_pool if (s.source_url or "").strip() not in used_urls
+                 and (s.title or "").lower() not in used_urls]
+    groups = _select_by_theme(remaining) if remaining else []
+
+    degradation = (len(fallback_items) / len(summaries)) if summaries else 0.0
+    fallback_only = not valid_ranked and bool(fallback_items)
+
+    messages: list[DigestMessage] = []
+    messages.append(DigestMessage(text=_intro_text(
+        date_str=date_str,
+        headline=headline,
+        themes=themes,
+        narrative_excerpt=narrative_excerpt,
+        market_takeaway=(
+            market_takeaway
+            if not (market_takeaway and narrative_excerpt and narrative_excerpt.startswith(market_takeaway[:50]))
+            else None
+        ),
+        degraded=degradation > UNSCORED_ALERT_RATIO,
+        fallback_only=fallback_only,
+    )))
+
+    shown_items: list[ArticleSummary] = []
+
+    if headlines:
+        messages.append(DigestMessage(text=_section_header("HEADLINES")))
+        for s in headlines:
+            messages.append(_card_message(s))
+            shown_items.append(s)
+
+    if story_insights:
+        messages.append(DigestMessage(text=_section_header("DEEP DIVE")))
+        for story in story_insights[:3]:
+            messages.append(_story_message(story))
+
+    for theme, items in groups:
+        messages.append(DigestMessage(text=_theme_section_header(theme).strip()))
+        for s in items:
+            messages.append(_card_message(s))
+            shown_items.append(s)
+
+    if tools:
+        messages.append(DigestMessage(text=_section_header("🛠️ TOOLS & REPOS")))
+        for s in tools:
+            messages.append(_card_message(s))
+            shown_items.append(s)
+
+    if numbers:
+        messages.append(DigestMessage(text=_section_header("🔢 NUMBERS TO KNOW")))
+        for s in numbers:
+            messages.append(_card_message(s))
+            shown_items.append(s)
+
+    shown_unscored: list[ArticleSummary] = []
+    fallback_allowance = max(0, min(MAX_UNSCORED_TAIL, MAX_ITEMS_PER_DIGEST - len(shown_items)))
+    if fallback_items and fallback_allowance:
+        messages.append(DigestMessage(text=_section_header("其他快訊")))
+        for s in fallback_items[:fallback_allowance]:
+            messages.append(_card_message(s))
+            shown_unscored.append(s)
+
+    footer_lines: list[str] = []
+    if shown_items:
+        avg = mean(s.score for s in shown_items)
+        n_total = len(shown_items) + len(shown_unscored)
+        footer_lines.append("─────────────────")
+        footer_lines.append(f"📊 本期共 {n_total} 則  ·  平均分數 {avg:.1f}")
+        if groups:
+            cat_str = "　".join(f"{theme} ×{len(items)}" for theme, items in groups)
+            footer_lines.append(f"📂 {cat_str}")
+    elif shown_unscored:
+        n = len(shown_unscored)
+        if any(getattr(s, "score_status", "") == "low_score_fallback" for s in shown_unscored):
+            footer_lines.append(f"📊 本期低信心快訊 {n} 則")
+        else:
+            footer_lines.append(f"📊 本期快訊 {n} 則")
+    else:
+        footer_lines.append(f"今日 {total_fetched} 篇 → 過濾後 {total_after_filter} 篇")
+
+    messages.append(DigestMessage(text="\n".join(footer_lines)))
+    return messages
 
 
 def format_items_digest(
