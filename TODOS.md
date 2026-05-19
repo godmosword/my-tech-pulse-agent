@@ -10,6 +10,7 @@
 - [x] Telegram 改為 HTML `parse_mode` + `zh_summary` 卡片
 - [x] 送報後 ISR webhook（`DASHBOARD_REVALIDATE_*`）
 - [x] Heuristic 三大主題白名單（AI / 半導體 / 加密）
+- [x] Heuristic edge-case 測試 + 複合品質閘（主題 + 深度/具體數據）
 - [x] GDELT 歷史回填腳本 `scripts/backfill_gdelt.py`
 
 ## 進行中 / 下一步
@@ -21,6 +22,7 @@
 
 ## 積壓（Backlog）
 
+- [ ] **Heuristic 通過率觀測**：上線後從 pipeline 日誌聚合 `gate:needs_depth_or_specifics` 與 dropped 計數，評估是否過嚴
 - [ ] **Canonical digest snapshot**：若 TS/Python 雙端維護 `digest.ts` / `message_formatter.py` 成本過高，寫入 `tech_pulse_digests/{id}` 供 Telegram + Dashboard 共用
 - [ ] **Semantic prefilter rollout**：`SEMANTIC_PREFILTER_ENABLED=1` 在 staging 量測召回/成本後再上 production
 - [ ] **Semantic dup drop**：`SEMANTIC_DUP_DROP_ENABLED=1` 需 Firestore vector index ready + 觀察誤殺率

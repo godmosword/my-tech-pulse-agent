@@ -10,7 +10,7 @@ from dataclasses import dataclass
 AI_TERMS = {
     "ai", "a.i.", "artificial intelligence", "llm", "large language model",
     "openai", "anthropic", "claude", "gemini", "gpt", "chatgpt", "copilot",
-    "agent", "agents", "agentic", "autonomous", "generative",
+    "ai agent", "llm agent", "agentic", "autonomous", "generative",
     "transformer", "diffusion", "rag", "retrieval-augmented",
     "inference", "training run", "fine-tuning", "alignment", "rlhf",
     "mistral", "deepseek", "meta llama", "llama", "perplexity", "xai", "grok",
@@ -19,7 +19,7 @@ AI_TERMS = {
 
 SEMI_TERMS = {
     "nvidia", "tsmc", "amd", "intel", "samsung", "sk hynix", "micron",
-    "broadcom", "marvell", "qualcomm", "arm", "asml", "lam research",
+    "broadcom", "marvell", "qualcomm", "arm holdings", "asml", "lam research",
     "applied materials", "kla", "tokyo electron", "cadence", "synopsys",
     "semiconductor", "chip", "chips", "wafer", "fab", "foundry",
     "gpu", "tpu", "asic", "npu", "hbm", "high bandwidth memory",
@@ -32,16 +32,13 @@ CRYPTO_TERMS = {
     "bitcoin", "btc", "ethereum", "eth", "crypto", "cryptocurrency",
     "stablecoin", "usdc", "usdt", "tether", "circle",
     "defi", "web3", "blockchain", "on-chain", "onchain", "off-chain",
-    "solana", "sol", "sui", "aptos", "near", "ton",
+    "solana", "sui", "aptos", "near protocol",
     "layer 1", "layer 2", "l1", "l2", "rollup", "zk", "zero-knowledge",
     "spot etf", "spot bitcoin etf", "spot ether etf",
     "coinbase", "binance", "kraken", "robinhood crypto",
     "miner", "mining", "hashrate", "halving",
     "nft", "tokenization", "rwa", "real-world asset",
 }
-
-# 全部主題詞集合（檢測「至少命中一個主題」用）
-TECH_TERMS = AI_TERMS | SEMI_TERMS | CRYPTO_TERMS
 
 LOW_SIGNAL_TERMS = {
     "coupon", "promo code", "deal", "discount", "gift guide", "best early",
@@ -63,6 +60,10 @@ DEPTH_MARKERS = {
     "revenue", "earnings", "guidance", "filing", "sec", "benchmark", "study",
     "research", "technical", "architecture", "strategy", "policy", "regulator",
 }
+
+_SPECIFICS_RE = re.compile(
+    r"(\$[\d,.]+|\d+%|\b\d{4}\b|\b\d+(?:\.\d+)?\s*(?:billion|million|trillion)\b)"
+)
 
 
 @dataclass(frozen=True)
@@ -92,10 +93,12 @@ class HeuristicFilter:
         score = 0.0
         reasons: list[str] = []
 
-        ai_hit = _has_term(haystack, AI_TERMS)
-        semi_hit = _has_term(haystack, SEMI_TERMS)
-        crypto_hit = _has_term(haystack, CRYPTO_TERMS)
-        if ai_hit or semi_hit or crypto_hit:
+        ai_hit, semi_hit, crypto_hit = _theme_hits(haystack)
+        has_theme = ai_hit or semi_hit or crypto_hit
+        has_depth = _has_term(haystack, DEPTH_MARKERS)
+        has_specifics = _has_specifics(haystack)
+
+        if has_theme:
             score += 0.4
             reasons.append(
                 "theme:" + "+".join(
@@ -103,15 +106,14 @@ class HeuristicFilter:
                 )
             )
         else:
-            # 不在三大主題白名單就直接打入低於門檻區間。
             score -= 0.6
             reasons.append("offtopic")
 
-        if _has_term(haystack, DEPTH_MARKERS):
+        if has_depth:
             score += 0.25
             reasons.append("depth_markers")
 
-        if re.search(r"(\$[\d,.]+|\d+%|\b\d{4}\b|\b\d+(?:\.\d+)?\s*(?:billion|million|trillion)\b)", haystack):
+        if has_specifics:
             score += 0.2
             reasons.append("specifics")
 
@@ -137,6 +139,10 @@ class HeuristicFilter:
 
         score = round(max(0.0, min(1.0, score)), 2)
         passed = score >= self.threshold
+        if has_theme and passed and not _passes_quality_gate(has_depth, has_specifics):
+            passed = False
+            reasons.append("gate:needs_depth_or_specifics")
+
         return HeuristicResult(score=score, passed=passed, reason="+".join(reasons) or "no_signal")
 
     def filter_articles(self, articles: list) -> tuple[list, list]:
@@ -152,6 +158,22 @@ class HeuristicFilter:
                 article.score_status = "prefiltered_out"
                 dropped.append(article)
         return passed, dropped
+
+
+def _theme_hits(haystack: str) -> tuple[bool, bool, bool]:
+    return (
+        _has_term(haystack, AI_TERMS),
+        _has_term(haystack, SEMI_TERMS),
+        _has_term(haystack, CRYPTO_TERMS),
+    )
+
+
+def _has_specifics(haystack: str) -> bool:
+    return bool(_SPECIFICS_RE.search(haystack))
+
+
+def _passes_quality_gate(has_depth: bool, has_specifics: bool) -> bool:
+    return has_depth or has_specifics
 
 
 def _has_term(haystack: str, terms: set[str]) -> bool:

@@ -91,7 +91,7 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `DASHBOARD_REVALIDATE_TOKEN` | ❌ | Shared secret; must match dashboard `REVALIDATE_TOKEN` |
 | `DASHBOARD_REVALIDATE_TIMEOUT` | ❌ | HTTP timeout seconds for revalidate POST (`5`) |
 
-Heuristic prefilter (`scoring/heuristic_filter.py`) drops articles that do not match at least one of the **AI / semiconductor / crypto** term clusters before Gemini scoring.
+Heuristic prefilter (`scoring/heuristic_filter.py`) drops articles that do not match at least one of the **AI / semiconductor / crypto** term clusters before Gemini scoring. Matched items must also include a depth marker (e.g. announced, earnings) or concrete figures (%, $, dates); see `gate:needs_depth_or_specifics` in `base_score_status` logs.
 
 ## Dashboard (Next.js)
 

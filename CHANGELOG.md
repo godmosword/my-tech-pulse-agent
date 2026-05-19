@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **開發流程**：[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 與 [`.cursor/rules/workflow.mdc`](.cursor/rules/workflow.mdc) — 段落完成直接 push `main` 並同步 CHANGELOG/TODOS；pipeline 路徑改動須先經維護者確認。
+- **Heuristic edge tests**：[`tests/test_heuristic_filter.py`](tests/test_heuristic_filter.py) 覆蓋主題白名單、促銷/學術/薄稿、複合品質閘與歧義詞誤命中（`arm`/`sol`/`near`/`agent`）。
+
+### Changed
+- **Heuristic prefilter**（[`scoring/heuristic_filter.py`](scoring/heuristic_filter.py)）：主題命中後須有 `depth_markers` 或具體數字才進 Gemini；`reason` 新增 `gate:needs_depth_or_specifics`；收緊易誤命中詞彙。
 
 ## [0.2.0] — 2026-05-19
 
