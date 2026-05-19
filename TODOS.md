@@ -1,6 +1,6 @@
 # TODOS
 
-工程待辦與路線圖（非 CI 自動維護；重大里程碑請同步 [`CHANGELOG.md`](CHANGELOG.md)）。
+工程待辦與路線圖（非 CI 自動維護；重大里程碑請同步 [`CHANGELOG.md`](CHANGELOG.md)）。開發節奏見 [`docs/WORKFLOW.md`](docs/WORKFLOW.md)。
 
 ## 近期已完成（0.2.0）
 

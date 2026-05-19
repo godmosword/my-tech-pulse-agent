@@ -1,0 +1,34 @@
+---
+description: Repo git workflow — push main per completed slice; sync CHANGELOG/TODOS; confirm before pipeline changes.
+alwaysApply: true
+---
+
+# Development Workflow (tech-pulse)
+
+Follow [docs/WORKFLOW.md](../../docs/WORKFLOW.md). Summary:
+
+## Completed slice → `main` + docs
+
+When a **slice** (one verifiable unit of work) is done and verified:
+
+1. `git checkout main && git pull origin main`
+2. Commit with a clear message (what + why)
+3. **In the same push round**, update `CHANGELOG.md` (`[Unreleased]` or a version section) and `TODOS.md` (check off done items, add follow-ups)
+4. `git push origin main`
+
+Do **not** leave CHANGELOG/TODOS stale after merging a slice. Routine work does not require a long-lived feature branch unless the user asks.
+
+## Pipeline changes → ask first
+
+**Stop and get explicit maintainer approval** before implementing, committing, or pushing to `main` if the change touches:
+
+- `pipeline/`, `main.py`, `agents/`, `llm/`, `sources/`, `scoring/`, `delivery/`
+- Production-impacting `scripts/` (e.g. `preflight.py`, `backfill_gdelt.py`)
+- Root `.env.example` vars that affect pipeline runs
+- `.github/workflows/ci.yml` deploy steps (image, Cloud Run env)
+
+**No approval needed** for: `dashboard/`, `docs/`, `README.md`, `CHANGELOG.md`, `TODOS.md`, tests-only (unless they change pipeline behavior).
+
+Before asking, you may investigate and draft; after approval, follow the slice → `main` + CHANGELOG/TODOS flow.
+
+When proposing pipeline work, state: files affected, runtime/env impact, verification command, and that `main` push triggers deploy.
