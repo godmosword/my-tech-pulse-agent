@@ -28,10 +28,15 @@ RSS / Social / SEC EDGAR
   → cross-article themes + daily digest narrative
         ↓
   Smart Telegram Delivery (#科技脈搏)
-  → theme-aware message chunking at 4096 char boundaries
+  → HTML parse_mode, theme-aware chunking at 4096 char boundaries
+        ↓
+  Firestore memory archive (optional) + Dashboard ISR webhook
+  → Next.js reader at dashboard/ (Vercel)
 ```
 
-**Smart message delivery**: Long digests are split intelligently at newline (theme) boundaries to preserve formatting. Messages stay under Telegram's 4096 character limit while maintaining MarkdownV2 escape sequences. Each chunk includes validation and configurable inter-message delays.
+**Smart message delivery**: Long digests are split at newline (theme) boundaries when possible. Messages stay under Telegram's 4096 character limit with **HTML** `parse_mode` (dynamic text is escaped in `message_formatter.py`). Each chunk includes boundary validation and configurable inter-message delays (`TELEGRAM_CHUNK_DELAY_MS`).
+
+**Web dashboard**: [`dashboard/README.md`](dashboard/README.md) reads `tech_pulse_memory_items` from Firestore. After each successful delivery, the pipeline can POST to `/api/revalidate` when `DASHBOARD_REVALIDATE_URL` and `DASHBOARD_REVALIDATE_TOKEN` are set ([`delivery/revalidate.py`](delivery/revalidate.py)).
 
 Earnings reports follow a dedicated sub-pipeline:
 
@@ -82,6 +87,38 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `TELEGRAM_CHUNK_DELAY_MS` | ❌      | Delay between digest chunks to prevent rate limiting (`500`) |
 | `SEMANTIC_PREFILTER_ENABLED` | ❌   | Enable pre-extraction semantic dedup via 7-day embedding window (`0`) |
 | `SEMANTIC_PREFILTER_THRESHOLD` | ❌ | Cosine similarity threshold for pre-extraction dedup (`0.85`) |
+| `DASHBOARD_REVALIDATE_URL` | ❌ | Full URL for dashboard ISR webhook, e.g. `https://<host>/api/revalidate` |
+| `DASHBOARD_REVALIDATE_TOKEN` | ❌ | Shared secret; must match dashboard `REVALIDATE_TOKEN` |
+| `DASHBOARD_REVALIDATE_TIMEOUT` | ❌ | HTTP timeout seconds for revalidate POST (`5`) |
+
+Heuristic prefilter (`scoring/heuristic_filter.py`) drops articles that do not match at least one of the **AI / semiconductor / crypto** term clusters before Gemini scoring.
+
+## Dashboard (Next.js)
+
+Reader UI lives under [`dashboard/`](dashboard/). Deploy to Vercel with project root `dashboard/`; env vars in [`dashboard/.env.example`](dashboard/.env.example).
+
+| Mode | Behavior |
+|------|----------|
+| **Basic Auth** (default when credentials set) | Whole-site HTTP Basic when `DASHBOARD_PUBLIC_READ` is unset |
+| **Public read** | `DASHBOARD_PUBLIC_READ=true` — anonymous title/`zh_summary`; full `zh_body` after `/login` + signed cookie |
+
+Provision a read-only Firestore SA: `PROJECT_ID=<gcp-project> ./scripts/setup_dashboard_sa.sh`
+
+Portal / third-party readers: [`docs/PORTAL_CONTRACT.md`](docs/PORTAL_CONTRACT.md)
+
+## Historical backfill (GDELT)
+
+RSS feeds only retain ~20 recent items. To seed older archive days:
+
+```bash
+# Dry run (no LLM, no Firestore writes)
+python -m scripts.backfill_gdelt --start 2026-05-01 --end 2026-05-18
+
+# Commit (scores, extracts, writes memory_items; uses Gemini quota)
+python -m scripts.backfill_gdelt --start 2026-05-01 --end 2026-05-18 --commit
+```
+
+See `scripts/backfill_gdelt.py` for `--theme` and rate-limit notes.
 
 ## Deployment
 
@@ -213,9 +250,11 @@ tech-pulse/
 ├── llm/                  Shared Gemini client helpers
 ├── scripts/              Production preflight checks
 ├── pipeline/             Orchestration + scheduling
-├── delivery/             Telegram bot
-├── dashboard/            Future web UI
+├── delivery/             Telegram bot + dashboard ISR webhook
+├── dashboard/            Next.js 15 web reader (Firestore)
+├── docs/                 Portal contract, integration notes
+├── scripts/              preflight, GDELT backfill, dashboard SA setup
 └── tests/                Smoke tests + LLM-as-judge
 ```
 
-See [CLAUDE.md](CLAUDE.md) for full design constraints and schema contracts.
+See [CLAUDE.md](CLAUDE.md) for full design constraints and schema contracts. Track open work in [TODOS.md](TODOS.md); release notes in [CHANGELOG.md](CHANGELOG.md).
