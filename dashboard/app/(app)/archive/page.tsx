@@ -74,33 +74,39 @@ export default async function ArchivePage({
             </h2>
             <Hairline />
             <ul className="divide-y divide-rule">
-              {dayItems.map((item) => (
+              {dayItems.map((item) => {
+                const kickerSegments = archiveKickerSegments(item);
+                return (
                 <li key={item.id} className="py-4">
                   <Link
                     href={`/item/${encodeURIComponent(item.id)}`}
                     className="block space-y-2 hover:[&_h3]:underline"
                   >
-                    <Kicker as="div" className="flex flex-wrap items-center">
-                      <span>{kindLabel(item.kind)}</span>
-                      {item.category && (
-                        <>
-                          <MetaDot />
-                          <span>{categoryLabel(item.category)}</span>
-                        </>
-                      )}
-                      {item.source_name && (
-                        <>
-                          <MetaDot />
-                          <span>{item.source_name}</span>
-                        </>
-                      )}
-                    </Kicker>
+                    {kickerSegments.length > 0 && (
+                        <Kicker
+                          as="div"
+                          className="flex flex-wrap items-center text-ink-soft"
+                        >
+                          {kickerSegments.map((segment, index) => (
+                            <span key={`${segment}-${index}`} className="contents">
+                              {index > 0 && <MetaDot />}
+                              <span>{segment}</span>
+                            </span>
+                          ))}
+                        </Kicker>
+                    )}
                     <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
                       {displayTitle(item)}
                     </h3>
+                    {item.zh_summary?.trim() && (
+                      <p className="font-sans text-[15px] leading-snug text-ink-soft">
+                        {item.zh_summary}
+                      </p>
+                    )}
                   </Link>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </section>
         ))}
@@ -134,15 +140,19 @@ function ActiveFilters({
   );
 }
 
-function kindLabel(kind: Items[number]["kind"]): string {
-  switch (kind) {
-    case "deep_brief":
-      return "Deep Insight";
-    case "earnings":
-      return "Earnings";
-    default:
-      return "Dispatch";
+function archiveKickerSegments(item: Items[number]): string[] {
+  const parts: string[] = [];
+  if (item.kind === "deep_brief") parts.push("Deep Insight");
+  else if (item.kind === "earnings") parts.push("Earnings");
+
+  if (item.category?.trim()) {
+    parts.push(categoryLabel(item.category));
   }
+
+  const source = item.source_name?.trim();
+  if (source) parts.push(source);
+
+  return parts;
 }
 
 interface DayBucket {

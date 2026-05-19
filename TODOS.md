@@ -12,6 +12,7 @@
 - [x] Heuristic 三大主題白名單（AI / 半導體 / 加密）
 - [x] Heuristic edge-case 測試 + 複合品質閘（主題 + 深度/具體數據）
 - [x] GDELT 歷史回填腳本 `scripts/backfill_gdelt.py`
+- [x] Dashboard Archive：弱 `zh_title` fallback 至 `title`、精簡 kicker、列表顯示 `zh_summary`
 
 ## 進行中 / 下一步
 

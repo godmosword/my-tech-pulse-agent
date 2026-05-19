@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **Heuristic prefilter**（[`scoring/heuristic_filter.py`](scoring/heuristic_filter.py)）：主題命中後須有 `depth_markers` 或具體數字才進 Gemini；`reason` 新增 `gate:needs_depth_or_specifics`；收緊易誤命中詞彙。
+- **Dashboard Archive**：`displayTitle()` 在 `zh_title` 過短或等同 `entity` 時改顯示英文 `title`；歸檔列表精簡 kicker（快訊不再每行 `Dispatch`）、有 `zh_summary` 時顯示副標一行。
 
 ## [0.2.0] — 2026-05-19
 

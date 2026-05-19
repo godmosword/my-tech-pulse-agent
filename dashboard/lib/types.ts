@@ -101,18 +101,53 @@ export const PRIORITY_DOT_CLASS: Record<PriorityLevel, string> = {
   low: "bg-ink-faint",
 };
 
+const ZH_TITLE_MIN_CHARS = 8;
+const ZH_TITLE_SHORT_MAX = 12;
+
+function normalizeComparable(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+/** 品質過低的 zh_title 不應蓋過完整的 title。 */
+export function isWeakZhTitle(
+  zhTitle: string,
+  options: { title?: string; entity?: string } = {},
+): boolean {
+  const zh = zhTitle.trim();
+  if (!zh) return true;
+  if (zh.length < ZH_TITLE_MIN_CHARS) return true;
+
+  const entity = options.entity?.trim();
+  if (entity && normalizeComparable(zh) === normalizeComparable(entity)) {
+    return true;
+  }
+
+  const title = options.title?.trim();
+  if (
+    zh.length < ZH_TITLE_SHORT_MAX &&
+    title &&
+    title.length >= zh.length * 2
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /** 顯示用標題：優先 zh_title（繁中），其次 LLM 給的 title，最後 entity。 */
 export function displayTitle(item: {
   zh_title?: string;
   title?: string;
   entity?: string;
 }): string {
-  return (
-    item.zh_title?.trim() ||
-    item.title?.trim() ||
-    item.entity?.trim() ||
-    "Untitled"
-  );
+  const zh = item.zh_title?.trim();
+  const title = item.title?.trim();
+  const entity = item.entity?.trim();
+
+  if (zh && !isWeakZhTitle(zh, { title, entity })) {
+    return zh;
+  }
+  return title || entity || "Untitled";
 }
 
 export function toIsoString(value: unknown): string | null {
