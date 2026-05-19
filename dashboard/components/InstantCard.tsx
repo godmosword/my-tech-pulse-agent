@@ -1,7 +1,8 @@
 import Link from "next/link";
 import {
+  bestTimestamp,
   categoryLabel,
-  formatMetaDate,
+  formatRelativeDateline,
 } from "@/lib/digest";
 import { publicSummaryLine } from "@/lib/public-excerpt";
 import {
@@ -37,7 +38,7 @@ interface InstantCardProps {
  */
 export function InstantCard({ item, authenticated, returnToPath }: InstantCardProps) {
   const headline = displayTitle(item);
-  const meta = formatMetaDate(item.published_at_iso || item.delivered_at_iso);
+  const meta = formatRelativeDateline(bestTimestamp(item));
   const cat = categoryLabel(item.category);
   const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
   const previewLine = publicSummaryLine(item);

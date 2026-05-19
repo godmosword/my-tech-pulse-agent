@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listLatestItems } from "@/lib/firestore";
 import {
+  bestTimestamp,
   categoryLabel,
   formatEditorialDate,
 } from "@/lib/digest";
@@ -153,9 +154,17 @@ interface DayBucket {
 function bucketByDay(items: Items): DayBucket[] {
   const groups = new Map<string, Items>();
   for (const item of items) {
-    const key = (item.delivered_at_iso ?? "").slice(0, 10) || "unknown";
+    // Bucket by the article's actual publish day (fallback to delivered).
+    // Backfilled rows where delivered_at = batch day would otherwise pile
+    // up under the wrong calendar day.
+    const key = bestTimestamp(item).slice(0, 10) || "unknown";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(item);
+  }
+  // Sort items inside each day by the same timestamp, newest first, so the
+  // displayed order matches the kicker timestamps.
+  for (const list of groups.values()) {
+    list.sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)));
   }
   return [...groups.entries()]
     .sort(([a], [b]) => b.localeCompare(a))

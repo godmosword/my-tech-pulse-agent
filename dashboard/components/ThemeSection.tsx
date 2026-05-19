@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { displayTitle, type RenderableItem } from "@/lib/types";
-import { formatMetaDate } from "@/lib/digest";
+import { bestTimestamp, formatRelativeDateline } from "@/lib/digest";
 
 import { Hairline } from "./Hairline";
 import { Kicker, MetaDot } from "./Kicker";
@@ -37,11 +37,11 @@ export function ThemeSection({ theme, items }: Props) {
             >
               <Kicker as="div" className="flex flex-wrap items-center">
                 {item.source_name && <span>{item.source_name}</span>}
-                {formatMetaDate(item.published_at_iso || item.delivered_at_iso) && (
+                {formatRelativeDateline(bestTimestamp(item)) && (
                   <>
                     {item.source_name && <MetaDot />}
-                    <span>
-                      {formatMetaDate(item.published_at_iso || item.delivered_at_iso)}
+                    <span className="tabular-nums">
+                      {formatRelativeDateline(bestTimestamp(item))}
                     </span>
                   </>
                 )}

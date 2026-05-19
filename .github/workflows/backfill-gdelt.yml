@@ -1,0 +1,60 @@
+name: Backfill GDELT
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "UTC+8 start date YYYY-MM-DD"
+        required: true
+        default: "2026-05-01"
+      end:
+        description: "UTC+8 end date YYYY-MM-DD (inclusive)"
+        required: true
+        default: "2026-05-19"
+      theme:
+        description: "Theme filter"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - ai
+          - semi
+          - crypto
+          - combined
+      max_per_day:
+        description: "Max records per day per theme"
+        required: false
+        default: "75"
+      commit:
+        description: "Actually write to Firestore (false = dry run)"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e '.[dev]'
+
+      - name: Run GDELT backfill
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FIRESTORE_COLLECTION_PREFIX: ${{ secrets.FIRESTORE_COLLECTION_PREFIX }}
+        run: |
+          ARGS="--start ${{ github.event.inputs.start }} --end ${{ github.event.inputs.end }} --theme ${{ github.event.inputs.theme }} --max-per-day ${{ github.event.inputs.max_per_day }}"
+          if [ "${{ github.event.inputs.commit }}" = "true" ]; then
+            ARGS="$ARGS --commit"
+          fi
+          python -m scripts.backfill_gdelt $ARGS

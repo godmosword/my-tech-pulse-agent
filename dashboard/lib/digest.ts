@@ -144,10 +144,7 @@ export function buildDigest(
 ): DigestView {
   const deepInsights = items
     .filter((i) => i.kind === "deep_brief")
-    .sort(
-      (a, b) =>
-        (b.delivered_at_iso || "").localeCompare(a.delivered_at_iso || "")
-    )
+    .sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)))
     .slice(0, 3);
 
   const deepKeys = new Set<string>();
@@ -164,13 +161,10 @@ export function buildDigest(
         !deepKeys.has((i.source_url || "").trim()) &&
         !deepKeys.has((i.title || "").trim().toLowerCase())
     )
-    // Time-first: newest delivered_at on top so the homepage matches the
-    // chronological expectation. Theme ordering uses each group's freshest
-    // delivered_at below.
-    .sort(
-      (a, b) =>
-        (b.delivered_at_iso || "").localeCompare(a.delivered_at_iso || "")
-    );
+    // Time-first: sort by the same timestamp the UI displays
+    // (published_at preferred, delivered_at fallback) so reader-visible time
+    // is monotonic and never contradicts the running order.
+    .sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)));
 
   const grouped = new Map<string, RenderableItem[]>();
   for (const item of instant) {
@@ -184,12 +178,12 @@ export function buildDigest(
       theme,
       // Items already in DESC delivered_at order from the parent sort.
       items: list,
-      // Use the freshest delivered_at as the theme's sort key so the most
+      // Use the freshest visible timestamp as the theme's sort key so the most
       // recently updated section surfaces first.
-      latestIso: list.reduce(
-        (acc, x) => (x.delivered_at_iso && x.delivered_at_iso > acc ? x.delivered_at_iso : acc),
-        ""
-      ),
+      latestIso: list.reduce((acc, x) => {
+        const ts = bestTimestamp(x);
+        return ts && ts > acc ? ts : acc;
+      }, ""),
     }))
     .sort((a, b) => b.latestIso.localeCompare(a.latestIso))
     .slice(0, maxThemes);
@@ -269,6 +263,58 @@ export function formatEditorialDate(iso: string | null): string {
   } catch {
     return iso;
   }
+}
+
+/**
+ * The timestamp the reader sees. Prefer the article's own published_at; fall
+ * back to delivered_at. Returns "" when both are missing so localeCompare
+ * still works in sort.
+ */
+export function bestTimestamp(item: {
+  published_at_iso: string | null;
+  delivered_at_iso: string | null;
+}): string {
+  return item.published_at_iso || item.delivered_at_iso || "";
+}
+
+/**
+ * Reader-facing time stamp:
+ *   <60s          → 剛剛
+ *   <60min        → N 分鐘前
+ *   same day TPE  → 今天 HH:MM
+ *   yesterday     → 昨日 HH:MM
+ *   else          → MAY 17 · 11:15
+ *
+ * Keeps the editorial fixed-date format for older items so the page reads
+ * like a newspaper, but adds a "fresh" cue for items in the last day.
+ */
+export function formatRelativeDateline(iso: string | null, now: Date = new Date()): string {
+  if (!iso) return "";
+  let d: Date;
+  try {
+    d = new Date(iso);
+  } catch {
+    return iso;
+  }
+  const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 0) return formatMetaDate(iso);
+  if (diffMs < 60_000) return "剛剛";
+  if (diffMs < 60 * 60_000) {
+    return `${Math.floor(diffMs / 60_000)} 分鐘前`;
+  }
+  const dayKey = (x: Date) =>
+    x.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+  const today = dayKey(now);
+  const yesterday = dayKey(new Date(now.getTime() - 24 * 60 * 60_000));
+  const key = dayKey(d);
+  const hhmm = d.toLocaleTimeString("en-GB", {
+    timeZone: TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (key === today) return `今天 ${hhmm}`;
+  if (key === yesterday) return `昨日 ${hhmm}`;
+  return formatMetaDate(iso);
 }
 
 /** Compact meta: "MAY 17 · 11:15" for inline kicker meta lines. */
