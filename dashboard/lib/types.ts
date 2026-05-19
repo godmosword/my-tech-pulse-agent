@@ -42,6 +42,9 @@ export const MemoryItemSchema = z.object({
   kind: MemoryItemKindSchema.default("instant_summary"),
   score: z.number().default(0),
   score_status: z.string().default("ok"),
+  tickers: z.array(z.string()).default([]).optional(),
+  what_happened: z.string().default("").optional(),
+  why_it_matters: z.string().default("").optional(),
   published_at: TimestampLikeSchema,
   delivered_at: TimestampLikeSchema,
 });
@@ -62,10 +65,41 @@ export interface RenderableItem {
   kind: MemoryItemKind;
   score: number;
   score_status: string;
+  tickers: string[];
+  what_happened: string;
+  why_it_matters: string;
   published_at_iso: string | null;
   delivered_at_iso: string | null;
   themes: string[];
 }
+
+/**
+ * Reader-facing priority badge for an article card.
+ * Thresholds match scoring/scorer.py expectations:
+ *   ≥ 8.0 → HIGH   (red dot)
+ *   ≥ 5.0 → MED    (amber dot)
+ *   < 5.0 → LOW    (neutral dot)
+ */
+export type PriorityLevel = "high" | "med" | "low";
+
+export function priorityLevel(score: number): PriorityLevel {
+  if (score >= 8.0) return "high";
+  if (score >= 5.0) return "med";
+  return "low";
+}
+
+export const PRIORITY_LABEL: Record<PriorityLevel, string> = {
+  high: "HIGH",
+  med: "MED",
+  low: "LOW",
+};
+
+/** Tailwind dot color per priority level. */
+export const PRIORITY_DOT_CLASS: Record<PriorityLevel, string> = {
+  high: "bg-red-500",
+  med: "bg-amber-500",
+  low: "bg-ink-faint",
+};
 
 /** 顯示用標題：優先 zh_title（繁中），其次 LLM 給的 title，最後 entity。 */
 export function displayTitle(item: {

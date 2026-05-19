@@ -66,7 +66,12 @@ export function MobileMasthead() {
           Archive
         </Link>
         <AuthNav />
-        <ThemeToggle />
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true" className="text-ink-faint">
+            顯示模式
+          </span>
+          <ThemeToggle />
+        </span>
       </nav>
     </header>
   );
