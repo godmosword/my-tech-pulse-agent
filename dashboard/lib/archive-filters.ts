@@ -1,11 +1,9 @@
-import type { PriorityLevel, RenderableItem } from "./types";
-import { priorityLevel } from "./types";
+import type { RenderableItem } from "./types";
 import { categoryLabel } from "./digest";
 
 export interface FilterState {
   category: string | null;
   month: string | null;
-  priority: PriorityLevel | null;
 }
 
 export interface Facet {
@@ -19,8 +17,6 @@ export interface ArchiveFacets {
   months: Facet[];
 }
 
-const VALID_PRIORITIES = new Set<string>(["high", "med", "low"]);
-
 export function parseFilterState(
   searchParams: Record<string, string | string[] | undefined> | undefined,
 ): FilterState {
@@ -30,13 +26,9 @@ export function parseFilterState(
     const t = (s ?? "").trim();
     return t ? t : null;
   };
-  const rawPriority = pick("priority");
   return {
     category: pick("category"),
     month: pick("month"),
-    priority: rawPriority && VALID_PRIORITIES.has(rawPriority)
-      ? (rawPriority as PriorityLevel)
-      : null,
   };
 }
 
@@ -79,14 +71,9 @@ export function applyFilters(
 ): RenderableItem[] {
   const cat = state.category?.toLowerCase() ?? null;
   const mo = state.month ?? null;
-  const pri = state.priority ?? null;
   return items.filter((item) => {
     if (cat && (item.category || "").toLowerCase() !== cat) return false;
     if (mo && monthKey(item.delivered_at_iso) !== mo) return false;
-    if (pri) {
-      const level = priorityLevel(item.score);
-      if (level !== pri) return false;
-    }
     return true;
   });
 }
@@ -101,7 +88,6 @@ export function buildArchiveHref(
   const params = new URLSearchParams();
   if (next.category) params.set("category", next.category);
   if (next.month) params.set("month", next.month);
-  if (next.priority) params.set("priority", next.priority);
   const qs = params.toString();
   return qs ? `/archive?${qs}` : "/archive";
 }

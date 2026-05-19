@@ -315,16 +315,16 @@ export function formatRelativeDate(iso: string | null): string {
 // to editorial section labels rendered in kickers. Unknown values fall back
 // to a title-cased version so nothing silently disappears.
 const CATEGORY_LABELS: Record<string, string> = {
-  product_launch: "Product",
-  funding: "Capital",
-  acquisition: "M&A",
-  earnings: "Earnings",
-  regulation: "Policy",
-  research: "Research",
-  other: "Dispatch",
+  product_launch: "產品發布",
+  funding: "融資",
+  acquisition: "併購",
+  earnings: "財報",
+  regulation: "監管",
+  research: "研究分析",
+  other: "即時快訊",
   ai: "AI",
-  semiconductor: "Semis",
-  crypto: "Crypto",
+  semiconductor: "半導體",
+  crypto: "加密貨幣",
 };
 
 export function categoryLabel(category: string): string {
