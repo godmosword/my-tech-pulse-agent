@@ -45,6 +45,15 @@ Fields:
 - sentiment: one of ["positive", "negative", "neutral"]
 - confidence: one of ["high", "medium", "low"]
 - cross_ref: true if this story is likely relevant to investment decisions (bool)
+- tldr_tier: one of ["headline", "deep_dive", "tool_or_repo", "number", "standard"].
+  Use "headline" for the day's top news (major announcement, earnings beat, product launch).
+  Use "deep_dive" for analysis/explainer pieces with multi-step reasoning.
+  Use "tool_or_repo" for new open-source projects, libraries, dev tools, SDKs, GitHub releases.
+  Use "number" when the core news is a striking standalone statistic / chart / benchmark result.
+  Use "standard" for everything else. When in doubt, "standard".
+- hook: one-sentence reader hook in Traditional Chinese (繁體中文), ≤24 characters.
+  Should answer "為什麼今天要讀這篇？" — the punchline, not a category label.
+  Empty string when the article is too thin to support a hook.
 
 Formatting constraints for structured summary fields:
 - what_happened must be one sentence of objective facts only, and MUST include at least one verifiable anchor from the article (company or product name, or a number/date that appears verbatim in the text). If the source truly lacks all three, write the shortest faithful fact sentence and set confidence to "low".
@@ -116,6 +125,8 @@ class ArticleSummary(BaseModel):
     zh_title: Optional[str] = None  # 繁體中文標題，≤28 字
     zh_summary: Optional[str] = None  # 繁體中文導讀，2句，由 LLM 生成
     zh_body: Optional[str] = None  # 繁體中文全文譯寫
+    tldr_tier: Literal["headline", "deep_dive", "tool_or_repo", "number", "standard"] = "standard"
+    hook: str = ""  # ≤24 字繁中 reader hook（formatter 會回退到 zh_summary 第一句）
     allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
 
 
@@ -240,6 +251,15 @@ class ExtractorAgent:
             raw = getattr(summary, field, None) or ""
             cleaned = strip_weak_summary_openers(to_traditional_zh_tw(str(raw).strip()))
             setattr(summary, field, cleaned or None)
+        raw_hook = (getattr(summary, "hook", "") or "").strip()
+        if raw_hook:
+            cleaned_hook = to_traditional_zh_tw(raw_hook).strip().strip("「」\"'“”。.")
+            if len(cleaned_hook) > 24:
+                cleaned_hook = cleaned_hook[:24].rstrip()
+            summary.hook = cleaned_hook
+        else:
+            summary.hook = ""
+
         raw_title = (getattr(summary, "zh_title", None) or "").strip()
         if raw_title:
             cleaned_title = to_traditional_zh_tw(raw_title).strip().strip("「」\"'“”")

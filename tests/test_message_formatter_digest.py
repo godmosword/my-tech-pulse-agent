@@ -67,7 +67,7 @@ def test_digest_groups_by_theme_and_uses_quality_footer():
 
     # Theme bullets still appear before any item line.
     idx_themes = msg.index("🧭 今日主線")
-    idx_first_item = msg.index("⭐")
+    idx_first_item = msg.index("🔥")
     assert idx_themes < idx_first_item
 
 
@@ -84,13 +84,12 @@ def test_earnings_line_has_no_midcut_summary():
         score=7.6,
     )
     msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
-    # Locate the title line (contains 📊 score prefix followed by confidence badge).
-    score_line = next(line for line in msg.splitlines() if line.startswith("📊"))
-    # Score line must NOT contain title or body content — those are on separate lines now.
+    # Card score line now uses 🔥 fire badge (with the numeric score moved to
+    # the footer summary). Locate the card's fire-badge line and confirm it
+    # carries no title/body content.
+    score_line = next(line for line in msg.splitlines() if line.startswith("🔥"))
     assert "Meta Platforms" not in score_line
     assert "shares fell" not in score_line
-    # The score line should start with 📊 and the score.
-    assert score_line.startswith("📊 7")
     # Title must appear on its own bold line.
     assert "<b>Meta raises spend outlook</b>" in msg
 
@@ -127,7 +126,7 @@ def test_headline_and_narrative_lead_appear_above_items():
     idx_headline = msg.index("AI 資本支出全面上修")
     idx_narrative = msg.index("Meta")
     idx_themes = msg.index("🧭 今日主線")
-    idx_first_item = msg.index("⭐")
+    idx_first_item = msg.index("🔥")
     assert idx_headline < idx_narrative < idx_themes < idx_first_item
 
 
@@ -309,10 +308,20 @@ def test_zh_summary_omitted_when_none():
     assert "💡" not in msg
 
 
-def test_source_link_is_html_anchor():
+def test_source_link_moves_to_inline_button():
+    """URL is no longer embedded in card text — it travels on the DigestMessage
+    so TelegramBot can attach it as an inline 「📖 讀原文」button."""
+    from delivery.message_formatter import build_items_digest_messages
     summary = _sample_summary(0, score=8.0)
-    msg = format_items_digest([summary], total_fetched=1, total_after_filter=1)
-    assert '<a href="https://example.com">原文連結</a>' in msg
+    messages = build_items_digest_messages(
+        [summary], total_fetched=1, total_after_filter=1
+    )
+    # No card text should still embed the old inline anchor.
+    for m in messages:
+        assert '原文連結</a>' not in m.text
+    # Exactly one DigestMessage carries the source URL for the inline button.
+    urls = [m.url for m in messages if m.url]
+    assert urls == ["https://example.com"]
 
 
 def test_title_is_bold_html():
