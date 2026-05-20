@@ -62,6 +62,31 @@ def to_traditional_zh_tw(text: str) -> str:
     return converted
 
 
+_CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
+
+
+def has_cjk(text: str) -> bool:
+    """True when the string contains Han script (excludes Latin-only fallback text)."""
+    return bool(_CJK_RE.search(text or ""))
+
+
+def first_zh_sentence(text: str) -> str:
+    """First sentence delimited by common Chinese / Western punctuation."""
+    t = (text or "").strip()
+    if not t:
+        return ""
+    match = re.match(r"^[^。！？.!?]+[。！？.!?]?", t)
+    return (match.group(0) if match else t).strip()
+
+
+def derive_zh_title(zh_text: str, *, max_len: int = 40, min_len: int = 8) -> str:
+    """Headline fallback from a Chinese summary or body paragraph."""
+    first = first_zh_sentence(zh_text)
+    if not has_cjk(first) or len(first) < min_len:
+        return ""
+    return first[:max_len].rstrip()
+
+
 def strip_weak_summary_openers(text: str) -> str:
     """Remove weak summarization lead-ins that dilute the thesis."""
     stripped = text.strip()

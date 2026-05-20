@@ -63,6 +63,7 @@ function toRenderable(id: string, raw: unknown): RenderableItem | null {
     kind: item.kind,
     score: item.score,
     score_status: item.score_status,
+    hook: item.hook ?? "",
     tickers: item.tickers ?? [],
     what_happened: item.what_happened ?? "",
     why_it_matters: item.why_it_matters ?? "",

@@ -42,6 +42,7 @@ export const MemoryItemSchema = z.object({
   kind: MemoryItemKindSchema.default("instant_summary"),
   score: z.number().default(0),
   score_status: z.string().default("ok"),
+  hook: z.string().default("").optional(),
   tickers: z.array(z.string()).default([]).optional(),
   what_happened: z.string().default("").optional(),
   why_it_matters: z.string().default("").optional(),
@@ -65,6 +66,7 @@ export interface RenderableItem {
   kind: MemoryItemKind;
   score: number;
   score_status: string;
+  hook: string;
   tickers: string[];
   what_happened: string;
   why_it_matters: string;
@@ -103,6 +105,12 @@ export const PRIORITY_DOT_CLASS: Record<PriorityLevel, string> = {
 
 const ZH_TITLE_MIN_CHARS = 8;
 const ZH_TITLE_SHORT_MAX = 12;
+const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
+
+/** 含漢字才視為可用繁中標題／摘要（排除僅 OpenCC 轉換的英文 fallback）。 */
+export function hasCjk(text: string): boolean {
+  return CJK_RE.test(text);
+}
 
 function normalizeComparable(value: string): string {
   return value.trim().toLowerCase();
@@ -142,30 +150,47 @@ export function isWeakZhTitle(
   return false;
 }
 
-/** 顯示用標題：優先 zh_title，其次 zh_summary 首句，最後英文 title / entity。 */
+function zhHeadlineCandidate(
+  text: string,
+  options: { title?: string; entity?: string },
+): string | null {
+  const trimmed = text.trim();
+  if (!trimmed || !hasCjk(trimmed)) return null;
+  const fromText = firstZhSentence(trimmed);
+  if (
+    fromText.length >= ZH_TITLE_MIN_CHARS &&
+    !isWeakZhTitle(fromText, options)
+  ) {
+    return fromText;
+  }
+  return null;
+}
+
+/** 顯示用標題：優先 zh_title，其次 hook／zh_summary／zh_body 首句，最後英文 title。 */
 export function displayTitle(item: {
   zh_title?: string;
+  hook?: string;
   zh_summary?: string;
+  zh_body?: string;
   title?: string;
   entity?: string;
 }): string {
-  const zh = item.zh_title?.trim();
   const title = item.title?.trim();
   const entity = item.entity?.trim();
+  const weakOpts = { title, entity };
 
-  if (zh && !isWeakZhTitle(zh, { title, entity })) {
+  const zh = item.zh_title?.trim();
+  if (zh && !isWeakZhTitle(zh, weakOpts)) {
     return zh;
   }
 
-  const summary = item.zh_summary?.trim();
-  if (summary) {
-    const fromSummary = firstZhSentence(summary);
-    if (
-      fromSummary.length >= ZH_TITLE_MIN_CHARS &&
-      !isWeakZhTitle(fromSummary, { title, entity })
-    ) {
-      return fromSummary;
-    }
+  for (const source of [
+    item.hook,
+    item.zh_summary,
+    item.zh_body,
+  ]) {
+    const candidate = zhHeadlineCandidate(source ?? "", weakOpts);
+    if (candidate) return candidate;
   }
 
   return title || entity || "Untitled";
@@ -176,12 +201,14 @@ export function displayTitle(item: {
  */
 export function listingZhSubline(item: {
   zh_title?: string;
+  hook?: string;
   zh_summary?: string;
+  zh_body?: string;
   title?: string;
   entity?: string;
 }): string | null {
   const summary = item.zh_summary?.trim();
-  if (!summary) return null;
+  if (!summary || !hasCjk(summary)) return null;
 
   const headline = displayTitle(item);
   const first = firstZhSentence(summary);

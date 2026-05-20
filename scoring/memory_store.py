@@ -14,6 +14,7 @@ from agents.deep_insight_agent import InsightBrief
 from agents.earnings_agent import EarningsOutput
 from agents.extractor_agent import ArticleSummary
 from llm.embedding_client import GeminiEmbedder, MEMORY_EMBEDDING_DIM
+from llm.localization import derive_zh_title
 
 logger = logging.getLogger(__name__)
 
@@ -166,18 +167,27 @@ class FirestoreMemoryService:
                 continue
 
             item_id = _item_id(summary.source_url or f"{summary.source_name}:{summary.title}")
+            zh_title = (getattr(summary, "zh_title", "") or "").strip()
+            zh_summary = (getattr(summary, "zh_summary", "") or "").strip()
+            zh_body = (getattr(summary, "zh_body", "") or "").strip()
+            if not zh_title:
+                for source in (zh_summary, zh_body, (getattr(summary, "hook", "") or "").strip()):
+                    if source:
+                        zh_title = derive_zh_title(source)
+                        if zh_title:
+                            break
             payload = {
                 "item_id": item_id,
                 "title": summary.title or summary.entity,
-                "zh_title": (getattr(summary, "zh_title", "") or "").strip(),
+                "zh_title": zh_title,
                 "summary": text,
                 # zh_summary is additive (PORTAL_CONTRACT.md v1 compatible): the
                 # extractor already generates a 2-sentence Traditional Chinese
                 # paragraph; persisting it lets the dashboard render bilingual
                 # cards without re-translating at read time. Empty string when
                 # the source language is already zh-TW or the LLM skipped it.
-                "zh_summary": (getattr(summary, "zh_summary", "") or "").strip(),
-                "zh_body": (getattr(summary, "zh_body", "") or "").strip(),
+                "zh_summary": zh_summary,
+                "zh_body": zh_body,
                 "tldr_tier": getattr(summary, "tldr_tier", "standard") or "standard",
                 "hook": (getattr(summary, "hook", "") or "").strip(),
                 "tickers": _clean_tickers(getattr(summary, "tickers", []) or []),

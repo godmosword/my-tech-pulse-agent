@@ -9,7 +9,11 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
-from llm.localization import strip_weak_summary_openers, to_traditional_zh_tw
+from llm.localization import (
+    derive_zh_title,
+    strip_weak_summary_openers,
+    to_traditional_zh_tw,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +283,15 @@ class ExtractorAgent:
             summary.zh_title = cleaned_title or None
         else:
             summary.zh_title = None
+
+        if not summary.zh_title:
+            for source in (summary.zh_summary, summary.zh_body, summary.hook):
+                if not source:
+                    continue
+                derived = derive_zh_title(source)
+                if derived:
+                    summary.zh_title = derived
+                    break
 
     @staticmethod
     def _has_required_fields(summary: ArticleSummary) -> bool:
