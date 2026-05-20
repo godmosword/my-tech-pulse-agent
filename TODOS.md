@@ -32,6 +32,8 @@
 
 ## 維運檢查清單（每次 deploy 後）
 
+完整環境變數與驗證指令見 [`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md)。
+
 1. Cloud Run Job 日誌出現 `pipeline_run_summary` 且 `summaries_count` > 0
 2. Telegram 頻道收到 HTML  digest（無 raw `&lt;` 洩漏或截斷標籤）
 3. 若已設 webhook：Dashboard `/` 與 `/archive` 在送報後數秒內更新

@@ -108,6 +108,8 @@ Portal / third-party readers: [`docs/PORTAL_CONTRACT.md`](docs/PORTAL_CONTRACT.m
 
 ## Deployment
 
+**Vercel + GCP 設定清單**（env、驗證、backfill）：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md).
+
 The pipeline is packaged for container deployment. Run `python scripts/preflight.py` in
 the same environment before the first production run, then start the one-shot command:
 

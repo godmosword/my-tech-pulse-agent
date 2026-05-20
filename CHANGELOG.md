@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **部署設定清單**：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md) — Vercel / GCP Production / Staging / 驗證與 backfill 步驟。
 - **Staging 語意 prefilter**：`TECH_PULSE_ENV=staging` 自動啟用語意去重；`pipeline_run_summary` 新增 `semantic_prefilter_dropped` / `newsapi_fetched`；見 [`docs/STAGING.md`](docs/STAGING.md)。
 - **NewsAPI 取料**：`sources/newsapi_fetcher.py` 在設定 `NEWSAPI_KEY` 時併入 RSS 流程。
 - **Digest 快照**：`scoring/digest_store.py` 寫入 `tech_pulse_digests`；Dashboard `resolveDigestView()` 優先採用快照。

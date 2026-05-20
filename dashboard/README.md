@@ -101,6 +101,8 @@ curl -s -H "Authorization: Bearer $API_READ_TOKEN" \
 
 ## Deployment (Vercel)
 
+Production 環境變數勾選表與驗證指令：[`../docs/DEPLOY_CHECKLIST.md`](../docs/DEPLOY_CHECKLIST.md)。
+
 1. Import the repo, point project root at `dashboard/`.
 2. Build command: `pnpm build`; output: `.next`.
 3. Set env vars from `.env.example`:
