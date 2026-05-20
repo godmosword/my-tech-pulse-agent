@@ -8,9 +8,9 @@ import {
   formatMetaDate,
 } from "@/lib/digest";
 import { isPublicReadMode } from "@/lib/env-public-read";
-import { publicSummaryLine } from "@/lib/public-excerpt";
+import { englishExcerpt, publicSummaryLine } from "@/lib/public-excerpt";
 import { getReaderSession } from "@/lib/session";
-import { hasGatedLongContent } from "@/lib/zh-content";
+import { chineseAbstract, hasGatedLongContent } from "@/lib/zh-content";
 import { displayTitle } from "@/lib/types";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
@@ -64,7 +64,6 @@ export default async function ItemPage({
     !isPublicReadMode() || (await getReaderSession()) !== null;
   const returnToPath = `/item/${encodeURIComponent(decodedId)}`;
   const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
-  const previewLine = publicSummaryLine(item);
 
   if (item.kind === "deep_brief") {
     return (
@@ -79,7 +78,11 @@ export default async function ItemPage({
     );
   }
 
-  const headline = displayTitle(item);
+  const zhTitle = displayTitle(item);
+  const zhAbstract = authenticated
+    ? chineseAbstract(item)
+    : item.zh_summary?.trim() || "";
+  const englishSummary = (item.summary || "").trim();
   const cat = categoryLabel(item.category);
   const metaDate = formatMetaDate(
     item.published_at_iso || item.delivered_at_iso
@@ -103,57 +106,44 @@ export default async function ItemPage({
             </>
           )}
         </Kicker>
-        <h1 className="font-serif text-[34px] leading-[1.12] tracking-[-0.02em] text-ink sm:text-hero">
-          {headline}
-        </h1>
+        <div className="space-y-2">
+          <Kicker>中文標題</Kicker>
+          <h1 className="font-serif text-[34px] leading-[1.12] tracking-[-0.02em] text-ink sm:text-hero">
+            {zhTitle}
+          </h1>
+        </div>
         <Hairline />
       </header>
 
-      {authenticated ? (
-        <>
-          {item.zh_summary?.trim() && (
-            <div className="space-y-2">
-              <Kicker>導讀</Kicker>
-              <p className="font-sans text-[18px] leading-[1.6] text-ink">
-                {item.zh_summary}
-              </p>
-            </div>
-          )}
-          {item.zh_body?.trim() && (
-            <div className="space-y-2">
-              <Kicker>中文全文</Kicker>
-              <p className="whitespace-pre-line font-serif text-[17px] leading-[1.7] text-ink">
-                {item.zh_body}
-              </p>
-            </div>
-          )}
-          {item.summary?.trim() && (
-            <div className="space-y-2 border-t border-rule pt-6">
-              <Kicker>English summary</Kicker>
-              <p className="whitespace-pre-line font-sans text-[16px] leading-[1.65] text-ink-soft">
-                {item.summary}
-              </p>
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          {previewLine && (
-            <p className="font-sans text-[18px] leading-[1.6] text-ink">
-              {previewLine}
-            </p>
-          )}
-          {hasGatedLongContent(item) && (
-            <p className="font-sans text-meta text-ink-soft">
-              <Link
-                href={loginHref}
-                className="text-accent underline-offset-4 hover:underline"
-              >
-                登入以閱讀完整中文全文
-              </Link>
-            </p>
-          )}
-        </>
+      {zhAbstract ? (
+        <div className="space-y-2">
+          <Kicker>中文摘要</Kicker>
+          <p className="whitespace-pre-line font-sans text-[18px] leading-[1.6] text-ink">
+            {zhAbstract}
+          </p>
+        </div>
+      ) : authenticated ? (
+        <p className="font-sans text-meta text-ink-soft">尚無中文摘要。</p>
+      ) : null}
+
+      {!authenticated && hasGatedLongContent(item) && (
+        <p className="font-sans text-meta text-ink-soft">
+          <Link
+            href={loginHref}
+            className="text-accent underline-offset-4 hover:underline"
+          >
+            登入以閱讀完整中文全文
+          </Link>
+        </p>
+      )}
+
+      {englishSummary && (
+        <div className="space-y-2 border-t border-rule pt-6">
+          <Kicker>英文摘要</Kicker>
+          <p className="whitespace-pre-line font-sans text-[16px] leading-[1.65] text-ink-soft">
+            {authenticated ? englishSummary : englishExcerpt(englishSummary)}
+          </p>
+        </div>
       )}
 
       <Meta item={item} />

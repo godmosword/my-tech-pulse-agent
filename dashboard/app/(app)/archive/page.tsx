@@ -14,7 +14,7 @@ import {
 } from "@/lib/archive-filters";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
-import { displayTitle } from "@/lib/types";
+import { displayTitle, listingZhSubline } from "@/lib/types";
 import { ClearFiltersLink } from "@/components/ClearFiltersLink";
 
 /** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
@@ -76,6 +76,7 @@ export default async function ArchivePage({
             <ul className="divide-y divide-rule">
               {dayItems.map((item) => {
                 const kickerSegments = archiveKickerSegments(item);
+                const subline = listingZhSubline(item);
                 return (
                 <li key={item.id} className="py-4">
                   <Link
@@ -98,9 +99,9 @@ export default async function ArchivePage({
                     <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
                       {displayTitle(item)}
                     </h3>
-                    {item.zh_summary?.trim() && (
+                    {subline && (
                       <p className="font-sans text-[15px] leading-snug text-ink-soft">
-                        {item.zh_summary}
+                        {subline}
                       </p>
                     )}
                   </Link>
@@ -120,7 +121,7 @@ function ActiveFilters({
 }: {
   state: ReturnType<typeof parseFilterState>;
 }) {
-  if (!state.category && !state.month) return null;
+  if (!state.category && !state.month && !state.ticker) return null;
   return (
     <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
       <span>篩選中：</span>
@@ -130,8 +131,15 @@ function ActiveFilters({
       {state.month && (
         <span className="ml-2 text-ink">{monthLabel(state.month)}</span>
       )}
+      {state.ticker && (
+        <span className="ml-2 font-mono text-ink">{state.ticker}</span>
+      )}
       <ClearFiltersLink
-        href={buildArchiveHref(state, { category: null, month: null })}
+        href={buildArchiveHref(state, {
+          category: null,
+          month: null,
+          ticker: null,
+        })}
         className="ml-3 text-ink-faint hover:text-accent"
       >
         清除

@@ -4,6 +4,7 @@ import { categoryLabel } from "./digest";
 export interface FilterState {
   category: string | null;
   month: string | null;
+  ticker: string | null;
 }
 
 export interface Facet {
@@ -26,9 +27,12 @@ export function parseFilterState(
     const t = (s ?? "").trim();
     return t ? t : null;
   };
+  const tickerRaw = pick("ticker");
+  const ticker = tickerRaw ? tickerRaw.trim().toUpperCase() : null;
   return {
     category: pick("category"),
     month: pick("month"),
+    ticker,
   };
 }
 
@@ -71,9 +75,14 @@ export function applyFilters(
 ): RenderableItem[] {
   const cat = state.category?.toLowerCase() ?? null;
   const mo = state.month ?? null;
+  const ticker = state.ticker?.trim().toUpperCase() ?? null;
   return items.filter((item) => {
     if (cat && (item.category || "").toLowerCase() !== cat) return false;
     if (mo && monthKey(item.delivered_at_iso) !== mo) return false;
+    if (ticker) {
+      const symbols = (item.tickers ?? []).map((t) => t.trim().toUpperCase());
+      if (!symbols.includes(ticker)) return false;
+    }
     return true;
   });
 }
@@ -88,6 +97,7 @@ export function buildArchiveHref(
   const params = new URLSearchParams();
   if (next.category) params.set("category", next.category);
   if (next.month) params.set("month", next.month);
+  if (next.ticker) params.set("ticker", next.ticker);
   const qs = params.toString();
   return qs ? `/archive?${qs}` : "/archive";
 }
