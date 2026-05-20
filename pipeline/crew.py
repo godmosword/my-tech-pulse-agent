@@ -167,8 +167,10 @@ class TechPulseCrew:
             try:
                 trending = self.social.fetch_trending()
                 logger.info("Fetched %d trending topics", len(trending))
+                self.scorer.set_trending_hashtags(trending)
             except Exception as exc:
                 logger.error("Social trending fetch failed: %s", exc, exc_info=True)
+                self.scorer.set_trending_hashtags([])
 
             try:
                 articles = self.deduplicator.filter_unseen(raw_articles)

@@ -65,5 +65,7 @@ export const config = {
   // Run on every page except Next.js internals AND `/api/revalidate`, which
   // is the pipeline webhook — that endpoint has its own token check and must
   // be reachable without Basic Auth credentials.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/revalidate).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api/revalidate|api/v1).*)",
+  ],
 };
