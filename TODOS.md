@@ -61,28 +61,49 @@
   - NVDA / AMD / MSFT / GOOGL / MU 等科技股範例
   - 測試 revenue / EPS / segment / guidance 缺值時的 graceful degradation
 
-### P2 — 付費 API 評估：如果資料更精細再接
+### P2 — 免費 API 先接：FMP + Finnhub free-tier vendor enrichment
 
-原則：SEC 官方 API 作為免費、可信的主數字來源；付費 API 只補 SEC 沒有或不容易取得的資料，例如 analyst consensus、earnings surprise、calendar、transcript、歷史 financial ratios、segment-friendly normalized financials。
+原則：SEC 官方 API 作為免費、可信的主數字來源；FMP / Finnhub 免費額度只補 SEC 沒有或不容易取得的資料，例如 analyst consensus、earnings surprise、calendar、transcript、歷史 financial ratios、segment-friendly normalized financials。所有 vendor 資料都必須可關閉、可 fallback、可追蹤用量，不可影響 SEC-only 財報主流程。
 
 - [ ] 建立 `docs/EARNINGS_API_EVALUATION.md`
   - 比較欄位：資料覆蓋、更新速度、EPS / revenue estimates、earnings calendar、transcripts、financial statements、ratios、segment data、API 限額、價格、授權限制、是否允許商用展示
-- [ ] 候選 API：低成本 / 中成本
-  - Alpha Vantage：優先評估 EPS estimates、surprise、earnings calendar；適合低成本補 analysts 預估，但不作為唯一財報主資料源
-  - Financial Modeling Prep：優先評估 financial statements、ratios、key metrics、transcripts、analyst estimates；若 dashboard 要做完整財報資料庫，FMP 可能比 Alpha Vantage 更完整
-  - Finnhub：優先評估 earnings calendar、earnings estimates、transcripts；適合作為 calendar / estimates / transcript 補強
-- [ ] 候選 API：高成本 / 企業級
-  - Intrinio / FactSet / Refinitiv / S&P Capital IQ：若未來要做專業級 consensus、segment、產業比較、歷史估值資料，再評估；現階段先不接，避免成本過早放大
+  - 先記錄 free-tier 實測可用 endpoint，再決定是否升級付費
+- [ ] 新增 `.env.example` vendor 設定
+  - `FMP_API_KEY=`
+  - `FINNHUB_API_KEY=`
+  - `EARNINGS_VENDOR_MODE=off|free|paid`
+  - `EARNINGS_VENDOR_ORDER=fmp,finnhub`
+  - `EARNINGS_WATCHLIST=NVDA,AMD,MSFT,GOOGL,AVGO,MU,TSM,AMZN,META,TSLA`
+  - `MAX_VENDOR_CALLS_PER_RUN=20`
+  - `FMP_DAILY_CALL_BUDGET=200`（保留 buffer；FMP Basic 官方頁面顯示 250 calls/day）
+  - `FINNHUB_DAILY_CALL_BUDGET=200`（先以帳號 dashboard 實際額度為準，不在 code 寫死）
 - [ ] 設計 vendor abstraction
   - `sources/vendor_earnings_provider.py`
   - 介面：`get_earnings_calendar()`, `get_estimates(ticker)`, `get_transcript(ticker, quarter)`, `get_financials(ticker)`
-  - env：`EARNINGS_VENDOR=none|alpha_vantage|fmp|finnhub|intrinio`
-  - 所有 vendor 欄位都要標記 `source_type="vendor_estimate"` 或 `source_type="vendor_financials"`
-- [ ] 成本控制
-  - 預設只對 watchlist tickers 啟用付費 API
-  - 新增 `EARNINGS_WATCHLIST=NVDA,AMD,MSFT,GOOGL,AVGO,MU,TSM,AMZN,META,TSLA`
-  - 對 calendar / estimates / transcript 加本地 cache / Firestore cache
-  - Cloud Run 單次任務最多處理 `MAX_EARNINGS_FILINGS` + `MAX_VENDOR_CALLS_PER_RUN`
+  - vendor 欄位標記：`source_type="vendor_estimate" | "vendor_financials" | "vendor_transcript"`
+  - 回傳 payload 必須附 `vendor_name`, `endpoint`, `as_of_date`, `raw_unit`, `confidence`
+- [ ] 新增 FMP free-tier provider
+  - `sources/fmp_provider.py`
+  - 優先測試：company profile、income statement、key metrics、financial ratios、earnings calendar / analyst estimates（若 free-tier 可用）
+  - 若 endpoint 回 403 / plan restricted，標記 `vendor_status="restricted"`，不要讓 pipeline fail
+- [ ] 新增 Finnhub free-tier provider
+  - `sources/finnhub_provider.py`
+  - 優先測試：earnings calendar、earnings estimates、company earnings、company profile、transcripts（若 free-tier 可用）
+  - Finnhub 限額與可用 endpoint 以帳號 dashboard / API response 為準；實作時不可硬編免費額度
+- [ ] 用量控管與 cache
+  - 新增 Firestore collection：`tech_pulse_vendor_api_usage`
+  - 每次 vendor call 記錄：`provider`, `endpoint`, `ticker`, `status`, `called_at`, `cache_hit`
+  - calendar cache TTL：12 小時
+  - estimates cache TTL：24 小時
+  - financials cache TTL：7 天
+  - transcript cache TTL：永久或 365 天
+- [ ] free-tier 執行策略
+  - 只對 `EARNINGS_WATCHLIST` 啟用 vendor enrichment
+  - 每次 Cloud Run 只處理「本週有財報」或「剛 filing」的 ticker
+  - 每個 ticker 最多 2–3 個 vendor endpoint
+  - 任何 vendor 失敗都 fallback SEC-only，不加入 `critical_errors`
+- [ ] 候選 API：高成本 / 企業級（只列觀察，不接）
+  - Intrinio / FactSet / Refinitiv / S&P Capital IQ：若未來要做專業級 consensus、segment、產業比較、歷史估值資料，再評估；現階段先不接，避免成本過早放大
 
 ### P3 — LLM 角色調整：從「抽數字」改成「財報分析師」
 
