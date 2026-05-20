@@ -225,12 +225,14 @@ curl -sS -H "Authorization: Bearer $API_READ_TOKEN" \
 在具備 `GEMINI_API_KEY` 與 Firestore 寫入權限的環境執行（**非** Vercel；建議本機或 Cloud Shell）：
 
 ```bash
-# 先評估影響篇數
-python scripts/backfill_zh_fields.py --dry-run --limit 20
+# 先評估（只抓最近 12 篇，最多處理 8 篇需補 zh_* 的）
+python scripts/backfill_zh_fields.py --dry-run --limit 12 --max-updates 8
 
-# 正式寫入（可調 --limit）
-python scripts/backfill_zh_fields.py --limit 50
+# 正式寫入
+python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 ```
+
+腳本會先一次抓完 Firestore 再呼叫 Gemini，避免長時間 stream 造成 `DEADLINE_EXCEEDED`。
 
 完成後對 Vercel 觸發 revalidate（或等下次 pipeline run 自動 POST webhook）。
 

@@ -11,7 +11,8 @@ cd "$ROOT"
 SITE_URL="${NEXT_PUBLIC_SITE_URL:-https://my-tech-pulse-agent.vercel.app}"
 SITE_URL="${SITE_URL%/}"
 APPLY_BACKFILL=0
-BACKFILL_LIMIT=20
+BACKFILL_LIMIT=12
+BACKFILL_MAX_UPDATES=8
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -69,10 +70,10 @@ section "4. Backfill zh fields (dry-run)"
 if [[ -z "${GEMINI_API_KEY:-}" ]]; then
   red "SKIP: GEMINI_API_KEY not set (needed for backfill)"
 else
-  python3 scripts/backfill_zh_fields.py --dry-run --limit "${BACKFILL_LIMIT}"
+  python3 scripts/backfill_zh_fields.py --dry-run --limit "${BACKFILL_LIMIT}" --max-updates "${BACKFILL_MAX_UPDATES}"
   if [[ "$APPLY_BACKFILL" == "1" ]]; then
     section "4b. Backfill apply"
-    python3 scripts/backfill_zh_fields.py --limit "${BACKFILL_LIMIT}"
+    python3 scripts/backfill_zh_fields.py --limit "${BACKFILL_LIMIT}" --max-updates "${BACKFILL_MAX_UPDATES}"
     if [[ -n "${REVALIDATE_TOKEN:-}" ]]; then
       curl -sS -X POST "${SITE_URL}/api/revalidate?path=/" \
         -H "x-revalidate-token: ${REVALIDATE_TOKEN}" >/dev/null

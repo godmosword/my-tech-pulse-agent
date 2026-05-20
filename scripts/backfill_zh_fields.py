@@ -5,8 +5,10 @@ Re-runs ExtractorAgent on stored English fields when zh_summary or zh_title
 is missing. Requires GEMINI_API_KEY and Firestore credentials.
 
 Usage:
-  python scripts/backfill_zh_fields.py --dry-run --limit 5
-  python scripts/backfill_zh_fields.py --limit 50
+  python scripts/backfill_zh_fields.py --dry-run --limit 8
+  python scripts/backfill_zh_fields.py --limit 8 --max-updates 6
+
+Fetches recent docs in one Firestore query (no long-lived stream during Gemini calls).
 """
 
 from __future__ import annotations
@@ -78,7 +80,7 @@ def _patch_from_extraction(data: dict, extracted) -> dict:
     return patch
 
 
-def run_backfill(*, limit: int, dry_run: bool) -> int:
+def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
     from google.cloud import firestore  # noqa: PLC0415
 
     db = firestore.Client(
@@ -88,14 +90,21 @@ def run_backfill(*, limit: int, dry_run: bool) -> int:
     collection = db.collection(_collection_name())
     extractor = ExtractorAgent()
 
-    scanned = 0
+    # Fetch upfront: holding a stream open across slow Gemini calls can hit DEADLINE_EXCEEDED.
+    query = (
+        collection.order_by("delivered_at", direction=firestore.Query.DESCENDING).limit(limit)
+    )
+    docs = list(query.stream())
+    logger.info("Fetched %d recent documents (limit=%d)", len(docs), limit)
+
     updated = 0
     skipped = 0
+    failed = 0
 
-    for doc in collection.order_by("delivered_at", direction=firestore.Query.DESCENDING).stream():
-        if scanned >= limit:
+    for doc in docs:
+        if max_updates is not None and updated >= max_updates:
+            logger.info("Reached --max-updates=%d, stopping", max_updates)
             break
-        scanned += 1
         data = doc.to_dict() or {}
         if data.get("kind") not in {None, "", "instant_summary"}:
             skipped += 1
@@ -122,7 +131,7 @@ def run_backfill(*, limit: int, dry_run: bool) -> int:
         )
         if not extracted:
             logger.warning("Extractor failed for %s", doc.id)
-            skipped += 1
+            failed += 1
             continue
 
         patch = _patch_from_extraction(data, extracted)
@@ -136,22 +145,39 @@ def run_backfill(*, limit: int, dry_run: bool) -> int:
         updated += 1
 
     logger.info(
-        "Backfill complete: scanned=%d updated=%d skipped=%d dry_run=%s",
-        scanned,
+        "Backfill complete: fetched=%d updated=%d skipped=%d failed=%d dry_run=%s",
+        len(docs),
         updated,
         skipped,
+        failed,
         dry_run,
     )
-    return 0
+    return 1 if failed and not updated else 0
 
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description="Backfill zh_* fields on memory_items")
-    parser.add_argument("--limit", type=int, default=20, help="Max documents to scan")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=12,
+        help="Max recent documents to fetch from Firestore (by delivered_at desc)",
+    )
+    parser.add_argument(
+        "--max-updates",
+        type=int,
+        default=None,
+        help="Stop after this many successful patches (default: no cap)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Log patches without writing")
     args = parser.parse_args()
-    return run_backfill(limit=max(1, args.limit), dry_run=args.dry_run)
+    max_updates = args.max_updates if args.max_updates and args.max_updates > 0 else None
+    return run_backfill(
+        limit=max(1, args.limit),
+        max_updates=max_updates,
+        dry_run=args.dry_run,
+    )
 
 
 if __name__ == "__main__":
