@@ -57,25 +57,33 @@ def _needs_backfill(data: dict) -> bool:
     return not has_cjk(zh_summary) and not has_cjk(zh_body)
 
 
+def _should_replace_zh_field(existing: str, new_value: str | None) -> bool:
+    new = (new_value or "").strip()
+    if not new or not has_cjk(new):
+        return False
+    old = (existing or "").strip()
+    return not old or not has_cjk(old)
+
+
 def _patch_from_extraction(data: dict, extracted) -> dict:
     patch: dict = {}
-    if extracted.zh_summary and not (data.get("zh_summary") or "").strip():
+    if _should_replace_zh_field(data.get("zh_summary") or "", extracted.zh_summary):
         patch["zh_summary"] = extracted.zh_summary
-    if extracted.zh_body and not (data.get("zh_body") or "").strip():
+    if _should_replace_zh_field(data.get("zh_body") or "", extracted.zh_body):
         patch["zh_body"] = extracted.zh_body
-    if extracted.hook and not (data.get("hook") or "").strip():
+    if _should_replace_zh_field(data.get("hook") or "", extracted.hook):
         patch["hook"] = extracted.hook
 
     zh_title = (data.get("zh_title") or "").strip()
-    if not zh_title:
+    if not zh_title or not has_cjk(zh_title):
         new_title = (extracted.zh_title or "").strip()
-        if not new_title:
+        if not new_title or not has_cjk(new_title):
             for source in (extracted.zh_summary, extracted.zh_body, extracted.hook):
                 if source:
                     new_title = derive_zh_title(source)
                     if new_title:
                         break
-        if new_title:
+        if new_title and has_cjk(new_title):
             patch["zh_title"] = new_title
     return patch
 
@@ -128,6 +136,7 @@ def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
             text=text[:6000],
             source_name=data.get("source_name") or "",
             source_url=data.get("source_url") or "",
+            relax_zh_quality=True,
         )
         if not extracted:
             logger.warning("Extractor failed for %s", doc.id)
@@ -136,6 +145,16 @@ def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
 
         patch = _patch_from_extraction(data, extracted)
         if not patch:
+            logger.warning(
+                "No zh patch for %s (existing zh_title=%r zh_summary_len=%d; "
+                "extracted zh_title=%r zh_summary_len=%d hook_len=%d)",
+                doc.id,
+                (data.get("zh_title") or "")[:40],
+                len((data.get("zh_summary") or "")),
+                (extracted.zh_title or "")[:40],
+                len((extracted.zh_summary or "")),
+                len((extracted.hook or "")),
+            )
             skipped += 1
             continue
 

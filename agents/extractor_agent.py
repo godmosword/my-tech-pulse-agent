@@ -150,7 +150,15 @@ class ExtractorAgent:
     def __init__(self):
         self._client = None
 
-    def extract(self, title: str, text: str, source_name: str = "", source_url: str = "") -> Optional[ArticleSummary]:
+    def extract(
+        self,
+        title: str,
+        text: str,
+        source_name: str = "",
+        source_url: str = "",
+        *,
+        relax_zh_quality: bool = False,
+    ) -> Optional[ArticleSummary]:
         lim = _extractor_input_char_limit()
         prompt = EXTRACTION_PROMPT.format(
             title=title,
@@ -174,7 +182,10 @@ class ExtractorAgent:
                     title[:80],
                 )
                 return None
-            self._enforce_zh_quality(summary, title)
+            if relax_zh_quality:
+                self._enforce_zh_quality(summary, title, min_summary_len=4, min_body_len=20)
+            else:
+                self._enforce_zh_quality(summary, title)
             summary.source_url = source_url
             summary.source_name = source_name
             logger.info(
@@ -302,14 +313,20 @@ class ExtractorAgent:
     # we keep the English summary and null the zh side so the dashboard falls back
     # to English instead of dropping the article entirely.
     @staticmethod
-    def _enforce_zh_quality(summary: ArticleSummary, title: str) -> None:
+    def _enforce_zh_quality(
+        summary: ArticleSummary,
+        title: str,
+        *,
+        min_summary_len: int = 8,
+        min_body_len: int = 40,
+    ) -> None:
         zs = (summary.zh_summary or "").strip()
         zb = (summary.zh_body or "").strip()
-        if len(zs) < 8:
+        if len(zs) < min_summary_len:
             if zs:
                 logger.info("zh_summary too short for '%s' (len=%d); dropping", title[:80], len(zs))
             summary.zh_summary = None
-        if len(zb) < 40:
+        if len(zb) < min_body_len:
             if zb:
                 logger.info("zh_body too short for '%s' (len=%d); dropping", title[:80], len(zb))
             summary.zh_body = None
