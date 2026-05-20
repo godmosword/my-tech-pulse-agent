@@ -22,7 +22,7 @@ const CATEGORY_DOT: Record<string, string> = {
   other: "bg-ink-faint",
 };
 
-const EMPTY_FILTER = { category: null, month: null };
+const EMPTY_FILTER = { category: null, month: null, ticker: null };
 
 /** Right-rail dashboard for the homepage. Aggregates today's items into two
  *  glanceable groups: category counts and top mentioned tickers.
@@ -69,14 +69,16 @@ export function TodayRail({ items }: Props) {
         ) : (
           <ul className="flex flex-wrap gap-2">
             {tickerRows.map((row) => (
-              <li
-                key={row.value}
-                className="flex items-baseline gap-1 rounded-sm border border-rule px-2 py-1"
-              >
-                <span className="font-mono text-[12px] text-ink">{row.value}</span>
-                <span className="font-mono text-[11px] tabular-nums text-ink-faint">
-                  ×{row.count}
-                </span>
+              <li key={row.value}>
+                <Link
+                  href={buildArchiveHref(EMPTY_FILTER, { ticker: row.value })}
+                  className="flex items-baseline gap-1 rounded-sm border border-rule px-2 py-1 hover:border-accent hover:text-accent"
+                >
+                  <span className="font-mono text-[12px] text-ink">{row.value}</span>
+                  <span className="font-mono text-[11px] tabular-nums text-ink-faint">
+                    ×{row.count}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

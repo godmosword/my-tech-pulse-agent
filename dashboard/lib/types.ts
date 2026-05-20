@@ -108,6 +108,14 @@ function normalizeComparable(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/** 取繁中摘要的第一句，作為缺 zh_title 時的標題 fallback。 */
+export function firstZhSentence(text: string): string {
+  const t = text.trim();
+  if (!t) return "";
+  const match = t.match(/^[^。！？.!?]+[。！？.!?]?/u);
+  return (match?.[0] ?? t).trim();
+}
+
 /** 品質過低的 zh_title 不應蓋過完整的 title。 */
 export function isWeakZhTitle(
   zhTitle: string,
@@ -134,9 +142,10 @@ export function isWeakZhTitle(
   return false;
 }
 
-/** 顯示用標題：優先 zh_title（繁中），其次 LLM 給的 title，最後 entity。 */
+/** 顯示用標題：優先 zh_title，其次 zh_summary 首句，最後英文 title / entity。 */
 export function displayTitle(item: {
   zh_title?: string;
+  zh_summary?: string;
   title?: string;
   entity?: string;
 }): string {
@@ -147,7 +156,41 @@ export function displayTitle(item: {
   if (zh && !isWeakZhTitle(zh, { title, entity })) {
     return zh;
   }
+
+  const summary = item.zh_summary?.trim();
+  if (summary) {
+    const fromSummary = firstZhSentence(summary);
+    if (
+      fromSummary.length >= ZH_TITLE_MIN_CHARS &&
+      !isWeakZhTitle(fromSummary, { title, entity })
+    ) {
+      return fromSummary;
+    }
+  }
+
   return title || entity || "Untitled";
+}
+
+/**
+ * 列表副標：完整 zh_summary；若標題已取自首句則只顯示剩餘段落，避免重複。
+ */
+export function listingZhSubline(item: {
+  zh_title?: string;
+  zh_summary?: string;
+  title?: string;
+  entity?: string;
+}): string | null {
+  const summary = item.zh_summary?.trim();
+  if (!summary) return null;
+
+  const headline = displayTitle(item);
+  const first = firstZhSentence(summary);
+  if (headline === summary) return null;
+  if (headline === first) {
+    const rest = summary.slice(first.length).trim();
+    return rest || null;
+  }
+  return summary;
 }
 
 export function toIsoString(value: unknown): string | null {
