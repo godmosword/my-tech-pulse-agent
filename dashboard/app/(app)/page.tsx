@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { listLatestItems } from "@/lib/firestore";
-import { buildDigest } from "@/lib/digest";
+import { getLatestDigestSnapshot, listLatestItems } from "@/lib/firestore";
+import { resolveDigestView } from "@/lib/digest-snapshot";
+import type { DigestSnapshotDoc } from "@/lib/digest-snapshot";
 import { isPublicReadMode } from "@/lib/env-public-read";
 import { getReaderSession } from "@/lib/session";
 import { DigestHeader } from "@/components/DigestHeader";
@@ -35,7 +36,11 @@ export default async function HomePage() {
   if (items.length === 0) {
     items = await listLatestItems({ limit: 80 });
   }
-  const view = buildDigest(items);
+  const snapshot = await getLatestDigestSnapshot();
+  const view = resolveDigestView(
+    items,
+    snapshot as DigestSnapshotDoc | null,
+  );
 
   const latestDelivered = items
     .map((i) => i.delivered_at_iso)

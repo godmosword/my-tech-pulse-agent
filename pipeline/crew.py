@@ -20,7 +20,13 @@ from agents.reviewer_agent import ReviewerAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.revalidate import revalidate_dashboard
 from delivery.telegram_bot import TelegramBot
+from pipeline.runtime_config import (
+    is_staging,
+    semantic_prefilter_enabled,
+    semantic_prefilter_threshold,
+)
 from scoring.deduplicator import Deduplicator
+from scoring.digest_store import make_digest_store
 from scoring.memory_store import (
     MEMORY_TOP_K,
     SEMANTIC_DUP_DISTANCE_THRESHOLD,
@@ -32,6 +38,7 @@ from sources.deep_scraper import DeepScraper
 from sources.earnings_fetcher import EarningsFetcher
 from sources.ir_scraper import IRScraper
 from sources.rss_fetcher import Article, clean_feed_text
+from sources.newsapi_fetcher import NewsApiFetcher
 from sources.rss_fetcher import RSSFetcher
 from sources.social_tracker import SocialTracker
 
@@ -52,8 +59,6 @@ MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
 MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "5"))
 SEMANTIC_DUP_DROP_ENABLED = os.getenv("SEMANTIC_DUP_DROP_ENABLED", "0") == "1"
 MEMORY_CONTEXT_MAX_DISTANCE = float(os.getenv("MEMORY_CONTEXT_MAX_DISTANCE", "0.35"))
-SEMANTIC_PREFILTER_ENABLED = os.getenv("SEMANTIC_PREFILTER_ENABLED", "0") == "1"
-SEMANTIC_PREFILTER_THRESHOLD = float(os.getenv("SEMANTIC_PREFILTER_THRESHOLD", "0.85"))
 EXTRACTOR_FULLTEXT_TOP_K = int(os.getenv("EXTRACTOR_FULLTEXT_TOP_K", "0"))
 EXTRACTOR_FULLTEXT_MIN_WORDS = int(os.getenv("EXTRACTOR_FULLTEXT_MIN_WORDS", "120"))
 NARRATIVE_EXCERPT_MAX_CHARS = int(os.getenv("NARRATIVE_EXCERPT_MAX_CHARS", "600"))
@@ -104,7 +109,9 @@ class TechPulseCrew:
         self.earnings_agent = EarningsAgent()
         self.telegram = TelegramBot()
         self.memory = make_memory_service()
+        self.digest_store = make_digest_store()
         self._embedder = GeminiEmbedder()
+        self._newsapi = NewsApiFetcher()
 
     def run(self) -> dict:
         OUTPUT_DIR.mkdir(exist_ok=True)
@@ -126,15 +133,36 @@ class TechPulseCrew:
         digest: DigestOutput | None = None
         earnings_outputs: list[EarningsOutput] = []
         critical_errors: list[str] = []
+        semantic_prefilter_dropped = 0
+        newsapi_fetched = 0
 
         try:
+            if is_staging():
+                logger.info(
+                    "TECH_PULSE_ENV=staging — semantic prefilter %s",
+                    "on" if semantic_prefilter_enabled() else "off",
+                )
+
             # Stage 0 — Ingest & Deduplicate
             try:
                 raw_articles = self.rss.fetch_all()
-                logger.info("Fetched %d raw articles", len(raw_articles))
+                logger.info("Fetched %d raw articles from RSS/KOL", len(raw_articles))
             except Exception as exc:
                 logger.error("RSS fetch failed: %s", exc, exc_info=True)
                 critical_errors.append("ingestion:rss")
+                raw_articles = []
+
+            try:
+                newsapi_articles = self._newsapi.fetch()
+                newsapi_fetched = len(newsapi_articles)
+                raw_articles = self._merge_articles_by_url(raw_articles, newsapi_articles)
+                logger.info(
+                    "Ingest total %d articles (newsapi=%d)",
+                    len(raw_articles),
+                    newsapi_fetched,
+                )
+            except Exception as exc:
+                logger.error("NewsAPI ingest failed: %s", exc, exc_info=True)
 
             try:
                 trending = self.social.fetch_trending()
@@ -163,8 +191,10 @@ class TechPulseCrew:
                 scored_articles = articles
 
             # Semantic pre-extraction dedup — drops same-story duplicates before LLM calls.
-            if SEMANTIC_PREFILTER_ENABLED and scored_articles:
+            if semantic_prefilter_enabled() and scored_articles:
+                before_prefilter = len(scored_articles)
                 scored_articles = self._semantic_prefilter(scored_articles)
+                semantic_prefilter_dropped = before_prefilter - len(scored_articles)
 
             # Deep tier — full-text KOL/paper analysis.
             try:
@@ -342,6 +372,21 @@ class TechPulseCrew:
         # unset (local dev / CI).
         if delivery_succeeded > 0:
             try:
+                self.digest_store.save_run(
+                    digest=digest,
+                    summaries=summaries,
+                    deep_briefs=deep_briefs,
+                    funnel={
+                        "articles_fetched": len(raw_articles),
+                        "newsapi_fetched": newsapi_fetched,
+                        "semantic_prefilter_dropped": semantic_prefilter_dropped,
+                        "semantic_prefilter_enabled": semantic_prefilter_enabled(),
+                    },
+                )
+            except Exception as exc:
+                logger.warning("Digest snapshot save failed: %s", exc)
+
+            try:
                 revalidate_dashboard()
             except Exception as exc:  # noqa: BLE001 — best-effort, must not block
                 logger.warning("Dashboard revalidate raised unexpectedly: %s", exc)
@@ -369,8 +414,12 @@ class TechPulseCrew:
         )
         run_summary = {
             "articles_fetched": len(raw_articles),
+            "newsapi_fetched": newsapi_fetched,
             "articles_after_dedup": len(articles),
             "articles_after_scoring": len(scored_articles),
+            "semantic_prefilter_enabled": semantic_prefilter_enabled(),
+            "semantic_prefilter_dropped": semantic_prefilter_dropped,
+            "tech_pulse_env": os.getenv("TECH_PULSE_ENV", "production"),
             "instant_candidates": len(instant_scored_articles),
             "synthesis_ran": digest is not None,
             "summaries_count": len(summaries),
@@ -588,6 +637,19 @@ class TechPulseCrew:
         return summaries
 
     @staticmethod
+    def _merge_articles_by_url(*pools: list[Article]) -> list[Article]:
+        seen: set[str] = set()
+        merged: list[Article] = []
+        for pool in pools:
+            for article in pool:
+                url = (article.url or "").strip()
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                merged.append(article)
+        return merged
+
+    @staticmethod
     def _merge_article_pools(primary: list[Article], secondary: list[Article]) -> list[Article]:
         """Dedupe by URL; preserve order (instant candidates first, then full scored pool)."""
         seen: set[str] = set()
@@ -705,7 +767,7 @@ class TechPulseCrew:
                 continue
             try:
                 is_dup, sim = self.deduplicator._store.is_semantically_duplicate(
-                    embedding, threshold=SEMANTIC_PREFILTER_THRESHOLD
+                    embedding, threshold=semantic_prefilter_threshold()
                 )
             except Exception as exc:
                 logger.warning("Semantic prefilter check failed for '%s': %s", article.title[:60], exc)
