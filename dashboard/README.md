@@ -55,6 +55,7 @@ dashboard/
 │  ├─ (auth)/login/      # 獨立登入版面（無主站導覽）
 │  ├─ sitemap.ts / robots.ts
 │  ├─ api/revalidate/   # webhook for the pipeline to flush ISR
+│  ├─ api/v1/           # read-only REST (items, digest, tickers, facets, health)
 │  └─ api/auth/         # reader login + logout (public read mode)
 ├─ lib/
 │  ├─ firestore.ts      # Admin SDK init + readers (server-only)
@@ -74,6 +75,29 @@ The `lib/digest.ts` module is a TypeScript port of
 If the algorithm grows complex, promote the canonical selection to a
 Firestore `tech_pulse_digests/{digest_id}` snapshot (additive — does not
 break Portal contract v1) and have both consumers read it.
+
+## REST API (`/api/v1`)
+
+唯讀 JSON，與 [`docs/PORTAL_CONTRACT.md`](../docs/PORTAL_CONTRACT.md) 欄位對齊。
+
+| 路徑 | 說明 |
+|------|------|
+| `GET /api/v1/health` | 服務與最新 `delivered_at` |
+| `GET /api/v1/items` | 列表；`limit`, `since`, `category`, `month`, `ticker`, `kind` |
+| `GET /api/v1/items/{id}` | 單篇 |
+| `GET /api/v1/digest/today` | 今日編排（同首頁 `buildDigest`） |
+| `GET /api/v1/tickers` | 熱門代號；`scope=today\|archive` |
+| `GET /api/v1/archive/facets` | 歸檔 facet 計數 |
+
+**授權**
+
+- 公開讀模式：匿名可得 `title_zh` + 公開摘要；`Authorization: Bearer <API_READ_TOKEN>` 或 reader cookie → 完整 `summary_en` / `zh_body`。
+- 非公開讀：須設定 `API_READ_TOKEN` 並帶 Bearer。
+
+```bash
+curl -s -H "Authorization: Bearer $API_READ_TOKEN" \
+  "https://your-dashboard.vercel.app/api/v1/items?limit=5&ticker=GOOGL"
+```
 
 ## Deployment (Vercel)
 
