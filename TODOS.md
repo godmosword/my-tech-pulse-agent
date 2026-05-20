@@ -16,7 +16,7 @@
 
 ## 進行中 / 下一步
 
-- [ ] **舊稿繁中**：既有 `memory_items` 無 `zh_body` 者，評估批次重跑 extractor 或接受英文 fallback
+- [ ] **舊稿繁中**：既有 `memory_items` 無 `zh_summary`／`zh_title` 者需批次重跑 extractor 或 backfill；新稿由 pipeline 自動衍生 `zh_title`
 - [ ] **`.env.example`**：補上 `DASHBOARD_REVALIDATE_URL` / `DASHBOARD_REVALIDATE_TOKEN` / `DASHBOARD_REVALIDATE_TIMEOUT` 說明（pipeline 端）
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
 

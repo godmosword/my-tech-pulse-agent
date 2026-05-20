@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - **Heuristic prefilter**（[`scoring/heuristic_filter.py`](scoring/heuristic_filter.py)）：主題命中後須有 `depth_markers` 或具體數字才進 Gemini；`reason` 新增 `gate:needs_depth_or_specifics`；收緊易誤命中詞彙。
 - **Dashboard Archive**：`displayTitle()` 在 `zh_title` 過短或等同 `entity` 時改顯示英文 `title`；歸檔列表精簡 kicker（快訊不再每行 `Dispatch`）、有 `zh_summary` 時顯示副標一行。
 - **Dashboard 首頁／內文**：`displayTitle()` 在缺 `zh_title` 時改以 `zh_summary` 首句作中文標題；內文頁固定呈現「中文標題／中文摘要／英文摘要」；「今日熱門代號」可點擊並以 `/archive?ticker=` 篩選相關文章。
+- **繁中標題資料鏈**：extractor／`memory_store` 在缺 `zh_title` 時從 `zh_summary`／`zh_body`／`hook` 自動衍生；dashboard 讀取 `hook` 並僅在含漢字時採用繁中 fallback（避免英文 fallback 誤當標題）。
 
 ## [0.2.0] — 2026-05-19
 
