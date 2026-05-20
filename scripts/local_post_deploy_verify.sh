@@ -83,7 +83,7 @@ else
   fi
 fi
 
-section "5. pytest"
-python3 -m pytest -q
+section "5. pytest (excludes optional LLM-as-judge; needs real genai + billing)"
+python3 -m pytest -q --ignore=tests/judge_test.py
 
 section "Done"
