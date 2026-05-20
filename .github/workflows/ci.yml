@@ -75,3 +75,28 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --update-env-vars DIGEST_FORMAT=v1
+
+  deploy-staging:
+    name: Deploy staging job (semantic prefilter)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: deploy
+    if: ${{ vars.CLOUD_RUN_STAGING_JOB != '' }}
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Deploy staging Cloud Run Job
+        run: |
+          gcloud run jobs update "${{ vars.CLOUD_RUN_STAGING_JOB }}" \
+            --image "${{ env.IMAGE }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --update-env-vars TECH_PULSE_ENV=staging,DIGEST_FORMAT=v1

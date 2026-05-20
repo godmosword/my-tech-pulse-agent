@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Staging 語意 prefilter**：`TECH_PULSE_ENV=staging` 自動啟用語意去重；`pipeline_run_summary` 新增 `semantic_prefilter_dropped` / `newsapi_fetched`；見 [`docs/STAGING.md`](docs/STAGING.md)。
+- **NewsAPI 取料**：`sources/newsapi_fetcher.py` 在設定 `NEWSAPI_KEY` 時併入 RSS 流程。
+- **Digest 快照**：`scoring/digest_store.py` 寫入 `tech_pulse_digests`；Dashboard `resolveDigestView()` 優先採用快照。
+- **繁中 backfill 腳本**：[`scripts/backfill_zh_fields.py`](scripts/backfill_zh_fields.py) 對缺 `zh_*` 的 `memory_items` 重跑 extractor。
 - **開發流程**：[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 與 [`.cursor/rules/workflow.mdc`](.cursor/rules/workflow.mdc) — 段落完成直接 push `main` 並同步 CHANGELOG/TODOS；pipeline 路徑改動須先經維護者確認。
 - **Heuristic edge tests**：[`tests/test_heuristic_filter.py`](tests/test_heuristic_filter.py) 覆蓋主題白名單、促銷/學術/薄稿、複合品質閘與歧義詞誤命中（`arm`/`sol`/`near`/`agent`）。
 

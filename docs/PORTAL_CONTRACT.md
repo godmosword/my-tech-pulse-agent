@@ -54,6 +54,22 @@ tech-pulse 寫入的 document **body** 鍵（見 `FirestoreMemoryService.archive
 
 **`deep_brief`**：無獨立 Firestore 鍵；當 `kind == "deep_brief"` 時視 `summary` 為深度內文。
 
+## Collection: `tech_pulse_digests`（additive）
+
+每次成功送報後，pipeline 可寫入一筆 digest 快照（`DIGEST_SNAPSHOT_ENABLED=1`）：
+
+| 欄位 | 說明 |
+|------|------|
+| `digest_id` | 文件 ID（`delivered_at` UTC，`YYYYMMDDTHHMMSSZ`） |
+| `delivered_at` | 送報時間 |
+| `digest` | Synthesizer `DigestOutput` JSON（可為 null） |
+| `theme_groups` | `[{ theme, item_ids[] }]` — 與 Telegram 主題分組一致 |
+| `summary_item_ids` | 本次 instant 摘要的 `item_id` 列表 |
+| `deep_brief_ids` | 深度稿 `item_id` 列表 |
+| `funnel` | 運行指標（如 `semantic_prefilter_dropped`） |
+
+Dashboard 首頁優先讀取最新快照；Portal 可選讀此 collection 以避免重算主題分組。
+
 ## 穩定性保證
 
 - **breaking change 禁止**：不重命名以上 pipeline 已寫入、且本合約列為對外語意對應的實體鍵（如 `title`、`summary`、`source_url`、`source_name`、`published_at`、`delivered_at`、`category`、`score`、`embedding`、`kind` 等），除非同步發布新 `schema_version` 與 Portal 遷移計畫。

@@ -13,19 +13,19 @@
 - [x] Heuristic edge-case 測試 + 複合品質閘（主題 + 深度/具體數據）
 - [x] Dashboard Archive：弱 `zh_title` fallback 至 `title`、精簡 kicker、列表顯示 `zh_summary`
 - [x] Dashboard：今日熱門代號連結歸檔、中文標題 fallback、內文頁三欄（中文標題／中文摘要／英文摘要）
-- [x] Dashboard REST `/api/v1` + `API_READ_TOKEN`；Social trending → lexicon boost
+- [x] Staging 語意 prefilter、`NEWSAPI` 取料、`tech_pulse_digests` 快照、backfill 腳本
 
 ## 進行中 / 下一步
 
-- [ ] **舊稿繁中**：既有 `memory_items` 無 `zh_summary`／`zh_title` 者需批次重跑 extractor 或 backfill；新稿由 pipeline 自動衍生 `zh_title`
+- [ ] **舊稿繁中**：執行 `python scripts/backfill_zh_fields.py --dry-run` 評估後再正式 backfill
 - [x] **`.env.example`**：補上 `DASHBOARD_REVALIDATE_URL` / `DASHBOARD_REVALIDATE_TOKEN` / `DASHBOARD_REVALIDATE_TIMEOUT` 說明（pipeline 端）
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
 
 ## 積壓（Backlog）
 
 - [ ] **Heuristic 通過率觀測**：上線後從 pipeline 日誌聚合 `gate:needs_depth_or_specifics` 與 dropped 計數，評估是否過嚴
-- [ ] **Canonical digest snapshot**：若 TS/Python 雙端維護 `digest.ts` / `message_formatter.py` 成本過高，寫入 `tech_pulse_digests/{id}` 供 Telegram + Dashboard 共用
-- [ ] **Semantic prefilter rollout**：`SEMANTIC_PREFILTER_ENABLED=1` 在 staging 量測召回/成本後再上 production
+- [x] **Canonical digest snapshot**：pipeline 寫入 `tech_pulse_digests/{id}`；Dashboard 首頁優先讀 snapshot
+- [ ] **Semantic prefilter rollout**：staging 已可透過 `TECH_PULSE_ENV=staging` 啟用；觀測 `pipeline_run_summary.semantic_prefilter_dropped` 後再上 production
 - [ ] **Semantic dup drop**：`SEMANTIC_DUP_DROP_ENABLED=1` 需 Firestore vector index ready + 觀察誤殺率
 - [ ] **Dashboard**：earnings 專欄、全文搜尋、RSS/Atom 對外訂閱
 - [ ] **DIGEST_FORMAT v2**：維持 experimental；production 仍鎖 `v1`（CI deploy 預設）

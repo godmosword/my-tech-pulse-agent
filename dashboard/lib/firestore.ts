@@ -14,6 +14,7 @@ const COLLECTION_PREFIX =
 const COLLECTION =
   process.env.TECH_PULSE_FIRESTORE_COLLECTION?.trim() ||
   `${COLLECTION_PREFIX}_memory_items`;
+const DIGEST_COLLECTION = `${COLLECTION_PREFIX}_digests`;
 
 let cachedApp: App | null = null;
 
@@ -103,4 +104,23 @@ export async function getItemById(
 
 export function collectionName(): string {
   return COLLECTION;
+}
+
+export function digestCollectionName(): string {
+  return DIGEST_COLLECTION;
+}
+
+/** Latest pipeline digest snapshot (`tech_pulse_digests`), if any. */
+export async function getLatestDigestSnapshot(): Promise<Record<
+  string,
+  unknown
+> | null> {
+  const snap = await db()
+    .collection(DIGEST_COLLECTION)
+    .orderBy("delivered_at", "desc")
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0]!;
+  return { ...(doc.data() as Record<string, unknown>), digest_id: doc.id };
 }
