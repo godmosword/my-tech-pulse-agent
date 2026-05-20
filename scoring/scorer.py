@@ -28,6 +28,7 @@ FLASH_MODEL = GEMINI_FLASH_MODEL
 SCORE_FLASH_OUTPUT_TOKENS = int(os.getenv("SCORE_FLASH_OUTPUT_TOKENS", "512"))
 SCORE_FLASH_RETRY_OUTPUT_TOKENS = int(os.getenv("SCORE_FLASH_RETRY_OUTPUT_TOKENS", "1024"))
 MIN_LEXICON_SCORE = float(os.getenv("MIN_LEXICON_SCORE", "3.0"))
+SOCIAL_TRENDING_LEXICON_BOOST = float(os.getenv("SOCIAL_TRENDING_LEXICON_BOOST", "1.5"))
 
 _SYSTEM = (
     "You are a tech news quality filter. "
@@ -109,7 +110,20 @@ class Scorer:
         self._domain_lexicon = self._load_config(domain_lexicon_path)
         self._source_weights = self._config.get("source_weights", {})
         self._heuristic_filter = HeuristicFilter()
+        self._trending_terms: set[str] = set()
         self._warn_if_threshold_too_low()
+
+    def set_trending_hashtags(self, hashtags: list) -> None:
+        """Boost lexicon_score when title/lede matches Apify X/Threads trending tags."""
+        terms: set[str] = set()
+        for topic in hashtags or []:
+            raw = (getattr(topic, "hashtag", None) or str(topic) or "").strip()
+            tag = raw.lstrip("#").lower()
+            if len(tag) >= 2:
+                terms.add(tag)
+        self._trending_terms = terms
+        if terms:
+            logger.info("Social trending boost armed for %d tags: %s", len(terms), sorted(terms)[:8])
 
     def _load_config(self, path: Path) -> dict:
         with open(path) as f:
@@ -466,7 +480,16 @@ class Scorer:
         lede_text = (getattr(article, "summary", "") or getattr(article, "content", "") or "")[:800]
         lexicon_match = self.match_lexicon(getattr(article, "title", ""), lede_text)
         article.lexicon_score = lexicon_match.lexicon_score
-        article.matched_signals = lexicon_match.matched_signals
+        article.matched_signals = list(lexicon_match.matched_signals)
+        if self._trending_terms:
+            haystack = f"{getattr(article, 'title', '')} {lede_text}".lower()
+            hits = [t for t in self._trending_terms if t in haystack]
+            if hits:
+                article.lexicon_score = round(
+                    min(10.0, float(article.lexicon_score) + SOCIAL_TRENDING_LEXICON_BOOST),
+                    2,
+                )
+                article.matched_signals.extend(f"trending:{h}" for h in hits[:3])
 
     @staticmethod
     def _contains_term(haystack: str, term: str) -> bool:

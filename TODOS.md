@@ -13,11 +13,12 @@
 - [x] Heuristic edge-case 測試 + 複合品質閘（主題 + 深度/具體數據）
 - [x] Dashboard Archive：弱 `zh_title` fallback 至 `title`、精簡 kicker、列表顯示 `zh_summary`
 - [x] Dashboard：今日熱門代號連結歸檔、中文標題 fallback、內文頁三欄（中文標題／中文摘要／英文摘要）
+- [x] Dashboard REST `/api/v1` + `API_READ_TOKEN`；Social trending → lexicon boost
 
 ## 進行中 / 下一步
 
 - [ ] **舊稿繁中**：既有 `memory_items` 無 `zh_summary`／`zh_title` 者需批次重跑 extractor 或 backfill；新稿由 pipeline 自動衍生 `zh_title`
-- [ ] **`.env.example`**：補上 `DASHBOARD_REVALIDATE_URL` / `DASHBOARD_REVALIDATE_TOKEN` / `DASHBOARD_REVALIDATE_TIMEOUT` 說明（pipeline 端）
+- [x] **`.env.example`**：補上 `DASHBOARD_REVALIDATE_URL` / `DASHBOARD_REVALIDATE_TOKEN` / `DASHBOARD_REVALIDATE_TIMEOUT` 說明（pipeline 端）
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
 
 ## 積壓（Backlog）
