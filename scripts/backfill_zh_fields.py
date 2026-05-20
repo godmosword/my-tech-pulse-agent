@@ -27,8 +27,8 @@ if str(ROOT) not in sys.path:
 
 load_dotenv()
 
-from agents.extractor_agent import ExtractorAgent  # noqa: E402
-from llm.localization import derive_zh_title, has_cjk  # noqa: E402
+from llm.localization import has_cjk  # noqa: E402
+from llm.zh_backfill import ZhBackfillResult, extract_zh_backfill  # noqa: E402
 from scoring.memory_store import _item_id  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -65,26 +65,16 @@ def _should_replace_zh_field(existing: str, new_value: str | None) -> bool:
     return not old or not has_cjk(old)
 
 
-def _patch_from_extraction(data: dict, extracted) -> dict:
+def _patch_from_zh(data: dict, zh: ZhBackfillResult) -> dict:
     patch: dict = {}
-    if _should_replace_zh_field(data.get("zh_summary") or "", extracted.zh_summary):
-        patch["zh_summary"] = extracted.zh_summary
-    if _should_replace_zh_field(data.get("zh_body") or "", extracted.zh_body):
-        patch["zh_body"] = extracted.zh_body
-    if _should_replace_zh_field(data.get("hook") or "", extracted.hook):
-        patch["hook"] = extracted.hook
+    if _should_replace_zh_field(data.get("zh_summary") or "", zh.zh_summary):
+        patch["zh_summary"] = zh.zh_summary
+    if _should_replace_zh_field(data.get("hook") or "", zh.hook):
+        patch["hook"] = zh.hook
 
     zh_title = (data.get("zh_title") or "").strip()
-    if not zh_title or not has_cjk(zh_title):
-        new_title = (extracted.zh_title or "").strip()
-        if not new_title or not has_cjk(new_title):
-            for source in (extracted.zh_summary, extracted.zh_body, extracted.hook):
-                if source:
-                    new_title = derive_zh_title(source)
-                    if new_title:
-                        break
-        if new_title and has_cjk(new_title):
-            patch["zh_title"] = new_title
+    if (not zh_title or not has_cjk(zh_title)) and zh.zh_title and has_cjk(zh.zh_title):
+        patch["zh_title"] = zh.zh_title
     return patch
 
 
@@ -96,7 +86,6 @@ def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
         database=os.getenv("FIRESTORE_DATABASE") or None,
     )
     collection = db.collection(_collection_name())
-    extractor = ExtractorAgent()
 
     # Fetch upfront: holding a stream open across slow Gemini calls can hit DEADLINE_EXCEEDED.
     query = (
@@ -127,23 +116,17 @@ def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
             skipped += 1
             continue
 
-        text = summary
-        if data.get("what_happened"):
-            text = f"{data.get('what_happened')}\n\n{summary}"
-
-        extracted = extractor.extract(
+        zh = extract_zh_backfill(
             title=title,
-            text=text[:6000],
-            source_name=data.get("source_name") or "",
-            source_url=data.get("source_url") or "",
-            relax_zh_quality=True,
+            summary=summary,
+            what_happened=str(data.get("what_happened") or ""),
         )
-        if not extracted:
-            logger.warning("Extractor failed for %s", doc.id)
+        if not zh:
+            logger.warning("zh_backfill failed for %s (%s)", doc.id, title[:60])
             failed += 1
             continue
 
-        patch = _patch_from_extraction(data, extracted)
+        patch = _patch_from_zh(data, zh)
         if not patch:
             logger.warning(
                 "No zh patch for %s (existing zh_title=%r zh_summary_len=%d; "
@@ -151,9 +134,9 @@ def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
                 doc.id,
                 (data.get("zh_title") or "")[:40],
                 len((data.get("zh_summary") or "")),
-                (extracted.zh_title or "")[:40],
-                len((extracted.zh_summary or "")),
-                len((extracted.hook or "")),
+                (zh.zh_title or "")[:40],
+                len((zh.zh_summary or "")),
+                len((zh.hook or "")),
             )
             skipped += 1
             continue

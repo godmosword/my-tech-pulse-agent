@@ -232,7 +232,7 @@ python scripts/backfill_zh_fields.py --dry-run --limit 12 --max-updates 8
 python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 ```
 
-腳本會先一次抓完 Firestore 再呼叫 Gemini，避免長時間 stream 造成 `DEADLINE_EXCEEDED`。
+腳本會先一次抓完 Firestore，再以 **Flash 輕量 JSON**（`llm/zh_backfill.py`）只生成 `zh_title` / `zh_summary` / `hook`，避免完整 Pro extractor 輸出過大導致 `zh_*` 被截斷。
 
 完成後對 Vercel 觸發 revalidate（或等下次 pipeline run 自動 POST webhook）。
 
