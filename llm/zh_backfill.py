@@ -79,18 +79,36 @@ def extract_zh_backfill(
     facts = (what_happened or "").strip()[:1200]
     prompt = _PROMPT.format(title=title[:500], summary=summary[:3000], facts=facts or "(none)")
 
-    try:
-        data, _raw = generate_json(
-            make_client(),
-            model=os.getenv("BACKFILL_GEMINI_MODEL", GEMINI_FLASH_MODEL),
-            system_instruction=_SYSTEM,
-            prompt=prompt,
-            max_output_tokens=int(os.getenv("BACKFILL_ZH_OUTPUT_TOKENS", "1024")),
-            response_schema=ZhBackfillResult,
-        )
-        result = ZhBackfillResult(**data)
-    except Exception as exc:
-        logger.warning("zh_backfill extract failed for '%s': %s", title[:80], exc)
+    model = os.getenv("BACKFILL_GEMINI_MODEL", GEMINI_FLASH_MODEL)
+    token_budgets = [
+        int(os.getenv("BACKFILL_ZH_OUTPUT_TOKENS", "1536")),
+        int(os.getenv("BACKFILL_ZH_RETRY_OUTPUT_TOKENS", "2048")),
+    ]
+    result: ZhBackfillResult | None = None
+    last_exc: Exception | None = None
+    for attempt, max_output_tokens in enumerate(token_budgets, start=1):
+        try:
+            data, _raw = generate_json(
+                make_client(),
+                model=model,
+                system_instruction=_SYSTEM,
+                prompt=prompt,
+                max_output_tokens=max_output_tokens,
+                response_schema=ZhBackfillResult,
+            )
+            result = ZhBackfillResult(**data)
+            break
+        except Exception as exc:
+            last_exc = exc
+            if attempt < len(token_budgets):
+                logger.info(
+                    "zh_backfill retry for '%s' with max_output_tokens=%d (%s)",
+                    title[:60],
+                    token_budgets[attempt],
+                    exc,
+                )
+    if result is None:
+        logger.warning("zh_backfill extract failed for '%s': %s", title[:80], last_exc)
         return None
 
     zh_title = _clean_zh_title(result.zh_title)
