@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 - **Staging 語意 prefilter**：`TECH_PULSE_ENV=staging` 自動啟用語意去重；`pipeline_run_summary` 新增 `semantic_prefilter_dropped` / `newsapi_fetched`；見 [`docs/STAGING.md`](docs/STAGING.md)。
 - **NewsAPI 取料**：`sources/newsapi_fetcher.py` 在設定 `NEWSAPI_KEY` 時併入 RSS 流程。
 - **Digest 快照**：`scoring/digest_store.py` 寫入 `tech_pulse_digests`；Dashboard `resolveDigestView()` 優先採用快照。
-- **繁中 backfill 腳本**：[`scripts/backfill_zh_fields.py`](scripts/backfill_zh_fields.py) 對缺 `zh_*` 的 `memory_items` 重跑 extractor。
+- **繁中 backfill**：[`scripts/backfill_zh_fields.py`](scripts/backfill_zh_fields.py) + [`llm/zh_backfill.py`](llm/zh_backfill.py)（Flash 輕量 JSON，只寫 `zh_title` / `zh_summary` / `hook`）；[`scripts/local_post_deploy_verify.sh`](scripts/local_post_deploy_verify.sh) 一鍵驗證 API、revalidate、backfill。
 - **開發流程**：[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 與 [`.cursor/rules/workflow.mdc`](.cursor/rules/workflow.mdc) — 段落完成直接 push `main` 並同步 CHANGELOG/TODOS；pipeline 路徑改動須先經維護者確認。
 - **Heuristic edge tests**：[`tests/test_heuristic_filter.py`](tests/test_heuristic_filter.py) 覆蓋主題白名單、促銷/學術/薄稿、複合品質閘與歧義詞誤命中（`arm`/`sol`/`near`/`agent`）。
 
@@ -20,6 +20,9 @@ All notable changes to this project will be documented in this file.
 - **繁中標題資料鏈**：extractor／`memory_store` 在缺 `zh_title` 時從 `zh_summary`／`zh_body`／`hook` 自動衍生；dashboard 讀取 `hook` 並僅在含漢字時採用繁中 fallback（避免英文 fallback 誤當標題）。
 - **Dashboard REST `/api/v1`**：`items`、`items/{id}`、`digest/today`、`tickers`、`archive/facets`、`health`；`API_READ_TOKEN` Bearer 授權。
 - **Social trending 接線**：Apify 熱門 hashtag 提升 `lexicon_score`（`SOCIAL_TRENDING_LEXICON_BOOST`），影響 Flash 打分候選排序。
+
+### Fixed
+- **Backfill**：先批次讀取 Firestore（避免 stream 逾時）；覆寫缺 CJK 的 `zh_*`；Pro 全量 extractor 改為 Flash zh-only，避免 JSON 截斷導致 `updated=0`。
 
 ## [0.2.0] — 2026-05-19
 

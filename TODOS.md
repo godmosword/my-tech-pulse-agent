@@ -14,12 +14,12 @@
 - [x] Dashboard Archive：弱 `zh_title` fallback 至 `title`、精簡 kicker、列表顯示 `zh_summary`
 - [x] Dashboard：今日熱門代號連結歸檔、中文標題 fallback、內文頁三欄（中文標題／中文摘要／英文摘要）
 - [x] Staging 語意 prefilter、`NEWSAPI` 取料、`tech_pulse_digests` 快照、backfill 腳本
+- [x] 部署清單 [`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md)；Vercel `API_READ_TOKEN` + ISR；本機 backfill 近期稿（Flash `zh_backfill`）
 
 ## 進行中 / 下一步
-
-- [ ] **舊稿繁中**：執行 `python scripts/backfill_zh_fields.py --dry-run` 評估後再正式 backfill
 - [x] **`.env.example`**：補上 `DASHBOARD_REVALIDATE_URL` / `DASHBOARD_REVALIDATE_TOKEN` / `DASHBOARD_REVALIDATE_TIMEOUT` 說明（pipeline 端）
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
+- [ ] **歸檔舊稿繁中**（可選）：`python scripts/backfill_zh_fields.py --limit 30 --max-updates 20` 補更早的 `memory_items`
 
 ## 財報萃取與分析 Roadmap
 
