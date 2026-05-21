@@ -74,8 +74,8 @@ export function TodayRail({ items }: Props) {
                   href={buildArchiveHref(EMPTY_FILTER, { ticker: row.value })}
                   className="flex items-baseline gap-1 rounded-sm border border-rule px-2 py-1 hover:border-accent hover:text-accent"
                 >
-                  <span className="font-mono text-[12px] text-ink">{row.value}</span>
-                  <span className="font-mono text-[11px] tabular-nums text-ink-faint">
+                  <span className="font-mono text-meta text-ink">{row.value}</span>
+                  <span className="font-mono text-kicker tabular-nums text-ink-faint">
                     ×{row.count}
                   </span>
                 </Link>

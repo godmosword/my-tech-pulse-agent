@@ -24,6 +24,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Backfill**：先批次讀取 Firestore（避免 stream 逾時）；覆寫缺 CJK 的 `zh_*`；Pro 全量 extractor 改為 Flash zh-only，避免 JSON 截斷導致 `updated=0`。
 
+### Changed
+- **Dashboard 排版**：UI 字級（`text-kicker` / `text-meta`）加大，與標題、內文更平衡；dark mode 主文字 (`--color-ink`) 與次要色提亮。
+
 ## [0.2.0] — 2026-05-19
 
 ### Added

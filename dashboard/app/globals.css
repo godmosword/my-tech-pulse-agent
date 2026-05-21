@@ -28,11 +28,11 @@
   :root:not([data-theme="light"]) {
     --color-paper: #16120e;
     --color-paper-tint: #1f1a14;
-    --color-ink: #efe8db;
-    --color-ink-soft: #aa9d8c;
-    --color-ink-faint: #7d7264;
+    --color-ink: #f8f4ec;
+    --color-ink-soft: #c8bdb0;
+    --color-ink-faint: #9f9486;
     --color-rule: #3a3329;
-    --color-accent: #c97a6d;
+    --color-accent: #d99084;
   }
 }
 
@@ -40,11 +40,11 @@
 :root[data-theme="dark"] {
   --color-paper: #16120e;
   --color-paper-tint: #1f1a14;
-  --color-ink: #efe8db;
-  --color-ink-soft: #aa9d8c;
-  --color-ink-faint: #7d7264;
+  --color-ink: #f8f4ec;
+  --color-ink-soft: #c8bdb0;
+  --color-ink-faint: #9f9486;
   --color-rule: #3a3329;
-  --color-accent: #c97a6d;
+  --color-accent: #d99084;
 }
 
 /* Manual light — explicit reset for users on a dark-by-system OS who want
@@ -87,9 +87,9 @@ body {
 /* Editorial micro-utilities used across components. */
 .kicker {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-ink-soft);
 }

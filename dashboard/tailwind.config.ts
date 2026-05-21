@@ -47,9 +47,9 @@ const config: Config = {
         accent: "var(--color-accent)",
       },
       fontSize: {
-        // Editorial type scale — keep modest contrast so headlines breathe.
-        kicker: ["11px", { lineHeight: "1", letterSpacing: "0.12em" }],
-        meta: ["12px", { lineHeight: "1.45" }],
+        // UI chrome (nav, labels, meta) — sized closer to article dek/body (17–18px).
+        kicker: ["13px", { lineHeight: "1.25", letterSpacing: "0.1em" }],
+        meta: ["14px", { lineHeight: "1.5" }],
         body: ["16px", { lineHeight: "1.65" }],
         dek: ["17px", { lineHeight: "1.55" }],
         headline: ["28px", { lineHeight: "1.18", letterSpacing: "-0.018em" }],

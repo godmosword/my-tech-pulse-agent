@@ -149,7 +149,7 @@ function CardFooter({
             {tickers.map((t) => (
               <span
                 key={t}
-                className="rounded-sm border border-rule px-1.5 py-0.5 font-mono text-[11px] text-ink"
+                className="rounded-sm border border-rule px-1.5 py-0.5 font-mono text-kicker text-ink"
               >
                 {t}
               </span>
