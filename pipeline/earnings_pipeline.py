@@ -1,29 +1,28 @@
-"""Earnings sub-pipeline: RSS trigger → XBRL facts → report store → legacy Telegram output."""
+"""Earnings sub-pipeline: RSS → XBRL → narrative + analysis → report store → Telegram."""
 
 from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
-from agents.earnings_agent import EarningsAgent, EarningsOutput
+from agents.earnings_analyzer import EarningsAnalyzer
+from agents.earnings_fact_guard import apply_fact_guard_v2
 from agents.earnings_models import (
     EarningsFact,
     EarningsReport,
     SourceDocument,
     build_report_id,
     quarter_label_zh,
-    report_to_legacy_output,
 )
+from agents.earnings_narrative_extractor import EarningsNarrativeExtractor
 from scoring.earnings_report_store import EarningsReportStore
 from sources.earnings_fetcher import EarningsFetcher, EarningsFiling
 from sources.sec_xbrl_fetcher import SecXbrlFetcher
 from sources.ticker_cik_map import TickerCikMap
+from sources.vendor_earnings_provider import VendorEarningsProvider
 from sources.watchlist import EarningsWatchlist
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +30,20 @@ MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "8"))
 MAX_EARNINGS_FILINGS_BROAD = int(os.getenv("MAX_EARNINGS_FILINGS_BROAD", "30"))
 MAX_SEC_API_CALLS_PER_RUN = int(os.getenv("MAX_SEC_API_CALLS_PER_RUN", "60"))
 EARNINGS_TELEGRAM_MIN_TIER = int(os.getenv("EARNINGS_TELEGRAM_MIN_TIER", "2"))
+
+
+@dataclass
+class EarningsRunStats:
+    filings_seen: int = 0
+    xbrl_facts_loaded: int = 0
+    reports_archived: int = 0
+    sec_only_count: int = 0
+    vendor_enriched_count: int = 0
+    vendor_calls: int = 0
+    telegram_candidates: int = 0
+    sec_api_calls: int = 0
+    full_pipeline_count: int = 0
+    broad_archive_count: int = 0
 
 
 def _published_at_from_filing(filing: EarningsFiling, period_filed: datetime | None) -> datetime:
@@ -95,6 +108,7 @@ def build_report_from_filing(
             SourceDocument(
                 form_type=filing.form_type,
                 filing_url=filing.filing_url,
+                accession=filing.accession,
                 filed_at=filed_at,
             )
         ],
@@ -108,20 +122,25 @@ class EarningsPipelineRunner:
         *,
         fetcher: EarningsFetcher,
         xbrl: SecXbrlFetcher,
-        agent: EarningsAgent,
+        narrative: EarningsNarrativeExtractor,
+        analyzer: EarningsAnalyzer,
         store: EarningsReportStore,
         watchlist: EarningsWatchlist,
         cik_map: TickerCikMap,
+        vendor: VendorEarningsProvider | None = None,
     ):
         self.fetcher = fetcher
         self.xbrl = xbrl
-        self.agent = agent
+        self.narrative = narrative
+        self.analyzer = analyzer
         self.store = store
         self.watchlist = watchlist
         self.cik_map = cik_map
+        self.vendor = vendor or VendorEarningsProvider()
 
-    def run(self) -> tuple[list[EarningsReport], list[EarningsOutput]]:
+    def run(self) -> tuple[list[EarningsReport], list[EarningsReport], EarningsRunStats]:
         filings = self.fetcher.fetch_recent_filings()
+        stats = EarningsRunStats(filings_seen=len(filings))
         filings = sorted(
             filings,
             key=lambda f: self.watchlist.sort_key(
@@ -130,10 +149,8 @@ class EarningsPipelineRunner:
         )
 
         reports: list[EarningsReport] = []
-        legacy_outputs: list[EarningsOutput] = []
+        telegram_reports: list[EarningsReport] = []
         sec_calls = 0
-        full_count = 0
-        broad_count = 0
 
         for filing in filings:
             if sec_calls >= MAX_SEC_API_CALLS_PER_RUN:
@@ -171,33 +188,49 @@ class EarningsPipelineRunner:
             if not report:
                 continue
 
-            if on_watchlist and full_count < MAX_EARNINGS_FILINGS:
-                filing = self.fetcher.enrich_with_text(filing)
-                llm_out = self.agent.extract(filing)
-                if llm_out:
-                    report.key_quotes = llm_out.key_quotes
-                    if llm_out.revenue.estimate is not None or llm_out.eps.estimate is not None:
-                        report.estimates = {
-                            "revenue": llm_out.revenue.model_dump(),
-                            "eps": llm_out.eps.model_dump(),
-                        }
-                self.store.save(report)
-                reports.append(report)
-                legacy = report_to_legacy_output(report)
-                if tier is not None and tier <= EARNINGS_TELEGRAM_MIN_TIER:
-                    legacy_outputs.append(legacy)
-                full_count += 1
-            elif not on_watchlist and broad_count < MAX_EARNINGS_FILINGS_BROAD:
-                self.store.save(report)
-                reports.append(report)
-                broad_count += 1
+            stats.xbrl_facts_loaded += 1
 
+            if on_watchlist and stats.full_pipeline_count < MAX_EARNINGS_FILINGS:
+                filing = self.fetcher.enrich_with_text(filing)
+                report = self.narrative.enrich_report(report, filing)
+                vendor_result = self.vendor.enrich_ticker(ticker)
+                stats.vendor_calls += vendor_result.calls_made
+                if vendor_result.estimates:
+                    report = report.model_copy(
+                        update={
+                            "estimates": vendor_result.estimates,
+                            "surprise": vendor_result.surprise or report.surprise,
+                        }
+                    )
+                    stats.vendor_enriched_count += 1
+                else:
+                    stats.sec_only_count += 1
+
+                report = self.analyzer.analyze(report)
+                report = apply_fact_guard_v2(report, filing_text=filing.raw_text or "")
+                self.store.save(report)
+                reports.append(report)
+                stats.reports_archived += 1
+                stats.full_pipeline_count += 1
+                if tier is not None and tier <= EARNINGS_TELEGRAM_MIN_TIER and report.confidence != "low":
+                    telegram_reports.append(report)
+                    stats.telegram_candidates += 1
+            elif not on_watchlist and stats.broad_archive_count < MAX_EARNINGS_FILINGS_BROAD:
+                report = apply_fact_guard_v2(report, filing_text="")
+                self.store.save(report)
+                reports.append(report)
+                stats.reports_archived += 1
+                stats.broad_archive_count += 1
+                stats.sec_only_count += 1
+
+        stats.sec_api_calls = sec_calls
         logger.info(
-            "Earnings pipeline: reports=%d telegram=%d full=%d broad=%d sec_calls=%d",
+            "Earnings pipeline: reports=%d telegram=%d full=%d broad=%d sec_calls=%d vendor=%d",
             len(reports),
-            len(legacy_outputs),
-            full_count,
-            broad_count,
+            len(telegram_reports),
+            stats.full_pipeline_count,
+            stats.broad_archive_count,
             sec_calls,
+            stats.vendor_enriched_count,
         )
-        return reports, legacy_outputs
+        return reports, telegram_reports, stats

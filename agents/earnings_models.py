@@ -7,6 +7,9 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+AiInfraSignal = Literal["strong", "medium", "weak", "not_relevant"]
+MarketSurpriseLevel = Literal["high", "medium", "low", "unknown"]
+
 from agents.earnings_agent import EarningsOutput, EPSData, RevenueData
 
 
@@ -54,6 +57,9 @@ class EarningsReport(BaseModel):
     ai_infra_relevance: Optional[str] = None
     investment_takeaway_zh: Optional[str] = None
     risk_flags: list[str] = Field(default_factory=list)
+    ai_infra_signal: AiInfraSignal = "not_relevant"
+    earnings_quality_score: Optional[float] = None
+    market_surprise_level: MarketSurpriseLevel = "unknown"
     source_documents: list[SourceDocument] = Field(default_factory=list)
     confidence: Literal["high", "medium", "low"] = "medium"
     schema_version: str = "earnings_v2"

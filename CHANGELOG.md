@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **財報雷達 S3–S7**：`EarningsNarrativeExtractor` + `EarningsAnalyzer`；`earnings_fact_guard` v2；Telegram `format_earnings_v2`；`VendorEarningsProvider`（預設 `EARNINGS_VENDOR_MODE=off`）；`pipeline_run_summary` earnings 指標；[`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md)、[`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)。
+- **財報 API（S6）**：`GET /api/v1/earnings/calendar`、`GET /api/v1/earnings/report/{reportId}`。
 - **財報雷達（首期）**：SEC XBRL 主數字、`config/earnings_watchlist.yaml`、`tech_pulse_earnings_reports`、Dashboard [`/earnings`](/earnings) 與 `GET /api/v1/earnings`。
 - **部署設定清單**：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md) — Vercel / GCP Production / Staging / 驗證與 backfill 步驟。
 - **Staging 語意 prefilter**：`TECH_PULSE_ENV=staging` 自動啟用語意去重；`pipeline_run_summary` 新增 `semantic_prefilter_dropped` / `newsapi_fetched`；見 [`docs/STAGING.md`](docs/STAGING.md)。
@@ -15,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - **Heuristic edge tests**：[`tests/test_heuristic_filter.py`](tests/test_heuristic_filter.py) 覆蓋主題白名單、促銷/學術/薄稿、複合品質閘與歧義詞誤命中（`arm`/`sol`/`near`/`agent`）。
 
 ### Changed
+- **財報 pipeline**：watchlist 路徑改為 XBRL → narrative → analyzer → fact_guard v2；Telegram 送 `EarningsReport`（v2 版型）；`scripts/backfill_earnings.py --with-llm` 同步新路徑。
 - **Heuristic prefilter**（[`scoring/heuristic_filter.py`](scoring/heuristic_filter.py)）：主題命中後須有 `depth_markers` 或具體數字才進 Gemini；`reason` 新增 `gate:needs_depth_or_specifics`；收緊易誤命中詞彙。
 - **Dashboard Archive**：`displayTitle()` 在 `zh_title` 過短或等同 `entity` 時改顯示英文 `title`；歸檔列表精簡 kicker（快訊不再每行 `Dispatch`）、有 `zh_summary` 時顯示副標一行。
 - **Dashboard 首頁／內文**：`displayTitle()` 在缺 `zh_title` 時改以 `zh_summary` 首句作中文標題；內文頁固定呈現「中文標題／中文摘要／英文摘要」；「今日熱門代號」可點擊並以 `/archive?ticker=` 篩選相關文章。

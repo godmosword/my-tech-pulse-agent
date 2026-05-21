@@ -14,7 +14,9 @@ from dotenv import load_dotenv
 
 from agents.deep_insight_agent import DeepInsightAgent, InsightBrief
 from llm.embedding_client import GeminiEmbedder
-from agents.earnings_agent import EarningsAgent, EarningsOutput
+from agents.earnings_analyzer import EarningsAnalyzer
+from agents.earnings_models import EarningsReport, report_to_legacy_output
+from agents.earnings_narrative_extractor import EarningsNarrativeExtractor
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.reviewer_agent import ReviewerAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
@@ -99,7 +101,8 @@ class TechPulseCrew:
         self.rss = RSSFetcher()
         self.social = SocialTracker()
         self.earnings_fetcher = EarningsFetcher()
-        self.earnings_agent = EarningsAgent()
+        self._earnings_narrative = EarningsNarrativeExtractor()
+        self._earnings_analyzer = EarningsAnalyzer()
         self._earnings_watchlist = EarningsWatchlist.load()
         self._ticker_cik_map = TickerCikMap.load(watchlist=self._earnings_watchlist)
         self._sec_xbrl = SecXbrlFetcher()
@@ -107,11 +110,13 @@ class TechPulseCrew:
         self._earnings_runner = EarningsPipelineRunner(
             fetcher=self.earnings_fetcher,
             xbrl=self._sec_xbrl,
-            agent=self.earnings_agent,
+            narrative=self._earnings_narrative,
+            analyzer=self._earnings_analyzer,
             store=self._earnings_report_store,
             watchlist=self._earnings_watchlist,
             cik_map=self._ticker_cik_map,
         )
+        self._last_earnings_stats = None
         self.ir_scraper = IRScraper()
         self.deduplicator = Deduplicator()
         self.scorer = Scorer()
@@ -148,7 +153,7 @@ class TechPulseCrew:
         deep_briefs: list[InsightBrief] = []
         summaries: list[ArticleSummary] = []
         digest: DigestOutput | None = None
-        earnings_outputs: list[EarningsOutput] = []
+        earnings_telegram_reports: list[EarningsReport] = []
         critical_errors: list[str] = []
         semantic_prefilter_dropped = 0
         newsapi_fetched = 0
@@ -300,7 +305,7 @@ class TechPulseCrew:
 
             # Earnings sub-pipeline (separate path, not scored — always high-value)
             try:
-                earnings_outputs = self._run_earnings_pipeline(timestamp)
+                earnings_telegram_reports = self._run_earnings_pipeline(timestamp)
             except Exception as exc:
                 logger.error("Earnings pipeline failed: %s", exc, exc_info=True)
                 critical_errors.append("llm:earnings")
@@ -363,10 +368,10 @@ class TechPulseCrew:
                 logger.error("Telegram digest delivery failed: %s", exc, exc_info=True)
                 critical_errors.append("delivery:legacy_digest")
 
-        for earnings in earnings_outputs:
+        for report in earnings_telegram_reports:
             try:
                 delivery_attempted += 1
-                if self.telegram.send_earnings(earnings):
+                if self.telegram.send_earnings_report(report):
                     delivery_succeeded += 1
             except Exception as exc:
                 logger.error("Telegram earnings delivery failed: %s", exc, exc_info=True)
@@ -424,7 +429,7 @@ class TechPulseCrew:
             len(scored_articles),
             len(summaries),
             len(deep_briefs),
-            len(earnings_outputs),
+            len(earnings_telegram_reports),
             low_score_fallback_count,
             fallback_summary_count,
             delivery_attempted,
@@ -444,12 +449,25 @@ class TechPulseCrew:
             "low_score_fallback_count": low_score_fallback_count,
             "fallback_summary_count": fallback_summary_count,
             "deep_briefs": len(deep_briefs),
-            "earnings": len(earnings_outputs),
+            "earnings": len(earnings_telegram_reports),
             "digest_headline": (digest.headline if digest else None),
             "delivery_succeeded": delivery_succeeded,
             "delivery_attempted": delivery_attempted,
             "critical_errors": critical_errors,
         }
+        if self._last_earnings_stats is not None:
+            es = self._last_earnings_stats
+            run_summary.update(
+                {
+                    "earnings_filings_seen": es.filings_seen,
+                    "earnings_xbrl_facts_loaded": es.xbrl_facts_loaded,
+                    "earnings_vendor_calls": es.vendor_calls,
+                    "earnings_reports_archived": es.reports_archived,
+                    "earnings_sec_only_count": es.sec_only_count,
+                    "earnings_vendor_enriched_count": es.vendor_enriched_count,
+                    "earnings_telegram_candidates": es.telegram_candidates,
+                }
+            )
         logger.info("pipeline_run_summary %s", json.dumps(run_summary, ensure_ascii=False))
         logger.info("=== tech-pulse pipeline complete ===")
         return {
@@ -461,7 +479,7 @@ class TechPulseCrew:
             "deep_processed": len(deep_briefs),
             "deep_delivered": deep_delivered,
             "digest": digest.model_dump() if digest else None,
-            "earnings": [e.model_dump() for e in earnings_outputs],
+            "earnings": [r.model_dump(mode="json") for r in earnings_telegram_reports],
             "delivery_attempted": delivery_attempted,
             "delivery_succeeded": delivery_succeeded,
             "critical_errors": critical_errors,
@@ -577,34 +595,32 @@ class TechPulseCrew:
     def _item_id(url: str) -> str:
         return hashlib.sha256(url.encode()).hexdigest()[:8]
 
-    def _run_earnings_pipeline(self, timestamp: str) -> list[EarningsOutput]:
-        reports, results = self._earnings_runner.run()
-        sent_keys = {(o.company, o.quarter) for o in results}
+    def _run_earnings_pipeline(self, timestamp: str) -> list[EarningsReport]:
+        reports, telegram_reports, stats = self._earnings_runner.run()
+        self._last_earnings_stats = stats
+        sent_ids = {r.report_id for r in telegram_reports}
         for report in reports:
             try:
-                from agents.earnings_models import report_to_legacy_output
-
-                legacy = report_to_legacy_output(report)
-                delivered = datetime.now(timezone.utc) if (legacy.company, legacy.quarter) in sent_keys else None
+                delivered = datetime.now(timezone.utc) if report.report_id in sent_ids else None
                 self.memory.archive_earnings_report(report, delivered_at=delivered)
             except Exception as exc:
                 logger.warning("Memory archive skipped for earnings report %s: %s", report.report_id, exc)
         logger.info(
             "Earnings pipeline: %d reports archived, %d Telegram candidates",
             len(reports),
-            len(results),
+            len(telegram_reports),
         )
         if reports:
             self._save_json(
                 OUTPUT_DIR / f"earnings_reports_{timestamp}.json",
-                [r.model_dump() for r in reports],
+                [r.model_dump(mode="json") for r in reports],
             )
-        if results:
+        if telegram_reports:
             self._save_json(
                 OUTPUT_DIR / f"earnings_{timestamp}.json",
-                [e.model_dump() for e in results],
+                [report_to_legacy_output(r).model_dump() for r in telegram_reports],
             )
-        return results
+        return telegram_reports
 
     def _fallback_summaries(self, articles: list[Article]) -> list[ArticleSummary]:
         max_articles = int(os.getenv("MAX_EXTRACTION_ARTICLES", "12"))

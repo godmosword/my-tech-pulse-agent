@@ -937,8 +937,85 @@ def format_items_digest(
     )
 
 
+def _format_metric_line(fact) -> str:
+    """Format one EarningsFact for Telegram (SEC XBRL)."""
+    unit = fact.unit or "USD"
+    val = fact.value
+    if fact.metric.startswith("eps"):
+        display = f"{val:.2f}"
+        suffix = " USD/股" if unit == "USD/share" else ""
+    elif val >= 1e9:
+        display = f"{val / 1e9:.2f}B"
+        suffix = " USD" if unit == "USD" else ""
+    else:
+        display = f"{val:,.0f}"
+        suffix = ""
+    tag = escape(fact.source_tag or fact.source_type or "sec_xbrl")
+    return f"{escape(fact.label_zh)}: {escape(display)}{escape(suffix)} <i>({tag})</i>"
+
+
+def format_earnings_v2(report) -> str:
+    """Format earnings_v2 EarningsReport for Telegram HTML."""
+    from agents.earnings_models import EarningsReport  # noqa: PLC0415
+
+    if not isinstance(report, EarningsReport):
+        report = EarningsReport.model_validate(report)
+
+    lines = [
+        f"<b>💰 財報雷達｜{escape(report.ticker)} {escape(report.quarter_label)}</b>",
+        f"{escape(report.company)} · Tier {report.tier or '—'}",
+        "",
+    ]
+
+    if report.investment_takeaway_zh:
+        lines.append(f"<b>一句話</b> {escape(report.investment_takeaway_zh)}")
+        lines.append("")
+
+    if report.headline_metrics:
+        lines.append("<b>核心數字（SEC XBRL）</b>")
+        for fact in report.headline_metrics[:6]:
+            lines.append(_format_metric_line(fact))
+        lines.append("")
+
+    if report.ai_infra_relevance or report.ai_infra_signal != "not_relevant":
+        signal = report.ai_infra_signal
+        lines.append(f"<b>AI 基建</b> [{escape(signal)}] {escape(report.ai_infra_relevance or '')}")
+        lines.append("")
+
+    guidance = report.guidance.get("wording") if report.guidance else None
+    if guidance:
+        lines.append(f"<b>指引語氣</b> {escape(str(guidance))}")
+        if report.management_tone:
+            lines.append(f"管理層語氣: {escape(report.management_tone)}")
+        lines.append("")
+
+    if report.risk_flags:
+        lines.append("<b>風險旗標</b>")
+        for flag in report.risk_flags[:4]:
+            lines.append(f"• {escape(flag)}")
+        lines.append("")
+
+    if report.key_quotes:
+        lines.append("<b>重要引述</b>")
+        for quote in report.key_quotes[:2]:
+            lines.append(f"> {escape(quote)}")
+        lines.append("")
+
+    filing_url = ""
+    if report.source_documents:
+        filing_url = report.source_documents[0].filing_url or ""
+    if filing_url:
+        lines.append(f'<a href="{escape(filing_url)}">SEC 原文</a>')
+
+    lines.append(
+        f"<i>信心: {escape(report.confidence)} | schema {escape(report.schema_version)}</i>"
+    )
+    lines.append("<i>cross_ref: true — 已同步 #投資日報</i>")
+    return "\n".join(lines)
+
+
 def format_earnings(earnings: EarningsOutput) -> str:
-    """Format an EarningsOutput for Telegram HTML."""
+    """Legacy EarningsOutput formatter (compat). Prefer format_earnings_v2."""
     lines = [
         f"<b>💰 財報雷達 — {escape(earnings.company)}</b>",
         f"季度: {escape(earnings.quarter)}",

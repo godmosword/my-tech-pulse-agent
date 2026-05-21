@@ -14,6 +14,8 @@ Usage:
   # Optional: run Gemini narrative on each filing (slow, costs API)
   python scripts/backfill_earnings.py --since 2026-05-01 --until 2026-05-21 --with-llm
 
+  # --with-llm runs narrative extractor + analyzer (no numeric extraction from LLM)
+
 Env: SEC_USER_AGENT, FIRESTORE_* , GEMINI_API_KEY (if --with-llm)
 """
 
@@ -34,7 +36,9 @@ if str(ROOT) not in sys.path:
 
 load_dotenv()
 
-from agents.earnings_agent import EarningsAgent  # noqa: E402
+from agents.earnings_analyzer import EarningsAnalyzer  # noqa: E402
+from agents.earnings_fact_guard import apply_fact_guard_v2  # noqa: E402
+from agents.earnings_narrative_extractor import EarningsNarrativeExtractor  # noqa: E402
 from pipeline.earnings_pipeline import build_report_from_filing  # noqa: E402
 from scoring.earnings_report_store import make_earnings_report_store  # noqa: E402
 from scoring.memory_store import make_memory_service  # noqa: E402
@@ -61,7 +65,11 @@ def main() -> int:
     parser.add_argument("--since", type=_parse_date_arg, default=_parse_date_arg("2026-05-01"))
     parser.add_argument("--until", type=_parse_date_arg, default=_parse_date_arg("2026-05-21"))
     parser.add_argument("--dry-run", action="store_true", help="List filings only, no writes")
-    parser.add_argument("--with-llm", action="store_true", help="Run EarningsAgent for quotes (slow)")
+    parser.add_argument(
+        "--with-llm",
+        action="store_true",
+        help="Run narrative extractor + analyzer (slow, no LLM headline numbers)",
+    )
     parser.add_argument(
         "--tickers",
         default="",
@@ -86,7 +94,8 @@ def main() -> int:
 
     store = None if args.dry_run else make_earnings_report_store()
     memory = None if args.dry_run else make_memory_service()
-    agent = EarningsAgent() if args.with_llm else None
+    narrative = EarningsNarrativeExtractor() if args.with_llm else None
+    analyzer = EarningsAnalyzer() if args.with_llm else None
     fetcher = None
     if args.with_llm:
         from sources.earnings_fetcher import EarningsFetcher  # noqa: E402
@@ -163,11 +172,11 @@ def main() -> int:
                 continue
             seen_reports.add(report.report_id)
 
-            if agent and fetcher:
+            if narrative and analyzer and fetcher:
                 filing = fetcher.enrich_with_text(filing)
-                llm_out = agent.extract(filing)
-                if llm_out:
-                    report.key_quotes = llm_out.key_quotes
+                report = narrative.enrich_report(report, filing)
+                report = analyzer.analyze(report)
+                report = apply_fact_guard_v2(report, filing_text=filing.raw_text or "")
 
             store.save(report)
             memory.archive_earnings_report(report, delivered_at=report.published_at)

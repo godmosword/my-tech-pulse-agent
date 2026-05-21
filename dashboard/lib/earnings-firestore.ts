@@ -12,6 +12,8 @@ export interface EarningsReportRow {
   ticker: string;
   company: string;
   tier: number | null;
+  fiscal_year: number | null;
+  fiscal_period: string;
   quarter_label: string;
   published_at_iso: string | null;
   confidence: string;
@@ -20,8 +22,11 @@ export interface EarningsReportRow {
     label_zh: string;
     value: number;
     unit?: string;
+    source_tag?: string;
   }>;
   investment_takeaway_zh?: string;
+  ai_infra_signal?: string;
+  risk_flags?: string[];
   source_url: string;
 }
 
@@ -49,6 +54,8 @@ function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | nu
     ticker,
     company: String(raw.company || ticker),
     tier: typeof raw.tier === "number" ? raw.tier : null,
+    fiscal_year: typeof raw.fiscal_year === "number" ? raw.fiscal_year : null,
+    fiscal_period: String(raw.fiscal_period || ""),
     quarter_label: String(raw.quarter_label || ""),
     published_at_iso: toIso(raw.published_at),
     confidence: String(raw.confidence || "medium"),
@@ -57,6 +64,10 @@ function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | nu
       : [],
     investment_takeaway_zh: raw.investment_takeaway_zh
       ? String(raw.investment_takeaway_zh)
+      : undefined,
+    ai_infra_signal: raw.ai_infra_signal ? String(raw.ai_infra_signal) : undefined,
+    risk_flags: Array.isArray(raw.risk_flags)
+      ? raw.risk_flags.map(String)
       : undefined,
     source_url: String(firstDoc.filing_url || ""),
   };
@@ -106,4 +117,35 @@ export async function getEarningsReport(
   const doc = await db().collection(EARNINGS_COLLECTION).doc(reportId).get();
   if (!doc.exists) return null;
   return toRow(doc.id, (doc.data() || {}) as Record<string, unknown>);
+}
+
+export async function listEarningsByTicker(
+  ticker: string,
+  limit = 20
+): Promise<EarningsReportRow[]> {
+  return listEarningsReports({ ticker, limit });
+}
+
+/** Upcoming watchlist earnings (vendor calendar stub returns empty until keys wired). */
+export async function listEarningsCalendar(
+  horizonDays = 30
+): Promise<
+  Array<{
+    ticker: string;
+    company: string;
+    tier: number | null;
+    event_date_iso: string | null;
+    note: string;
+  }>
+> {
+  const since = new Date();
+  since.setDate(since.getDate() + horizonDays);
+  const rows = await listEarningsReports({ limit: 50, maxTier: 5 });
+  return rows.map((r) => ({
+    ticker: r.ticker,
+    company: r.company,
+    tier: r.tier,
+    event_date_iso: r.published_at_iso,
+    note: "recent_filing",
+  }));
 }

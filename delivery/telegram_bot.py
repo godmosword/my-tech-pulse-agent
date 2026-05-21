@@ -6,6 +6,7 @@ import os
 from typing import Optional
 
 from agents.earnings_agent import EarningsOutput
+from agents.earnings_models import EarningsReport
 from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput, StoryInsight, Theme
@@ -14,6 +15,7 @@ from delivery.message_formatter import (
     build_items_digest_messages,
     escape,
     format_earnings,
+    format_earnings_v2,
     format_insight_brief,
     format_items_digest,
 )
@@ -88,6 +90,13 @@ class TelegramBot:
             logger.info("Telegram bot not configured; skipping earnings delivery")
             return False
         text = format_earnings(earnings)
+        return self._send(text)
+
+    def send_earnings_report(self, report: EarningsReport) -> bool:
+        if not self._bot:
+            logger.info("Telegram bot not configured; skipping earnings delivery")
+            return False
+        text = format_earnings_v2(report)
         return self._send(text)
 
     def send_deep_brief(self, brief: InsightBrief) -> bool:
