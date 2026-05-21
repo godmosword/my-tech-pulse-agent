@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
-
 from agents.earnings_models import EarningsFact, EarningsReport
 
 _QUOTE_MIN_LEN = 12
@@ -95,15 +93,3 @@ def apply_fact_guard_v2(
             "confidence": confidence,
         }
     )
-
-
-def strip_llm_numeric_overrides(
-    report: EarningsReport,
-    llm_revenue: Optional[float],
-    llm_eps: Optional[float],
-    source_text: str,
-) -> tuple[Optional[float], Optional[float]]:
-    """Reject LLM-extracted headline numbers not present in filing text."""
-    rev = llm_revenue if llm_revenue is None or _value_in_source(llm_revenue, source_text) else None
-    eps = llm_eps if llm_eps is None or _value_in_source(llm_eps, source_text) else None
-    return rev, eps

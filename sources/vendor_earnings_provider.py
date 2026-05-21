@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class VendorEarningsProvider:
         logger.debug("Vendor enrichment skipped (stub) for %s mode=%s", ticker, self.mode)
         return VendorEnrichmentResult(calls_made=1)
 
-    def get_calendar(self, horizon_days: int = 30) -> list[dict[str, Any]]:
+    def get_calendar(self, _horizon_days: int = 30) -> list[dict[str, Any]]:
         if not self.enabled():
             return []
         return []
@@ -50,19 +49,3 @@ class VendorEarningsProvider:
     @property
     def calls_made(self) -> int:
         return self._calls
-
-
-def vendor_estimate_payload(
-    *,
-    vendor_name: str,
-    endpoint: str,
-    as_of_date: datetime | None = None,
-    data: dict[str, Any],
-) -> dict[str, Any]:
-    return {
-        "source_type": "vendor_estimate",
-        "vendor_name": vendor_name,
-        "endpoint": endpoint,
-        "as_of_date": (as_of_date or datetime.now(timezone.utc)).isoformat(),
-        **data,
-    }

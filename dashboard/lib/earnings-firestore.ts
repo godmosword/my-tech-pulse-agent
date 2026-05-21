@@ -119,13 +119,6 @@ export async function getEarningsReport(
   return toRow(doc.id, (doc.data() || {}) as Record<string, unknown>);
 }
 
-export async function listEarningsByTicker(
-  ticker: string,
-  limit = 20
-): Promise<EarningsReportRow[]> {
-  return listEarningsReports({ ticker, limit });
-}
-
 /** Upcoming watchlist earnings (vendor calendar stub returns empty until keys wired). */
 export async function listEarningsCalendar(
   horizonDays = 30
@@ -138,8 +131,7 @@ export async function listEarningsCalendar(
     note: string;
   }>
 > {
-  const since = new Date();
-  since.setDate(since.getDate() + horizonDays);
+  void horizonDays;
   const rows = await listEarningsReports({ limit: 50, maxTier: 5 });
   return rows.map((r) => ({
     ticker: r.ticker,

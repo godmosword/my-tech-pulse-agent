@@ -17,7 +17,6 @@ from delivery.message_formatter import (
     format_earnings,
     format_earnings_v2,
     format_insight_brief,
-    format_items_digest,
 )
 
 logger = logging.getLogger(__name__)
