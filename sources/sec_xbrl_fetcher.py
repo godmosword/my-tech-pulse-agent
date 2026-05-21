@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+import re
 from typing import Any
 
 from sources.earnings_fetcher import EarningsFiling
@@ -23,6 +24,29 @@ def _parse_date(value: str | None) -> datetime | None:
         return datetime.strptime(value[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
     except Exception:
         return None
+
+
+
+def _accession_digits(accession: str | None) -> str:
+    if not accession:
+        return ""
+    return re.sub(r"[^0-9]", "", accession)
+
+
+def _pick_quarterly_for_accession(entries: list[dict], accession: str | None) -> dict | None:
+    """Pick quarterly row matching SEC accession when possible."""
+    key = _accession_digits(accession)
+    if not key:
+        return _pick_latest_quarterly(entries)
+    candidates = [
+        e for e in entries
+        if str(e.get("fp", "")).upper() in QUARTERLY_FP
+        and e.get("val") is not None
+        and _accession_digits(str(e.get("accn") or "")) == key
+    ]
+    if candidates:
+        return max(candidates, key=lambda e: (str(e.get("filed") or ""), str(e.get("end") or "")))
+    return _pick_latest_quarterly(entries)
 
 
 def _pick_latest_quarterly(entries: list[dict]) -> dict | None:
@@ -65,21 +89,22 @@ class SecXbrlFetcher:
                     return unit_entries
         return []
 
-    def normalize_latest_quarter_facts(
+    def normalize_quarter_facts(
         self,
         company_facts: dict,
+        *,
+        accession: str | None = None,
     ) -> tuple[dict[str, Any], list[dict[str, Any]]] | None:
         """
-        Return (period_meta, facts_list) for the latest quarterly period found.
+        Return (period_meta, facts_list) for a quarterly period.
 
-        period_meta keys: fiscal_year, fiscal_period, period_end, filed_at, form_type, accession
-        facts_list: raw XBRL rows per metric
+        When accession is set (backfill), prefer XBRL rows with matching accn.
         """
         period_rows: dict[tuple[Any, ...], dict[str, dict]] = {}
 
         for spec in HEADLINE_CONCEPTS:
             entries = self.extract_concept_entries(company_facts, spec)
-            row = _pick_latest_quarterly(entries)
+            row = _pick_quarterly_for_accession(entries, accession)
             if not row:
                 continue
             key = (row.get("fy"), row.get("fp"), row.get("end"))
@@ -107,13 +132,19 @@ class SecXbrlFetcher:
         facts_list = list(metrics.values())
         return period_meta, facts_list
 
+    def normalize_latest_quarter_facts(
+        self, company_facts: dict
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]] | None:
+        return self.normalize_quarter_facts(company_facts)
+
     def build_facts_from_xbrl(
         self,
         company_facts: dict,
         *,
         source_url: str = "",
+        accession: str | None = None,
     ) -> list[dict[str, Any]]:
-        normalized = self.normalize_latest_quarter_facts(company_facts)
+        normalized = self.normalize_quarter_facts(company_facts, accession=accession)
         if not normalized:
             return []
         _, rows = normalized

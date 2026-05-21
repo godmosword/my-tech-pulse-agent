@@ -50,12 +50,14 @@ def build_report_from_filing(
     company_facts: dict,
     xbrl: SecXbrlFetcher,
 ) -> EarningsReport | None:
-    normalized = xbrl.normalize_latest_quarter_facts(company_facts)
+    normalized = xbrl.normalize_quarter_facts(company_facts, accession=filing.accession)
     if not normalized:
         return None
 
     period_meta, _rows = normalized
-    fact_dicts = xbrl.build_facts_from_xbrl(company_facts, source_url=filing.filing_url)
+    fact_dicts = xbrl.build_facts_from_xbrl(
+        company_facts, source_url=filing.filing_url, accession=filing.accession
+    )
     if not fact_dicts:
         return None
 
