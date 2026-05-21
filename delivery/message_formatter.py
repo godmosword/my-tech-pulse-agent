@@ -940,7 +940,7 @@ def format_items_digest(
 def format_earnings(earnings: EarningsOutput) -> str:
     """Format an EarningsOutput for Telegram HTML."""
     lines = [
-        f"<b>💰 財報速報 — {escape(earnings.company)}</b>",
+        f"<b>💰 財報雷達 — {escape(earnings.company)}</b>",
         f"季度: {escape(earnings.quarter)}",
         "",
     ]

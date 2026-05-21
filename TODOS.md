@@ -23,8 +23,6 @@
 
 ## 財報萃取與分析 Roadmap
 
-**設計規格（2026-05-21）**：[`docs/superpowers/specs/2026-05-21-us-earnings-column-design.md`](docs/superpowers/specs/2026-05-21-us-earnings-column-design.md) — 全方位升級（D 廣覆蓋 + AI 半導體五層 Watchlist + `published_at` / fiscal period 主鍵 + Dashboard 專欄）。
-
 目標：把現有 `SEC EDGAR RSS → earnings_fetcher → earnings_agent → structured earnings JSON → Telegram + investment-digest` 子流程，升級成「官方結構化數字 + 財報文字敘事 + 精緻投資解讀」的財報雷達。
 
 ### P0 — 官方資料源優先：SEC XBRL structured facts
@@ -45,7 +43,7 @@
   - 保留目前 SEC RSS / Atom feed 觸發邏輯
   - 觸發後先用 CIK / ticker 查 structured XBRL facts
   - filing raw text 改作「quote / guidance wording / management tone」來源，不再作為主要數字來源
-- [ ] 強化 SEC request hygiene
+- [x] 強化 SEC request hygiene（`sources/sec_client.py`）
   - 將 `SEC_HEADERS["User-Agent"]` 改為正式專案名 + 可聯絡 email
   - 加入 rate limit / retry / backoff / cache，避免頻繁打 SEC API
 

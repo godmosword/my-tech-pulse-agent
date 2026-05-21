@@ -34,6 +34,11 @@ from scoring.memory_store import (
     make_memory_service,
 )
 from scoring.scorer import Scorer
+from pipeline.earnings_pipeline import EarningsPipelineRunner
+from scoring.earnings_report_store import make_earnings_report_store
+from sources.sec_xbrl_fetcher import SecXbrlFetcher
+from sources.ticker_cik_map import TickerCikMap
+from sources.watchlist import EarningsWatchlist
 from sources.deep_scraper import DeepScraper
 from sources.earnings_fetcher import EarningsFetcher
 from sources.ir_scraper import IRScraper
@@ -94,6 +99,19 @@ class TechPulseCrew:
         self.rss = RSSFetcher()
         self.social = SocialTracker()
         self.earnings_fetcher = EarningsFetcher()
+        self.earnings_agent = EarningsAgent()
+        self._earnings_watchlist = EarningsWatchlist.load()
+        self._ticker_cik_map = TickerCikMap.load(watchlist=self._earnings_watchlist)
+        self._sec_xbrl = SecXbrlFetcher()
+        self._earnings_report_store = make_earnings_report_store()
+        self._earnings_runner = EarningsPipelineRunner(
+            fetcher=self.earnings_fetcher,
+            xbrl=self._sec_xbrl,
+            agent=self.earnings_agent,
+            store=self._earnings_report_store,
+            watchlist=self._earnings_watchlist,
+            cik_map=self._ticker_cik_map,
+        )
         self.ir_scraper = IRScraper()
         self.deduplicator = Deduplicator()
         self.scorer = Scorer()
@@ -106,7 +124,6 @@ class TechPulseCrew:
         self.extractor = ExtractorAgent()
         self.reviewer = ReviewerAgent()
         self.synthesizer = SynthesizerAgent()
-        self.earnings_agent = EarningsAgent()
         self.telegram = TelegramBot()
         self.memory = make_memory_service()
         self.digest_store = make_digest_store()
@@ -351,7 +368,6 @@ class TechPulseCrew:
                 delivery_attempted += 1
                 if self.telegram.send_earnings(earnings):
                     delivery_succeeded += 1
-                    self._archive_delivered_earnings(earnings)
             except Exception as exc:
                 logger.error("Telegram earnings delivery failed: %s", exc, exc_info=True)
                 critical_errors.append("delivery:earnings")
@@ -562,31 +578,32 @@ class TechPulseCrew:
         return hashlib.sha256(url.encode()).hexdigest()[:8]
 
     def _run_earnings_pipeline(self, timestamp: str) -> list[EarningsOutput]:
-        filings = self.earnings_fetcher.fetch_recent_filings()
-        logger.info("Fetched %d earnings filings", len(filings))
+        reports, results = self._earnings_runner.run()
+        sent_keys = {(o.company, o.quarter) for o in results}
+        for report in reports:
+            try:
+                from agents.earnings_models import report_to_legacy_output
 
-        results = []
-        for filing in filings[:MAX_EARNINGS_FILINGS]:
-            filing = self.earnings_fetcher.enrich_with_text(filing)
-
-            if not filing.raw_text:
-                company_key = filing.company.lower().split()[0]
-                doc = self.ir_scraper.fetch(company_key)
-                if doc and doc.raw_text:
-                    filing.raw_text = doc.raw_text
-                    filing.source = "IR page"
-                    logger.info("Used IR scraper fallback for %s", filing.company)
-
-            output = self.earnings_agent.extract(filing)
-            if output:
-                results.append(output)
-
+                legacy = report_to_legacy_output(report)
+                delivered = datetime.now(timezone.utc) if (legacy.company, legacy.quarter) in sent_keys else None
+                self.memory.archive_earnings_report(report, delivered_at=delivered)
+            except Exception as exc:
+                logger.warning("Memory archive skipped for earnings report %s: %s", report.report_id, exc)
+        logger.info(
+            "Earnings pipeline: %d reports archived, %d Telegram candidates",
+            len(reports),
+            len(results),
+        )
+        if reports:
+            self._save_json(
+                OUTPUT_DIR / f"earnings_reports_{timestamp}.json",
+                [r.model_dump() for r in reports],
+            )
         if results:
             self._save_json(
                 OUTPUT_DIR / f"earnings_{timestamp}.json",
                 [e.model_dump() for e in results],
             )
-        logger.info("Processed %d earnings reports", len(results))
         return results
 
     def _fallback_summaries(self, articles: list[Article]) -> list[ArticleSummary]:

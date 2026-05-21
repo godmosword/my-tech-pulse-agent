@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 from agents.deep_insight_agent import InsightBrief
 from agents.earnings_agent import EarningsOutput
+from agents.earnings_models import EarningsReport, report_to_legacy_output
 from agents.extractor_agent import ArticleSummary
 from llm.embedding_client import GeminiEmbedder, MEMORY_EMBEDDING_DIM
 from llm.localization import derive_zh_title
@@ -55,6 +56,43 @@ class MemoryService(Protocol):
     def archive_deep_brief(self, brief: InsightBrief, *, delivered_at: datetime | None = None) -> None:
         ...
 
+
+    def archive_earnings_report(self, report: EarningsReport, *, delivered_at: datetime | None = None) -> None:
+        delivered_at = delivered_at or datetime.now(timezone.utc)
+        legacy = report_to_legacy_output(report)
+        text = _earnings_text(legacy)
+        embedding = self._embedder.embed_document(
+            title=f"{report.ticker} {report.quarter_label}", text=text
+        )
+        if not embedding:
+            return
+
+        item_id = _item_id(f"earnings:{report.report_id}")
+        zh_sum, zh_body = _earnings_zh_fields(legacy)
+        primary_url = report.source_documents[0].filing_url if report.source_documents else ""
+        payload = {
+            "item_id": item_id,
+            "title": f"{report.ticker} {report.quarter_label}",
+            "summary": text,
+            "zh_summary": zh_sum,
+            "zh_body": zh_body,
+            "source_url": primary_url,
+            "source_name": legacy.source,
+            "published_at": report.published_at,
+            "delivered_at": delivered_at,
+            "category": "earnings",
+            "entity": report.ticker,
+            "score": 0.0,
+            "score_status": report.confidence,
+            "kind": "earnings",
+            "embedding": self._vector_cls(embedding),
+            "expires_at": delivered_at + self._ttl,
+            "report_id": report.report_id,
+            "tier": report.tier,
+            "tickers": [report.ticker],
+        }
+        self._write_payload(item_id, payload)
+
     def archive_earnings(self, earnings: EarningsOutput, *, delivered_at: datetime | None = None) -> None:
         ...
 
@@ -86,6 +124,9 @@ class DisabledMemoryService:
 
     def archive_deep_brief(self, brief: InsightBrief, *, delivered_at: datetime | None = None) -> None:
         del brief, delivered_at
+
+    def archive_earnings_report(self, report: EarningsReport, *, delivered_at: datetime | None = None) -> None:
+        del report, delivered_at
 
     def archive_earnings(self, earnings: EarningsOutput, *, delivered_at: datetime | None = None) -> None:
         del earnings, delivered_at

@@ -13,18 +13,18 @@ import httpx
 import yaml
 from pydantic import BaseModel
 
+from sources.sec_client import sec_headers
+
 logger = logging.getLogger(__name__)
 
 REGISTRY_PATH = Path(__file__).parent / "source_registry.yaml"
-SEC_HEADERS = {
-    "User-Agent": "tech-pulse/0.1 research@example.com",
-    "Accept-Encoding": "gzip, deflate",
-}
+SEC_HEADERS = sec_headers()
 
 
 class EarningsFiling(BaseModel):
     company: str
     ticker: Optional[str] = None
+    cik: Optional[str] = None
     form_type: str                   # "8-K", "10-Q", "10-K"
     filed_at: Optional[datetime] = None
     filing_url: str

@@ -5,7 +5,6 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **財報專欄設計規格**：[`docs/superpowers/specs/2026-05-21-us-earnings-column-design.md`](docs/superpowers/specs/2026-05-21-us-earnings-column-design.md) — D 廣覆蓋 ingest、AI 半導體五層 Watchlist、`published_at` 排序、fiscal period 主鍵、S0–S7 分階切片。
 - **部署設定清單**：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md) — Vercel / GCP Production / Staging / 驗證與 backfill 步驟。
 - **Staging 語意 prefilter**：`TECH_PULSE_ENV=staging` 自動啟用語意去重；`pipeline_run_summary` 新增 `semantic_prefilter_dropped` / `newsapi_fetched`；見 [`docs/STAGING.md`](docs/STAGING.md)。
 - **NewsAPI 取料**：`sources/newsapi_fetcher.py` 在設定 `NEWSAPI_KEY` 時併入 RSS 流程。
@@ -15,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - **Heuristic edge tests**：[`tests/test_heuristic_filter.py`](tests/test_heuristic_filter.py) 覆蓋主題白名單、促銷/學術/薄稿、複合品質閘與歧義詞誤命中（`arm`/`sol`/`near`/`agent`）。
 
 ### Changed
+- **Earnings pipeline**：`pipeline/earnings_pipeline.py` — watchlist 優先、XBRL facts、`published_at` 寫入 memory；Telegram 標題改「財報雷達」。
 - **Heuristic prefilter**（[`scoring/heuristic_filter.py`](scoring/heuristic_filter.py)）：主題命中後須有 `depth_markers` 或具體數字才進 Gemini；`reason` 新增 `gate:needs_depth_or_specifics`；收緊易誤命中詞彙。
 - **Dashboard Archive**：`displayTitle()` 在 `zh_title` 過短或等同 `entity` 時改顯示英文 `title`；歸檔列表精簡 kicker（快訊不再每行 `Dispatch`）、有 `zh_summary` 時顯示副標一行。
 - **Dashboard 首頁／內文**：`displayTitle()` 在缺 `zh_title` 時改以 `zh_summary` 首句作中文標題；內文頁固定呈現「中文標題／中文摘要／英文摘要」；「今日熱門代號」可點擊並以 `/archive?ticker=` 篩選相關文章。
