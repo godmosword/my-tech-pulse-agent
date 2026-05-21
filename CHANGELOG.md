@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **財報專欄設計規格**：[`docs/superpowers/specs/2026-05-21-us-earnings-column-design.md`](docs/superpowers/specs/2026-05-21-us-earnings-column-design.md) — D 廣覆蓋 ingest、AI 半導體五層 Watchlist、`published_at` 排序、fiscal period 主鍵、S0–S7 分階切片。
 - **部署設定清單**：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md) — Vercel / GCP Production / Staging / 驗證與 backfill 步驟。
 - **Staging 語意 prefilter**：`TECH_PULSE_ENV=staging` 自動啟用語意去重；`pipeline_run_summary` 新增 `semantic_prefilter_dropped` / `newsapi_fetched`；見 [`docs/STAGING.md`](docs/STAGING.md)。
 - **NewsAPI 取料**：`sources/newsapi_fetcher.py` 在設定 `NEWSAPI_KEY` 時併入 RSS 流程。
