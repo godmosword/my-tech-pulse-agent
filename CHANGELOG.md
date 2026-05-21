@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - **Social trending 接線**：Apify 熱門 hashtag 提升 `lexicon_score`（`SOCIAL_TRENDING_LEXICON_BOOST`），影響 Flash 打分候選排序。
 
 ### Fixed
+- **財報 memory**：`archive_earnings_report` 實作誤放在 `MemoryService` Protocol，導致 `backfill_earnings` 與 production pipeline 寫入 memory 時 `AttributeError`；已移至 `FirestoreMemoryService`。
 - **Backfill**：先批次讀取 Firestore（避免 stream 逾時）；覆寫缺 CJK 的 `zh_*`；Pro 全量 extractor 改為 Flash zh-only，避免 JSON 截斷導致 `updated=0`。
 
 ### Changed

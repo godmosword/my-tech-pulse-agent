@@ -58,40 +58,7 @@ class MemoryService(Protocol):
 
 
     def archive_earnings_report(self, report: EarningsReport, *, delivered_at: datetime | None = None) -> None:
-        delivered_at = delivered_at or datetime.now(timezone.utc)
-        legacy = report_to_legacy_output(report)
-        text = _earnings_text(legacy)
-        embedding = self._embedder.embed_document(
-            title=f"{report.ticker} {report.quarter_label}", text=text
-        )
-        if not embedding:
-            return
-
-        item_id = _item_id(f"earnings:{report.report_id}")
-        zh_sum, zh_body = _earnings_zh_fields(legacy)
-        primary_url = report.source_documents[0].filing_url if report.source_documents else ""
-        payload = {
-            "item_id": item_id,
-            "title": f"{report.ticker} {report.quarter_label}",
-            "summary": text,
-            "zh_summary": zh_sum,
-            "zh_body": zh_body,
-            "source_url": primary_url,
-            "source_name": legacy.source,
-            "published_at": report.published_at,
-            "delivered_at": delivered_at,
-            "category": "earnings",
-            "entity": report.ticker,
-            "score": 0.0,
-            "score_status": report.confidence,
-            "kind": "earnings",
-            "embedding": self._vector_cls(embedding),
-            "expires_at": delivered_at + self._ttl,
-            "report_id": report.report_id,
-            "tier": report.tier,
-            "tickers": [report.ticker],
-        }
-        self._write_payload(item_id, payload)
+        ...
 
     def archive_earnings(self, earnings: EarningsOutput, *, delivered_at: datetime | None = None) -> None:
         ...
@@ -274,6 +241,42 @@ class FirestoreMemoryService:
             "kind": "deep_brief",
             "embedding": self._vector_cls(embedding),
             "expires_at": delivered_at + self._ttl,
+        }
+        self._write_payload(item_id, payload)
+
+    def archive_earnings_report(self, report: EarningsReport, *, delivered_at: datetime | None = None) -> None:
+        delivered_at = delivered_at or datetime.now(timezone.utc)
+        legacy = report_to_legacy_output(report)
+        text = _earnings_text(legacy)
+        embedding = self._embedder.embed_document(
+            title=f"{report.ticker} {report.quarter_label}", text=text
+        )
+        if not embedding:
+            return
+
+        item_id = _item_id(f"earnings:{report.report_id}")
+        zh_sum, zh_body = _earnings_zh_fields(legacy)
+        primary_url = report.source_documents[0].filing_url if report.source_documents else ""
+        payload = {
+            "item_id": item_id,
+            "title": f"{report.ticker} {report.quarter_label}",
+            "summary": text,
+            "zh_summary": zh_sum,
+            "zh_body": zh_body,
+            "source_url": primary_url,
+            "source_name": legacy.source,
+            "published_at": report.published_at,
+            "delivered_at": delivered_at,
+            "category": "earnings",
+            "entity": report.ticker,
+            "score": 0.0,
+            "score_status": report.confidence,
+            "kind": "earnings",
+            "embedding": self._vector_cls(embedding),
+            "expires_at": delivered_at + self._ttl,
+            "report_id": report.report_id,
+            "tier": report.tier,
+            "tickers": [report.ticker],
         }
         self._write_payload(item_id, payload)
 
