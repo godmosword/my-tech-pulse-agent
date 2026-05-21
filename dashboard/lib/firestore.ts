@@ -18,7 +18,7 @@ const DIGEST_COLLECTION = `${COLLECTION_PREFIX}_digests`;
 
 let cachedApp: App | null = null;
 
-function getApp(): App {
+export function getApp(): App {
   if (cachedApp) return cachedApp;
   const existing = getApps();
   if (existing.length) {
