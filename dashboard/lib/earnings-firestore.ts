@@ -63,8 +63,7 @@ function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | nu
 }
 
 function db() {
-  if (!getApps().length) getApp();
-  return getFirestore();
+  return getFirestore(getApp());
 }
 
 export async function listEarningsReports({
