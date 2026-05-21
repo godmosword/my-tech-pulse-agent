@@ -23,6 +23,8 @@
 
 ## 財報萃取與分析 Roadmap
 
+**設計規格（2026-05-21）**：[`docs/superpowers/specs/2026-05-21-us-earnings-column-design.md`](docs/superpowers/specs/2026-05-21-us-earnings-column-design.md) — 全方位升級（D 廣覆蓋 + AI 半導體五層 Watchlist + `published_at` / fiscal period 主鍵 + Dashboard 專欄）。
+
 目標：把現有 `SEC EDGAR RSS → earnings_fetcher → earnings_agent → structured earnings JSON → Telegram + investment-digest` 子流程，升級成「官方結構化數字 + 財報文字敘事 + 精緻投資解讀」的財報雷達。
 
 ### P0 — 官方資料源優先：SEC XBRL structured facts
