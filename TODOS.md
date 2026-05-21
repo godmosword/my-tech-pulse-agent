@@ -34,6 +34,13 @@
 - [x] **S7** `pipeline_run_summary` earnings 欄位；[`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md)、[`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)
 - [x] **S6（API）** `GET /api/v1/earnings/calendar`、`GET /api/v1/earnings/report/{reportId}`
 
+## 財報雷達 — 上線收工（2026-05-21）
+
+- [x] **Production 資料**：`scripts/backfill_earnings.py`（2026-04-01〜05-21）寫入 `tech_pulse_earnings_reports`（19 筆，XBRL）；`/earnings` 與 `GET /api/v1/earnings` 已可讀
+- [x] **Bugfix**：`archive_earnings_report` 移至 `FirestoreMemoryService`（backfill / pipeline memory 不再 `AttributeError`）
+- [x] **Dashboard**：`GET /api/v1/earnings/report/{reportId}` 修正動態 route auth（對齊 `items/[id]`）
+- [x] **ISR webhook**：Vercel `REVALIDATE_TOKEN` 與 Cloud Run `DASHBOARD_REVALIDATE_URL` + `DASHBOARD_REVALIDATE_TOKEN` 已對齊（見 [`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md) §1.1 / §2.2）
+
 ## 進行中 / 下一步
 
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
@@ -66,5 +73,5 @@
 1. Cloud Run Job 日誌出現 `pipeline_run_summary` 且 `summaries_count` > 0
 2. 日誌含 `earnings_xbrl_facts_loaded`、`earnings_reports_archived`（有財報 filing 時）
 3. Telegram 頻道收到 HTML digest（無 raw `&lt;` 洩漏）
-4. 若已設 webhook：Dashboard `/` 與 `/archive` 在送報後數秒內更新
+4. 若已設 webhook（production 已設）：Dashboard `/`、`/archive`、`/earnings` 在送報後數秒內更新（`x-revalidate-token`）
 5. `python scripts/preflight.py` 在與 production 相同 env 下通過

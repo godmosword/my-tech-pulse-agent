@@ -27,10 +27,15 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - **財報 memory**：`archive_earnings_report` 實作誤放在 `MemoryService` Protocol，導致 `backfill_earnings` 與 production pipeline 寫入 memory 時 `AttributeError`；已移至 `FirestoreMemoryService`。
+- **Dashboard 財報 API**：`/api/v1/earnings/report/[reportId]` 動態 route 改為與 `items/[id]` 相同 auth 模式（修正 Vercel build）。
 - **Backfill**：先批次讀取 Firestore（避免 stream 逾時）；覆寫缺 CJK 的 `zh_*`；Pro 全量 extractor 改為 Flash zh-only，避免 JSON 截斷導致 `updated=0`。
 
 ### Changed
 - **Dashboard 排版**：UI 字級（`text-kicker` / `text-meta`）加大，與標題、內文更平衡；dark mode 主文字 (`--color-ink`) 與次要色提亮。
+- **Production 維運**：Vercel `REVALIDATE_TOKEN` 與 Cloud Run `DASHBOARD_REVALIDATE_*` 對齊；pipeline 送報後可 POST `/api/revalidate`（含 `/earnings` 路徑）。
+
+### Ops
+- **財報雷達資料**：`backfill_earnings`（2026-04-01〜05-21）寫入 production `tech_pulse_earnings_reports`（watchlist 19 筆 XBRL 報告）；Dashboard `/earnings` 不再空列表。
 
 ## [0.2.0] — 2026-05-19
 
