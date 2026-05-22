@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **財報 v3 Slice A（Finnhub + Scorecard）**：`finnhub_provider`、`scorecard_builder`（GAAP/Non-GAAP basis alignment）、`eps_non_gaap_extractor`、`rendered_markdown_zh` §1、pipeline 整合；`transcript_status=pending` 占位。
 - **財報雷達 S3–S7**：`EarningsNarrativeExtractor` + `EarningsAnalyzer`；`earnings_fact_guard` v2；Telegram `format_earnings_v2`；`VendorEarningsProvider`（預設 `EARNINGS_VENDOR_MODE=off`）；`pipeline_run_summary` earnings 指標；[`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md)、[`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)。
 - **財報 API（S6）**：`GET /api/v1/earnings/calendar`、`GET /api/v1/earnings/report/{reportId}`。
 - **財報雷達（首期）**：SEC XBRL 主數字、`config/earnings_watchlist.yaml`、`tech_pulse_earnings_reports`、Dashboard [`/earnings`](/earnings) 與 `GET /api/v1/earnings`。

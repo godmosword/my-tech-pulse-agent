@@ -971,7 +971,24 @@ def format_earnings_v2(report) -> str:
         lines.append(f"<b>一句話</b> {escape(report.investment_takeaway_zh)}")
         lines.append("")
 
-    if report.headline_metrics:
+    if report.scorecard and report.schema_version == "earnings_v3":
+        sc = report.scorecard
+        lines.append("<b>核心財報（Scorecard）</b>")
+        if sc.revenue and sc.revenue.actual is not None:
+            sur = ""
+            if sc.revenue.surprise_pct is not None:
+                sur = f" 驚喜 {sc.revenue.surprise_pct:+.1f}%"
+            lines.append(f"營收 實際 {sc.revenue.actual / 1e9:.2f}B{sur}")
+        if sc.eps and sc.eps.actual is not None:
+            sur = ""
+            if sc.eps.surprise_pct is not None:
+                sur = f" 驚喜 {sc.eps.surprise_pct:+.1f}%"
+            elif sc.eps.accounting_basis == "Mixed":
+                sur = " (EPS 基準不一致)"
+            lines.append(f"EPS 實際 ${sc.eps.actual:.2f}{sur} [{sc.eps.accounting_basis}]")
+        lines.append(f"簡評: {escape(sc.headline_verdict)}")
+        lines.append("")
+    elif report.headline_metrics:
         lines.append("<b>核心數字（SEC XBRL）</b>")
         for fact in report.headline_metrics[:6]:
             lines.append(_format_metric_line(fact))
