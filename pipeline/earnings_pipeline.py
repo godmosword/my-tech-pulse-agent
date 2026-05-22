@@ -16,7 +16,9 @@ from agents.earnings_models import (
     build_report_id,
     quarter_label_zh,
 )
+from agents.earnings_deep_render import render_deep_report_markdown
 from agents.earnings_narrative_extractor import EarningsNarrativeExtractor
+from agents.scorecard_builder import apply_scorecard_v3
 from scoring.earnings_report_store import EarningsReportStore
 from sources.earnings_fetcher import EarningsFetcher, EarningsFiling
 from sources.sec_xbrl_fetcher import SecXbrlFetcher
@@ -193,18 +195,26 @@ class EarningsPipelineRunner:
             if on_watchlist and stats.full_pipeline_count < MAX_EARNINGS_FILINGS:
                 filing = self.fetcher.enrich_with_text(filing)
                 report = self.narrative.enrich_report(report, filing)
-                vendor_result = self.vendor.enrich_ticker(ticker)
+                vendor_result = self.vendor.enrich_for_report(report)
                 stats.vendor_calls += vendor_result.calls_made
                 if vendor_result.estimates:
-                    report = report.model_copy(
-                        update={
-                            "estimates": vendor_result.estimates,
-                            "surprise": vendor_result.surprise or report.surprise,
-                        }
-                    )
+                    report = report.model_copy(update={"estimates": vendor_result.estimates})
+                if vendor_result.enriched:
                     stats.vendor_enriched_count += 1
                 else:
                     stats.sec_only_count += 1
+
+                report = apply_scorecard_v3(
+                    report,
+                    company_facts=company_facts,
+                    xbrl=self.xbrl,
+                    filing_text=filing.raw_text or "",
+                    vendor_estimates=vendor_result.estimates,
+                    vendor_market=vendor_result.market_context,
+                )
+                report = report.model_copy(
+                    update={"rendered_markdown_zh": render_deep_report_markdown(report)}
+                )
 
                 report = self.analyzer.analyze(report)
                 report = apply_fact_guard_v2(report, filing_text=filing.raw_text or "")
@@ -216,6 +226,20 @@ class EarningsPipelineRunner:
                     telegram_reports.append(report)
                     stats.telegram_candidates += 1
             elif not on_watchlist and stats.broad_archive_count < MAX_EARNINGS_FILINGS_BROAD:
+                report = apply_scorecard_v3(
+                    report,
+                    company_facts=company_facts,
+                    xbrl=self.xbrl,
+                    filing_text="",
+                    vendor_estimates=None,
+                    vendor_market=None,
+                )
+                report = report.model_copy(
+                    update={
+                        "transcript_status": "skipped",
+                        "rendered_markdown_zh": render_deep_report_markdown(report),
+                    }
+                )
                 report = apply_fact_guard_v2(report, filing_text="")
                 self.store.save(report)
                 reports.append(report)

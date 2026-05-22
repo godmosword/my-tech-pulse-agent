@@ -7,10 +7,11 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from agents.earnings_agent import EarningsOutput, EPSData, RevenueData
+from agents.earnings_v3_models import MarketContext, Scorecard, TranscriptStatus
+
 AiInfraSignal = Literal["strong", "medium", "weak", "not_relevant"]
 MarketSurpriseLevel = Literal["high", "medium", "low", "unknown"]
-
-from agents.earnings_agent import EarningsOutput, EPSData, RevenueData
 
 
 class EarningsFact(BaseModel):
@@ -63,6 +64,12 @@ class EarningsReport(BaseModel):
     source_documents: list[SourceDocument] = Field(default_factory=list)
     confidence: Literal["high", "medium", "low"] = "medium"
     schema_version: str = "earnings_v2"
+    # earnings_v3 (additive)
+    scorecard: Scorecard | None = None
+    market_context: MarketContext | None = None
+    rendered_markdown_zh: str | None = None
+    transcript_status: TranscriptStatus | None = None
+    transcript_id: str | None = None
 
 
 def _metric_value(metrics: list[EarningsFact], name: str) -> Optional[float]:

@@ -7,6 +7,23 @@ const COLLECTION_PREFIX =
   process.env.FIRESTORE_COLLECTION_PREFIX?.trim() || "tech_pulse";
 const EARNINGS_COLLECTION = `${COLLECTION_PREFIX}_earnings_reports`;
 
+export interface MetricValueRow {
+  actual?: number | null;
+  estimate?: number | null;
+  surprise_pct?: number | null;
+  yoy_pct?: number | null;
+  accounting_basis?: string;
+  actual_source?: string;
+  estimate_source?: string;
+}
+
+export interface ScorecardRow {
+  revenue?: MetricValueRow | null;
+  eps?: MetricValueRow | null;
+  gross_margin_pct?: MetricValueRow | null;
+  headline_verdict?: string;
+}
+
 export interface EarningsReportRow {
   report_id: string;
   ticker: string;
@@ -17,6 +34,7 @@ export interface EarningsReportRow {
   quarter_label: string;
   published_at_iso: string | null;
   confidence: string;
+  schema_version: string;
   headline_metrics: Array<{
     metric: string;
     label_zh: string;
@@ -24,10 +42,51 @@ export interface EarningsReportRow {
     unit?: string;
     source_tag?: string;
   }>;
+  scorecard?: ScorecardRow | null;
+  rendered_markdown_zh?: string;
+  transcript_status?: string;
   investment_takeaway_zh?: string;
   ai_infra_signal?: string;
   risk_flags?: string[];
   source_url: string;
+}
+
+function metricFromHeadline(
+  metrics: EarningsReportRow["headline_metrics"],
+  name: string
+): number | undefined {
+  const m = metrics.find((x) => x.metric === name);
+  return m?.value;
+}
+
+/** v2 documents → minimal v3 scorecard view (no surprise, basis Unknown). */
+function scorecardFromLegacyHeadline(
+  headline_metrics: EarningsReportRow["headline_metrics"]
+): ScorecardRow {
+  const revenue = metricFromHeadline(headline_metrics, "revenue");
+  const eps =
+    metricFromHeadline(headline_metrics, "eps_diluted") ??
+    metricFromHeadline(headline_metrics, "eps_basic");
+  const gross = metricFromHeadline(headline_metrics, "gross_profit");
+  const rev = metricFromHeadline(headline_metrics, "revenue");
+  const gmPct =
+    revenue != null && rev != null && rev !== 0 && gross != null
+      ? (gross / rev) * 100
+      : undefined;
+
+  return {
+    revenue: revenue != null ? { actual: revenue, accounting_basis: "Unknown" } : null,
+    eps: eps != null ? { actual: eps, accounting_basis: "Unknown" } : null,
+    gross_margin_pct:
+      gmPct != null ? { actual: gmPct, accounting_basis: "Unknown" } : null,
+    headline_verdict: "無法判定",
+  };
+}
+
+function parseScorecard(raw: Record<string, unknown>): ScorecardRow | null {
+  const sc = raw.scorecard;
+  if (!sc || typeof sc !== "object") return null;
+  return sc as ScorecardRow;
 }
 
 function toIso(value: unknown): string | null {
@@ -44,11 +103,27 @@ function toIso(value: unknown): string | null {
   return null;
 }
 
+export function normalizeEarningsReport(
+  id: string,
+  raw: Record<string, unknown>
+): EarningsReportRow | null {
+  return toRow(id, raw);
+}
+
 function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | null {
   const ticker = String(raw.ticker || "");
   if (!ticker) return null;
   const docs = Array.isArray(raw.source_documents) ? raw.source_documents : [];
   const firstDoc = (docs[0] || {}) as Record<string, unknown>;
+  const schemaVersion = String(raw.schema_version || "earnings_v2");
+  const headline_metrics = Array.isArray(raw.headline_metrics)
+    ? (raw.headline_metrics as EarningsReportRow["headline_metrics"])
+    : [];
+  let scorecard = parseScorecard(raw);
+  if (!scorecard && schemaVersion !== "earnings_v3" && headline_metrics.length > 0) {
+    scorecard = scorecardFromLegacyHeadline(headline_metrics);
+  }
+
   return {
     report_id: String(raw.report_id || id),
     ticker,
@@ -59,9 +134,15 @@ function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | nu
     quarter_label: String(raw.quarter_label || ""),
     published_at_iso: toIso(raw.published_at),
     confidence: String(raw.confidence || "medium"),
-    headline_metrics: Array.isArray(raw.headline_metrics)
-      ? (raw.headline_metrics as EarningsReportRow["headline_metrics"])
-      : [],
+    schema_version: schemaVersion,
+    headline_metrics,
+    scorecard,
+    rendered_markdown_zh: raw.rendered_markdown_zh
+      ? String(raw.rendered_markdown_zh)
+      : undefined,
+    transcript_status: raw.transcript_status
+      ? String(raw.transcript_status)
+      : undefined,
     investment_takeaway_zh: raw.investment_takeaway_zh
       ? String(raw.investment_takeaway_zh)
       : undefined,
