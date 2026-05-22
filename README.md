@@ -74,6 +74,8 @@ See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
 | `MAX_SCORING_ARTICLES` | ❌      | Max articles scored per run (`24`) |
 | `MAX_UNSCORED_TAIL` | ❌ | Max scoring-failed articles merged into the delivery pool (`3`; same env as Telegram unscored tail budget) |
 | `MAX_EXTRACTION_ARTICLES` | ❌   | Max articles extracted per run (`8`) |
+| `TRANSLATION_AGENT_ENABLED` | ❌ | Flash backfill `zh_title` / `zh_summary` when extractor misses CJK (`1`) |
+| `MAX_TRANSLATION_ARTICLES` | ❌ | Cap translation calls per run (defaults to `MAX_EXTRACTION_ARTICLES`) |
 | `MAX_DEEP_ARTICLES` | ❌       | Max KOL/paper deep briefs generated per run (`3`) |
 | `MIN_DEEP_WORDS` | ❌          | Minimum public full-text length before deep chain runs (`800`) |
 | `MAX_EARNINGS_FILINGS` | ❌      | Watchlist full pipeline per run (`8`) |

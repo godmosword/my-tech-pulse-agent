@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Translation Agent**（`agents/translation_agent.py`）：Extractor 未產出含 CJK 的 `zh_title` / `zh_summary` 時，以 Gemini Flash 補繁中標題與兩句摘要；`pipeline_run_summary.translation_filled_count`；`TRANSLATION_AGENT_ENABLED`（預設 `1`）。
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Docs

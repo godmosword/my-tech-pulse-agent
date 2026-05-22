@@ -19,6 +19,7 @@ from agents.earnings_models import EarningsReport, report_to_legacy_output
 from agents.earnings_narrative_extractor import EarningsNarrativeExtractor
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
 from agents.reviewer_agent import ReviewerAgent
+from agents.translation_agent import TranslationAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.revalidate import revalidate_dashboard
 from delivery.telegram_bot import TelegramBot
@@ -127,6 +128,7 @@ class TechPulseCrew:
         self.deep_agent = DeepInsightAgent()
         self.extractor = ExtractorAgent()
         self.reviewer = ReviewerAgent()
+        self.translation_agent = TranslationAgent()
         self.synthesizer = SynthesizerAgent()
         self.telegram = TelegramBot()
         self.memory = make_memory_service()
@@ -154,6 +156,7 @@ class TechPulseCrew:
         digest: DigestOutput | None = None
         earnings_telegram_reports: list[EarningsReport] = []
         critical_errors: list[str] = []
+        translation_filled_count = 0
         semantic_prefilter_dropped = 0
         newsapi_fetched = 0
 
@@ -273,6 +276,14 @@ class TechPulseCrew:
             summaries = self._ensure_minimum_summaries(
                 summaries, instant_scored_articles, scored_articles
             )
+            if summaries:
+                try:
+                    summaries, translation_filled_count = self.translation_agent.translate_batch(
+                        summaries
+                    )
+                except Exception as exc:
+                    logger.error("Translation agent failed: %s", exc, exc_info=True)
+                    critical_errors.append("llm:translation")
             if summaries:
                 summaries = self._apply_memory_context(summaries)
             if summaries:
@@ -445,6 +456,7 @@ class TechPulseCrew:
             "instant_candidates": len(instant_scored_articles),
             "synthesis_ran": digest is not None,
             "summaries_count": len(summaries),
+            "translation_filled_count": translation_filled_count,
             "low_score_fallback_count": low_score_fallback_count,
             "fallback_summary_count": fallback_summary_count,
             "deep_briefs": len(deep_briefs),

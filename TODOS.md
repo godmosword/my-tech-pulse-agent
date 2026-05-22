@@ -52,6 +52,7 @@
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / Dashboard `.env.local`（Cloud Run Secret 暫緩）
+- [ ] **舊稿繁中回填**：`python scripts/backfill_zh_fields.py --limit 30 --max-updates 20`（新稿由 Translation Agent 自動補 zh）
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
 - [ ] **歸檔舊稿繁中**（可選）：`python scripts/backfill_zh_fields.py --limit 30 --max-updates 20`
 
