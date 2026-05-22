@@ -77,6 +77,18 @@ function db() {
   return getFirestore(getApp());
 }
 
+function publishedAtMs(iso: string | null): number {
+  if (!iso) return 0;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function sortByPublishedDesc(rows: EarningsReportRow[]): EarningsReportRow[] {
+  return [...rows].sort(
+    (a, b) => publishedAtMs(b.published_at_iso) - publishedAtMs(a.published_at_iso),
+  );
+}
+
 export async function listEarningsReports({
   limit = 30,
   ticker,
@@ -86,29 +98,29 @@ export async function listEarningsReports({
   ticker?: string;
   maxTier?: number;
 } = {}): Promise<EarningsReportRow[]> {
-  let query = db()
-    .collection(EARNINGS_COLLECTION)
-    .orderBy("published_at", "desc")
-    .limit(limit * 3);
+  // Ticker filter + orderBy requires a composite Firestore index and fails at
+  // runtime on Vercel. Filter by ticker only, then sort in memory.
+  const snap = ticker
+    ? await db()
+        .collection(EARNINGS_COLLECTION)
+        .where("ticker", "==", ticker.toUpperCase())
+        .limit(limit * 3)
+        .get()
+    : await db()
+        .collection(EARNINGS_COLLECTION)
+        .orderBy("published_at", "desc")
+        .limit(limit * 3)
+        .get();
 
-  if (ticker) {
-    query = db()
-      .collection(EARNINGS_COLLECTION)
-      .where("ticker", "==", ticker.toUpperCase())
-      .orderBy("published_at", "desc")
-      .limit(limit);
-  }
-
-  const snap = await query.get();
   const rows: EarningsReportRow[] = [];
   for (const doc of snap.docs) {
     const row = toRow(doc.id, (doc.data() || {}) as Record<string, unknown>);
     if (!row) continue;
     if (row.tier != null && row.tier > maxTier) continue;
     rows.push(row);
-    if (rows.length >= limit) break;
   }
-  return rows;
+
+  return sortByPublishedDesc(rows).slice(0, limit);
 }
 
 export async function getEarningsReport(

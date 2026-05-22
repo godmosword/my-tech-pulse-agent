@@ -30,13 +30,15 @@ function metricBadge(
 ) {
   const m = metrics.find((x) => x.metric === name);
   if (!m) return null;
+  const value = Number(m.value);
+  if (!Number.isFinite(value)) return null;
   const unit = m.unit === "USD/share" ? "" : m.unit === "USD" ? " USD" : "";
   const display =
     m.metric.startsWith("eps")
-      ? m.value.toFixed(2)
-      : m.value >= 1e9
-        ? `${(m.value / 1e9).toFixed(2)}B`
-        : m.value.toLocaleString();
+      ? value.toFixed(2)
+      : value >= 1e9
+        ? `${(value / 1e9).toFixed(2)}B`
+        : value.toLocaleString();
   return (
     <span className="rounded border border-rule px-2 py-0.5 font-mono text-meta text-ink-soft">
       {m.label_zh} {display}
