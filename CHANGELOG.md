@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Portal Earnings API（Slice 2）**：`GET /api/v1/earnings/upcoming`、`/{symbol}/insight`、`/watchlist`；Finnhub 行事曆 + Firestore fallback；`config/earnings_watchlist.yaml` 併入 Q-Silicon mega-cap；`scripts/export_earnings_watchlist_json.py`。
 - **Portal News API（Slice 1）**：`GET /api/v1/news/digest|deep|deep/{id}|themes`（`dashboard/lib/news-api.ts`），對齊 Q-Silicon `api_routers/news.py`；digest 含 `summary` 供 `TECH_PULSE_URL`。
 - **Translation Agent**（`agents/translation_agent.py`）：Extractor 未產出含 CJK 的 `zh_title` / `zh_summary` 時，以 Gemini Flash 補繁中標題與兩句摘要；`pipeline_run_summary.translation_filled_count`；`TRANSLATION_AGENT_ENABLED`（預設 `1`）。
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。

@@ -12,12 +12,19 @@ entries:
   - { ticker: LRCX, tier: 1, tags: [equipment] }
   - { ticker: KLAC, tier: 1, tags: [equipment] }
 
-  # Tier 2 — high growth (5 named / 10 target)
+  # Tier 2 — high growth + mega-cap (aligned with Q-Silicon MEGA_CAP watchlist)
   - { ticker: MRVL, tier: 2, tags: [ai_infra] }
   - { ticker: MU, tier: 2, tags: [memory, hbm] }
   - { ticker: CDNS, tier: 2, tags: [eda] }
   - { ticker: SNPS, tier: 2, tags: [eda] }
   - { ticker: ARM, tier: 2, tags: [ip] }
+  - { ticker: INTC, tier: 2, tags: [semiconductor] }
+  - { ticker: QCOM, tier: 2, tags: [ai_infra] }
+  - { ticker: MSFT, tier: 2, tags: [cloud_software] }
+  - { ticker: GOOGL, tier: 2, tags: [cloud_software] }
+  - { ticker: AAPL, tier: 2, tags: [consumer_devices] }
+  - { ticker: META, tier: 2, tags: [cloud_software] }
+  - { ticker: AMZN, tier: 2, tags: [cloud_software] }
 
   # Tier 3 — RF / edge / analog (4 named / 10 target)
   - { ticker: ON, tier: 3, tags: [sic] }
@@ -25,10 +32,26 @@ entries:
   - { ticker: TXN, tier: 3, tags: [analog] }
   - { ticker: ADI, tier: 3, tags: [analog] }
 
-  # Tier 4 — emerging AI / small equipment (3 named / 10 target)
+  # Tier 3 — enterprise software / networking (Q-Silicon mega-cap)
+  - { ticker: ORCL, tier: 3, tags: [cloud_software] }
+  - { ticker: CRM, tier: 3, tags: [cloud_software] }
+  - { ticker: NOW, tier: 3, tags: [cloud_software] }
+  - { ticker: SNOW, tier: 3, tags: [cloud_software] }
+  - { ticker: PLTR, tier: 3, tags: [cloud_software] }
+  - { ticker: CRWD, tier: 3, tags: [cloud_software] }
+  - { ticker: NET, tier: 3, tags: [cloud_software] }
+  - { ticker: DELL, tier: 3, tags: [hardware] }
+  - { ticker: HPE, tier: 3, tags: [hardware] }
+  - { ticker: ANET, tier: 3, tags: [hardware] }
+  - { ticker: CSCO, tier: 3, tags: [hardware] }
+
+  # Tier 4 — emerging AI / small equipment / optical
   - { ticker: SMCI, tier: 4, tags: [ai_infra] }
   - { ticker: RMBS, tier: 4, tags: [memory, ip] }
   - { ticker: ACLS, tier: 4, tags: [equipment] }
+  - { ticker: LITE, tier: 4, tags: [optical] }
+  - { ticker: COHR, tier: 4, tags: [optical] }
+  - { ticker: FN, tier: 4, tags: [optical] }
 
   # Tier 5 — packaging / materials / interconnect (4 named / 10 target)
   - { ticker: AMKR, tier: 5, tags: [packaging] }

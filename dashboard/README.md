@@ -93,7 +93,10 @@ break Portal contract v1) and have both consumers read it.
 | `GET /api/v1/archive/facets` | 歸檔 facet 計數 |
 | `GET /api/v1/earnings` | 財報列表；`limit`, `ticker`, `max_tier` |
 | `GET /api/v1/earnings/report/{reportId}` | 單篇財報（含 v3 欄位） |
-| `GET /api/v1/earnings/calendar` | 財報日曆 stub |
+| `GET /api/v1/earnings/upcoming` | 行事曆（`days`；Finnhub 或 Firestore fallback） |
+| `GET /api/v1/earnings/{symbol}/insight` | 最新 v3 財報 + `report_url_path` |
+| `GET /api/v1/earnings/watchlist` | `earnings_watchlist.yaml` 匯出 |
+| `GET /api/v1/earnings/calendar` | 相容別名（`horizon` ≈ `days`） |
 | `GET /api/v1/earnings/ai-infra` | 篩選 `ai_infra_signal` |
 | `GET /api/v1/news/digest` | Portal 快訊（`date`, `limit`）；含 `summary` 給 Q-Silicon 日報 |
 | `GET /api/v1/news/deep` | 深度稿（`pillar`, `limit`） |

@@ -95,6 +95,12 @@ Portal API（`api_routers/news.py`）使用 **read-only service account**：
 
 詳見 [`QSILICON_INTEGRATION.md`](QSILICON_INTEGRATION.md)。
 
+## Portal Earnings API（Slice 2 — Vercel `/api/v1/earnings/*`）
+
+- `GET /api/v1/earnings/upcoming?days=14` — 對齊 Q-Silicon `/api/earnings/upcoming`
+- `GET /api/v1/earnings/{symbol}/insight` — 讀 `tech_pulse_earnings_reports`（取代 JSONL scaffold）
+- `GET /api/v1/earnings/watchlist` — 來自 `config/earnings_watchlist.yaml`
+
 ## Preflight：確認實際鍵名
 
 在具 GCP Application Default Credentials 的環境執行：

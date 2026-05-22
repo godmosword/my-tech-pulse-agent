@@ -53,7 +53,8 @@
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）
 - [x] **Slice 1 Portal News API**：`/api/v1/news/*` + [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md)
-- [ ] **Slice 2 財報 proxy**：主 repo `/api/earnings/*` → tech-pulse `tech_pulse_earnings_reports`
+- [x] **Slice 2 Earnings API**：`/api/v1/earnings/upcoming`、`/{symbol}/insight`、`/watchlist`；watchlist 併 Q-Silicon mega-cap
+- [ ] **主 repo 瘦身**：依 [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md) §主 repo 作業清單
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
 - [ ] **歸檔舊稿繁中**（可選）：`python scripts/backfill_zh_fields.py --limit 30 --max-updates 20`
 

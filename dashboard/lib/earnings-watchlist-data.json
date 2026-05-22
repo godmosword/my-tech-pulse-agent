@@ -1,0 +1,321 @@
+{
+  "entries": [
+    {
+      "ticker": "AAPL",
+      "tier": 2,
+      "tags": [
+        "consumer_devices"
+      ]
+    },
+    {
+      "ticker": "ACLS",
+      "tier": 4,
+      "tags": [
+        "equipment"
+      ]
+    },
+    {
+      "ticker": "ADI",
+      "tier": 3,
+      "tags": [
+        "analog"
+      ]
+    },
+    {
+      "ticker": "AMAT",
+      "tier": 1,
+      "tags": [
+        "equipment"
+      ]
+    },
+    {
+      "ticker": "AMD",
+      "tier": 1,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "AMKR",
+      "tier": 5,
+      "tags": [
+        "packaging"
+      ]
+    },
+    {
+      "ticker": "AMZN",
+      "tier": 2,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "ANET",
+      "tier": 3,
+      "tags": [
+        "hardware"
+      ]
+    },
+    {
+      "ticker": "ARM",
+      "tier": 2,
+      "tags": [
+        "ip"
+      ]
+    },
+    {
+      "ticker": "ASML",
+      "tier": 1,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "ASX",
+      "tier": 5,
+      "tags": [
+        "packaging"
+      ]
+    },
+    {
+      "ticker": "AVGO",
+      "tier": 1,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "CDNS",
+      "tier": 2,
+      "tags": [
+        "eda"
+      ]
+    },
+    {
+      "ticker": "COHR",
+      "tier": 4,
+      "tags": [
+        "optical"
+      ]
+    },
+    {
+      "ticker": "CRM",
+      "tier": 3,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "CRWD",
+      "tier": 3,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "CSCO",
+      "tier": 3,
+      "tags": [
+        "hardware"
+      ]
+    },
+    {
+      "ticker": "DELL",
+      "tier": 3,
+      "tags": [
+        "hardware"
+      ]
+    },
+    {
+      "ticker": "ENTG",
+      "tier": 5,
+      "tags": [
+        "materials"
+      ]
+    },
+    {
+      "ticker": "FN",
+      "tier": 4,
+      "tags": [
+        "optical"
+      ]
+    },
+    {
+      "ticker": "GOOGL",
+      "tier": 2,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "HPE",
+      "tier": 3,
+      "tags": [
+        "hardware"
+      ]
+    },
+    {
+      "ticker": "INTC",
+      "tier": 2,
+      "tags": [
+        "semiconductor"
+      ]
+    },
+    {
+      "ticker": "KLAC",
+      "tier": 1,
+      "tags": [
+        "equipment"
+      ]
+    },
+    {
+      "ticker": "LITE",
+      "tier": 4,
+      "tags": [
+        "optical"
+      ]
+    },
+    {
+      "ticker": "LRCX",
+      "tier": 1,
+      "tags": [
+        "equipment"
+      ]
+    },
+    {
+      "ticker": "META",
+      "tier": 2,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "MRVL",
+      "tier": 2,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "tier": 2,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "MU",
+      "tier": 2,
+      "tags": [
+        "memory",
+        "hbm"
+      ]
+    },
+    {
+      "ticker": "NET",
+      "tier": 3,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "NOW",
+      "tier": 3,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "NVDA",
+      "tier": 1,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "NVTS",
+      "tier": 5,
+      "tags": [
+        "power"
+      ]
+    },
+    {
+      "ticker": "ORCL",
+      "tier": 3,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "PLTR",
+      "tier": 3,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "QCOM",
+      "tier": 2,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "RMBS",
+      "tier": 4,
+      "tags": [
+        "memory",
+        "ip"
+      ]
+    },
+    {
+      "ticker": "SMCI",
+      "tier": 4,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "SNOW",
+      "tier": 3,
+      "tags": [
+        "cloud_software"
+      ]
+    },
+    {
+      "ticker": "SNPS",
+      "tier": 2,
+      "tags": [
+        "eda"
+      ]
+    },
+    {
+      "ticker": "TRUE",
+      "tier": 3,
+      "tags": [
+        "sic"
+      ]
+    },
+    {
+      "ticker": "TSM",
+      "tier": 1,
+      "tags": [
+        "ai_infra"
+      ]
+    },
+    {
+      "ticker": "TXN",
+      "tier": 3,
+      "tags": [
+        "analog"
+      ]
+    },
+    {
+      "ticker": "WOLF",
+      "tier": 3,
+      "tags": [
+        "sic"
+      ]
+    }
+  ]
+}
