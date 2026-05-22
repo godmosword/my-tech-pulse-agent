@@ -8,7 +8,16 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
 
 from agents.earnings_agent import EarningsOutput, EPSData, RevenueData
-from agents.earnings_v3_models import MarketContext, Scorecard, TranscriptStatus
+from agents.earnings_v3_models import (
+    CallInsights,
+    ConclusionBlock,
+    FinancialHealth,
+    GuidanceCapex,
+    MarketContext,
+    Scorecard,
+    SegmentRow,
+    TranscriptStatus,
+)
 
 AiInfraSignal = Literal["strong", "medium", "weak", "not_relevant"]
 MarketSurpriseLevel = Literal["high", "medium", "low", "unknown"]
@@ -70,6 +79,11 @@ class EarningsReport(BaseModel):
     rendered_markdown_zh: str | None = None
     transcript_status: TranscriptStatus | None = None
     transcript_id: str | None = None
+    guidance_capex: GuidanceCapex | None = None
+    segments: list[SegmentRow] = Field(default_factory=list)
+    call_insights: CallInsights | None = None
+    financial_health: FinancialHealth | None = None
+    conclusion: ConclusionBlock | None = None
 
 
 def _metric_value(metrics: list[EarningsFact], name: str) -> Optional[float]:

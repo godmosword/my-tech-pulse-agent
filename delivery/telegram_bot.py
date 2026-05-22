@@ -96,7 +96,17 @@ class TelegramBot:
             logger.info("Telegram bot not configured; skipping earnings delivery")
             return False
         text = format_earnings_v2(report)
+        if len(text) > MAX_MESSAGE_LENGTH:
+            return self._send_chunked(text)
         return self._send(text)
+
+    def _send_chunked(self, text: str) -> bool:
+        try:
+            asyncio.run(self._async_send(text))
+            return True
+        except Exception as exc:
+            logger.error("Telegram chunked send failed: %s", exc)
+            return False
 
     def send_deep_brief(self, brief: InsightBrief) -> bool:
         if not self._bot:

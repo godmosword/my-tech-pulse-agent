@@ -88,7 +88,17 @@ export default async function EarningsPage() {
                 </span>
               </div>
               <p className="mt-1 font-sans text-body text-ink-soft">
-                {row.quarter_label}
+                <Link
+                  href={`/earnings/report/${encodeURIComponent(row.report_id)}`}
+                  className="hover:text-accent hover:underline"
+                >
+                  {row.quarter_label}
+                </Link>
+                {row.scorecard?.headline_verdict && (
+                  <span className="ml-2 text-meta text-ink-faint">
+                    · {row.scorecard.headline_verdict}
+                  </span>
+                )}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {metricBadge(row.headline_metrics, "revenue")}

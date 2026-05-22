@@ -36,6 +36,10 @@ class VendorEarningsProvider:
         if self.finnhub_key:
             self._finnhub = FinnhubProvider(self.finnhub_key)
 
+    @property
+    def finnhub(self) -> FinnhubProvider | None:
+        return self._finnhub
+
     def enabled(self) -> bool:
         return self.mode in {"free", "paid"} and self._finnhub is not None
 

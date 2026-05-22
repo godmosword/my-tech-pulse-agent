@@ -42,3 +42,32 @@ class MarketContext(BaseModel):
 class CallInsights(BaseModel):
     highlights: list[str] = Field(default_factory=list)
     qa_red_flags: list[str] = Field(default_factory=list)
+
+
+class SegmentRow(BaseModel):
+    name_zh: str
+    revenue: Optional[float] = None
+    yoy_pct: Optional[float] = None
+    driver_zh: str = ""
+
+
+class GuidanceCapex(BaseModel):
+    next_q_revenue_low: Optional[float] = None
+    next_q_revenue_high: Optional[float] = None
+    vs_consensus_note: str = ""
+    capex_amount: Optional[float] = None
+    capex_focus_zh: str = ""
+    outlook_tone: Literal["樂觀", "謹慎", "悲觀", "未知"] = "未知"
+
+
+class FinancialHealth(BaseModel):
+    fcf: Optional[float] = None
+    fcf_conversion_pct: Optional[float] = None
+    roic_trend: str = "資料不足"
+    shareholder_returns_zh: str = ""
+
+
+class ConclusionBlock(BaseModel):
+    bull_case_zh: str = ""
+    bear_case_zh: str = ""
+    watch_items_zh: list[str] = Field(default_factory=list)

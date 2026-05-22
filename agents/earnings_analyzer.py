@@ -52,11 +52,14 @@ class EarningsAnalyzer:
             "company": report.company,
             "quarter_label": report.quarter_label,
             "headline_metrics": [m.model_dump() for m in report.headline_metrics],
+            "scorecard": report.scorecard.model_dump() if report.scorecard else None,
             "guidance": report.guidance,
+            "guidance_capex": report.guidance_capex.model_dump() if report.guidance_capex else None,
             "estimates": report.estimates,
             "surprise": report.surprise,
             "key_quotes": report.key_quotes,
             "management_tone": report.management_tone,
+            "transcript_status": report.transcript_status,
         }
         prompt = (
             "Analyze this earnings report and return JSON matching the schema.\n\n"

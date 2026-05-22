@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getLatestDigestSnapshot, listLatestItems } from "@/lib/firestore";
 import { resolveDigestView } from "@/lib/digest-snapshot";
 import type { DigestSnapshotDoc } from "@/lib/digest-snapshot";
@@ -9,6 +10,7 @@ import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker } from "@/components/Kicker";
 import { ThemeSection } from "@/components/ThemeSection";
+import { listEarningsSince } from "@/lib/earnings-firestore";
 
 /** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
 export const dynamic = "force-dynamic";
@@ -36,6 +38,7 @@ export default async function HomePage() {
   if (items.length === 0) {
     items = await listLatestItems({ limit: 80 });
   }
+  const todayEarnings = await listEarningsSince(todayStart, { limit: 6 });
   const snapshot = await getLatestDigestSnapshot();
   const view = resolveDigestView(
     items,
@@ -58,6 +61,30 @@ export default async function HomePage() {
         latestDeliveredIso={latestDelivered}
         totalShown={view.totalShown}
       />
+
+      {todayEarnings.length > 0 && (
+        <section className="pt-4">
+          <Kicker tone="accent">今日財報</Kicker>
+          <Hairline className="mt-3" />
+          <ul className="divide-y divide-rule">
+            {todayEarnings.map((e) => (
+              <li key={e.report_id} className="py-4">
+                <Link
+                  href={`/earnings/report/${encodeURIComponent(e.report_id)}`}
+                  className="font-serif text-xl text-ink hover:text-accent hover:underline"
+                >
+                  {e.ticker} · {e.quarter_label}
+                </Link>
+                {e.investment_takeaway_zh && (
+                  <p className="mt-2 font-sans text-body text-ink-soft line-clamp-2">
+                    {e.investment_takeaway_zh}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {view.deepInsights.length > 0 && (
         <section className="pt-2">

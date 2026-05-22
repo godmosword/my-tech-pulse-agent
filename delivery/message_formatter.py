@@ -955,11 +955,14 @@ def _format_metric_line(fact) -> str:
 
 
 def format_earnings_v2(report) -> str:
-    """Format earnings_v2 EarningsReport for Telegram HTML."""
+    """Format earnings report for Telegram HTML (v2/v3)."""
     from agents.earnings_models import EarningsReport  # noqa: PLC0415
 
     if not isinstance(report, EarningsReport):
         report = EarningsReport.model_validate(report)
+
+    if report.schema_version == "earnings_v3" and report.rendered_markdown_zh:
+        return _format_earnings_v3_telegram(report)
 
     lines = [
         f"<b>💰 財報雷達｜{escape(report.ticker)} {escape(report.quarter_label)}</b>",
@@ -1028,6 +1031,51 @@ def format_earnings_v2(report) -> str:
         f"<i>信心: {escape(report.confidence)} | schema {escape(report.schema_version)}</i>"
     )
     lines.append("<i>cross_ref: true — 已同步 #投資日報</i>")
+    return "\n".join(lines)
+
+
+def _format_earnings_v3_telegram(report) -> str:
+    """Compact Telegram HTML for deep v3 reports."""
+    from agents.earnings_models import EarningsReport  # noqa: PLC0415
+
+    if not isinstance(report, EarningsReport):
+        report = EarningsReport.model_validate(report)
+
+    lines = [
+        f"<b>💰 財報深度｜{escape(report.ticker)} {escape(report.quarter_label)}</b>",
+        f"{escape(report.company)} · Tier {report.tier or '—'}",
+        "",
+    ]
+    if report.scorecard:
+        sc = report.scorecard
+        lines.append(f"<b>簡評</b> {escape(sc.headline_verdict)}")
+        if sc.revenue and sc.revenue.surprise_pct is not None:
+            lines.append(f"營收驚喜 {sc.revenue.surprise_pct:+.1f}%")
+        if sc.eps and sc.eps.surprise_pct is not None:
+            lines.append(f"EPS驚喜 {sc.eps.surprise_pct:+.1f}%")
+        elif sc.eps and sc.eps.accounting_basis == "Mixed":
+            lines.append("EPS 基準不一致（未計驚喜度）")
+        lines.append("")
+    if report.investment_takeaway_zh:
+        lines.append(f"<b>摘要</b> {escape(report.investment_takeaway_zh)}")
+        lines.append("")
+    if report.conclusion:
+        if report.conclusion.bull_case_zh:
+            lines.append(f"<b>牛</b> {escape(report.conclusion.bull_case_zh)}")
+        if report.conclusion.bear_case_zh:
+            lines.append(f"<b>熊</b> {escape(report.conclusion.bear_case_zh)}")
+        lines.append("")
+    if report.guidance_capex and report.guidance_capex.outlook_tone != "未知":
+        lines.append(f"<b>展望</b> {escape(report.guidance_capex.outlook_tone)}")
+    if report.transcript_status == "ready" and report.call_insights:
+        if report.call_insights.qa_red_flags:
+            lines.append(f"<b>Q&A</b> {escape(report.call_insights.qa_red_flags[0])}")
+    filing_url = ""
+    if report.source_documents:
+        filing_url = report.source_documents[0].filing_url or ""
+    if filing_url:
+        lines.append(f'<a href="{escape(filing_url)}">SEC 原文</a>')
+    lines.append(f"<i>schema {escape(report.schema_version)} · cross_ref</i>")
     return "\n".join(lines)
 
 

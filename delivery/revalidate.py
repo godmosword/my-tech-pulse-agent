@@ -18,7 +18,7 @@ from typing import Iterable
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PATHS: tuple[str, ...] = ("/", "/archive")
+DEFAULT_PATHS: tuple[str, ...] = ("/", "/archive", "/earnings")
 REVALIDATE_TIMEOUT_SECONDS = float(os.getenv("DASHBOARD_REVALIDATE_TIMEOUT", "5"))
 
 

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
-import { listEarningsReports } from "@/lib/earnings-firestore";
+import { listEarningsPeers, listEarningsReports } from "@/lib/earnings-firestore";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +23,10 @@ export default async function EarningsTickerPage({ params }: Props) {
     notFound();
   }
 
+  const tier = rows[0]?.tier;
+  const peers =
+    tier != null ? await listEarningsPeers(tier, symbol, 6) : [];
+
   return (
     <div>
       <Link
@@ -39,15 +43,44 @@ export default async function EarningsTickerPage({ params }: Props) {
       <ul className="divide-y divide-rule">
         {rows.map((row) => (
           <li key={row.report_id} className="py-5">
-            <p className="font-sans text-body font-medium text-ink">
+            <Link
+              href={`/earnings/report/${encodeURIComponent(row.report_id)}`}
+              className="font-sans text-body font-medium text-ink hover:text-accent hover:underline"
+            >
               {row.quarter_label}
-            </p>
+            </Link>
             <p className="mt-1 font-sans text-meta text-ink-faint">
               申報 {row.published_at_iso?.slice(0, 10) ?? "—"} · {row.confidence}
+              {row.scorecard?.headline_verdict
+                ? ` · ${row.scorecard.headline_verdict}`
+                : ""}
             </p>
           </li>
         ))}
       </ul>
+
+      {peers.length > 0 && (
+        <section className="mt-10">
+          <h2 className="font-sans text-meta uppercase tracking-widest text-ink-faint">
+            同 Tier {tier} 近期財報
+          </h2>
+          <ul className="mt-4 divide-y divide-rule">
+            {peers.map((p) => (
+              <li key={p.report_id} className="py-3 flex justify-between gap-4">
+                <Link
+                  href={`/earnings/report/${encodeURIComponent(p.report_id)}`}
+                  className="font-sans text-body text-ink hover:text-accent"
+                >
+                  {p.ticker} · {p.quarter_label}
+                </Link>
+                <span className="font-sans text-meta text-ink-faint shrink-0">
+                  {p.scorecard?.headline_verdict ?? "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

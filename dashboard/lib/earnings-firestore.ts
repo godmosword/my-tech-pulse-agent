@@ -213,6 +213,29 @@ export async function getEarningsReport(
 }
 
 /** Upcoming watchlist earnings (vendor calendar stub returns empty until keys wired). */
+/** Reports with published_at on or after `since` (UTC), Taipei-oriented callers pass start of day UTC+8). */
+export async function listEarningsSince(
+  since: Date,
+  { limit = 12, maxTier = 5 }: { limit?: number; maxTier?: number } = {},
+): Promise<EarningsReportRow[]> {
+  const rows = await listEarningsReports({ limit: limit * 4, maxTier });
+  const sinceMs = since.getTime();
+  return rows
+    .filter((r) => publishedAtMs(r.published_at_iso) >= sinceMs)
+    .slice(0, limit);
+}
+
+export async function listEarningsPeers(
+  tier: number,
+  excludeTicker?: string,
+  limit = 8,
+): Promise<EarningsReportRow[]> {
+  const rows = await listEarningsReports({ limit: 60, maxTier: 5 });
+  return rows
+    .filter((r) => r.tier === tier && r.ticker !== excludeTicker?.toUpperCase())
+    .slice(0, limit);
+}
+
 export async function listEarningsCalendar(
   horizonDays = 30
 ): Promise<

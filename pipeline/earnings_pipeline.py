@@ -18,6 +18,7 @@ from agents.earnings_models import (
 )
 from agents.earnings_deep_render import render_deep_report_markdown
 from agents.earnings_narrative_extractor import EarningsNarrativeExtractor
+from agents.earnings_v3_enrich import enrich_earnings_v3, finalize_conclusion
 from agents.scorecard_builder import apply_scorecard_v3
 from scoring.earnings_report_store import EarningsReportStore
 from sources.earnings_fetcher import EarningsFetcher, EarningsFiling
@@ -212,11 +213,19 @@ class EarningsPipelineRunner:
                     vendor_estimates=vendor_result.estimates,
                     vendor_market=vendor_result.market_context,
                 )
+                report = enrich_earnings_v3(
+                    report,
+                    filing_text=filing.raw_text or "",
+                    company_facts=company_facts,
+                    xbrl=self.xbrl,
+                    finnhub=self.vendor.finnhub,
+                    tier=tier,
+                )
+                report = self.analyzer.analyze(report)
+                report = finalize_conclusion(report)
                 report = report.model_copy(
                     update={"rendered_markdown_zh": render_deep_report_markdown(report)}
                 )
-
-                report = self.analyzer.analyze(report)
                 report = apply_fact_guard_v2(report, filing_text=filing.raw_text or "")
                 self.store.save(report)
                 reports.append(report)
@@ -234,6 +243,15 @@ class EarningsPipelineRunner:
                     vendor_estimates=None,
                     vendor_market=None,
                 )
+                report = enrich_earnings_v3(
+                    report,
+                    filing_text="",
+                    company_facts=company_facts,
+                    xbrl=self.xbrl,
+                    finnhub=None,
+                    tier=None,
+                )
+                report = finalize_conclusion(report)
                 report = report.model_copy(
                     update={
                         "transcript_status": "skipped",

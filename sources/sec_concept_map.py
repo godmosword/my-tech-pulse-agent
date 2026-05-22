@@ -56,4 +56,22 @@ HEADLINE_CONCEPTS: tuple[ConceptSpec, ...] = (
     ),
 )
 
+HEALTH_CONCEPTS: tuple[ConceptSpec, ...] = (
+    ConceptSpec(
+        "operating_cash_flow",
+        "營運現金流",
+        "us-gaap",
+        ("NetCashProvidedByUsedInOperatingActivities",),
+    ),
+    ConceptSpec(
+        "capex",
+        "資本支出",
+        "us-gaap",
+        (
+            "PaymentsToAcquirePropertyPlantAndEquipment",
+            "PaymentsToAcquireProductiveAssets",
+        ),
+    ),
+)
+
 QUARTERLY_FP = frozenset({"Q1", "Q2", "Q3", "Q4"})
