@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Docs
 - `README.md`、`TODOS.md`、`dashboard/README.md` 同步財報深度報告 v3（Finnhub、六段報告、待辦）。
+- [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) — 本機 Pipeline / Dashboard 設定步驟（含 Cloud Run Secret 待辦備忘）。
 
 ## [0.2.1] — 2026-05-22
 

@@ -13,6 +13,8 @@ python main.py                   # Cloud Run Job entry point
 python scripts/preflight.py      # production config check
 ```
 
+Local setup (`.env`, ADC, Dashboard): [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md).
+
 ## Pipeline Overview
 
 ```
