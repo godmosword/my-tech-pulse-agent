@@ -95,6 +95,12 @@ break Portal contract v1) and have both consumers read it.
 | `GET /api/v1/earnings/report/{reportId}` | 單篇財報（含 v3 欄位） |
 | `GET /api/v1/earnings/calendar` | 財報日曆 stub |
 | `GET /api/v1/earnings/ai-infra` | 篩選 `ai_infra_signal` |
+| `GET /api/v1/news/digest` | Portal 快訊（`date`, `limit`）；含 `summary` 給 Q-Silicon 日報 |
+| `GET /api/v1/news/deep` | 深度稿（`pillar`, `limit`） |
+| `GET /api/v1/news/deep/{itemId}` | 單篇深度稿 |
+| `GET /api/v1/news/themes` | 標籤聚合 |
+
+Q-Silicon 整合說明：[`../docs/QSILICON_INTEGRATION.md`](../docs/QSILICON_INTEGRATION.md)。
 
 **授權**
 

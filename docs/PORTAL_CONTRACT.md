@@ -84,6 +84,17 @@ Portal API（`api_routers/news.py`）使用 **read-only service account**：
 - 不需要 write 權限
 - SA email 由 investment-ai-agent 維護方提供
 
+## Portal News API（Slice 1 — Vercel `/api/v1/news/*`）
+
+對齊 [my-investment-ai-agent](https://github.com/godmosword/my-investment-ai-agent) `api_routers/news.py`：
+
+- `GET /api/v1/news/digest` — `items[]` + `themes[]` + 頂層 `summary`（純文字，供 `TECH_PULSE_URL`）
+- `GET /api/v1/news/deep` — `pillar=ai|semiconductor|crypto`
+- `GET /api/v1/news/deep/{itemId}`
+- `GET /api/v1/news/themes`
+
+詳見 [`QSILICON_INTEGRATION.md`](QSILICON_INTEGRATION.md)。
+
 ## Preflight：確認實際鍵名
 
 在具 GCP Application Default Credentials 的環境執行：
