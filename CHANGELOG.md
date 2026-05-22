@@ -28,6 +28,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **財報 memory**：`archive_earnings_report` 實作誤放在 `MemoryService` Protocol，導致 `backfill_earnings` 與 production pipeline 寫入 memory 時 `AttributeError`；已移至 `FirestoreMemoryService`。
 - **Dashboard 財報 API**：`/api/v1/earnings/report/[reportId]` 動態 route 改為與 `items/[id]` 相同 auth 模式（修正 Vercel build）。
+- **Dashboard `/earnings/[ticker]`**：依 ticker 篩選時不再使用需複合索引的 `where + orderBy` 查詢（點擊財報列表 ticker 不再觸發 Vercel server error）；`metricBadge` 略過非數值指標。
 - **Backfill**：先批次讀取 Firestore（避免 stream 逾時）；覆寫缺 CJK 的 `zh_*`；Pro 全量 extractor 改為 Flash zh-only，避免 JSON 截斷導致 `updated=0`。
 
 ### Changed

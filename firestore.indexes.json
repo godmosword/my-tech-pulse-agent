@@ -26,6 +26,20 @@
           }
         }
       ]
+    },
+    {
+      "collectionGroup": "tech_pulse_earnings_reports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "published_at",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
