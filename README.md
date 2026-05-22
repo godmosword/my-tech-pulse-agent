@@ -38,12 +38,21 @@ RSS / Social / SEC EDGAR
 
 **Web dashboard**: [`dashboard/README.md`](dashboard/README.md) reads `tech_pulse_memory_items` from Firestore. After each successful delivery, the pipeline can POST to `/api/revalidate` when `DASHBOARD_REVALIDATE_URL` and `DASHBOARD_REVALIDATE_TOKEN` are set ([`delivery/revalidate.py`](delivery/revalidate.py)).
 
-Earnings reports follow a dedicated sub-pipeline:
+Earnings reports follow a dedicated sub-pipeline (`earnings_v3` in Firestore
+`tech_pulse_earnings_reports`). SEC XBRL is the source of truth for **actual**
+numbers; Finnhub supplies consensus, calendar, quote, and transcripts when enabled.
 
 ```
-SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
-             → structured earnings JSON → Telegram + investment-digest
+SEC EDGAR RSS → XBRL headline facts → narrative (8-K text)
+             → Finnhub estimates/quote/calendar (optional)
+             → scorecard (basis-aligned surprise) → guidance/segments/transcript
+             → analyzer + conclusion → six-section Markdown
+             → Firestore + Telegram + Dashboard /earnings/report/{id}
 ```
+
+See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
+[`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md), and
+[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) (API keys & env for v3).
 
 ## Environment Variables
 
@@ -65,7 +74,17 @@ SEC EDGAR RSS → earnings_fetcher → earnings_agent (fact_guard enforced)
 | `MAX_EXTRACTION_ARTICLES` | ❌   | Max articles extracted per run (`8`) |
 | `MAX_DEEP_ARTICLES` | ❌       | Max KOL/paper deep briefs generated per run (`3`) |
 | `MIN_DEEP_WORDS` | ❌          | Minimum public full-text length before deep chain runs (`800`) |
-| `MAX_EARNINGS_FILINGS` | ❌      | Max earnings filings processed per run (`2`) |
+| `MAX_EARNINGS_FILINGS` | ❌      | Watchlist full pipeline per run (`8`) |
+| `MAX_EARNINGS_FILINGS_BROAD` | ❌ | Non-watchlist XBRL archive per run (`30`) |
+| `EARNINGS_REPORTS_ENABLED` | ❌ | Write `tech_pulse_earnings_reports` (`1`) |
+| `EARNINGS_VENDOR_MODE` | ❌ | `off` \| `free` \| `paid` — Finnhub enrich (`off` default) |
+| `FINNHUB_API_KEY` | ❌ | **Required** when `EARNINGS_VENDOR_MODE=free\|paid` |
+| `FINNHUB_HTTP_TIMEOUT_SEC` | ❌ | Finnhub HTTP timeout (`10`) |
+| `FINNHUB_TRANSCRIPT_TIMEOUT_SEC` | ❌ | Transcript fetch cap per filing (`15`) |
+| `EARNINGS_TRANSCRIPT_MAX_TIER` | ❌ | Max watchlist tier for transcript LLM (`2`) |
+| `MAX_VENDOR_CALLS_PER_RUN` | ❌ | Finnhub calls per pipeline run (`20`) |
+| `MAX_SEC_API_CALLS_PER_RUN` | ❌ | SEC companyfacts calls per run (`60`) |
+| `SEC_USER_AGENT` | ✅ | SEC EDGAR User-Agent (email required by SEC policy) |
 | `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
 | `MAX_ITEMS_PER_DIGEST` | ❌      | Max items shown in Telegram digest (`6`) |
 | `DIGEST_FORMAT` | ❌ | Telegram digest layout: `v1` = canonical #科技脈搏 (📡 / 🗞️ / 🧭 / 📈 / 🧠 / themed items); `v2` = experimental numbered digest (`v1` default; unknown values fall back to `v1`) |
@@ -96,6 +115,16 @@ Heuristic prefilter (`scoring/heuristic_filter.py`) drops articles that do not m
 ## Dashboard (Next.js)
 
 Reader UI lives under [`dashboard/`](dashboard/). Deploy to Vercel with project root `dashboard/`; env vars in [`dashboard/.env.example`](dashboard/.env.example).
+
+**Earnings column** (reads `tech_pulse_earnings_reports`, not `memory_items`):
+
+| Route | Description |
+|-------|-------------|
+| [`/earnings`](dashboard/app/(app)/earnings/page.tsx) | Recent filings by `published_at` |
+| [`/earnings/[ticker]`](dashboard/app/(app)/earnings/[ticker]/page.tsx) | Per-symbol history + same-tier peers |
+| [`/earnings/report/[reportId]`](dashboard/app/(app)/earnings/report/[reportId]/page.tsx) | Full v3 deep report (`rendered_markdown_zh`) |
+
+Homepage shows **今日財報** when filings landed today (Asia/Taipei). Finnhub keys are configured on the **pipeline** (Cloud Run), not Vercel — the dashboard only needs Firestore read access.
 
 | Mode | Behavior |
 |------|----------|

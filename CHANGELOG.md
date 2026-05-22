@@ -5,8 +5,17 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **財報 v3 Slice A（Finnhub + Scorecard）**：`finnhub_provider`、`scorecard_builder`（GAAP/Non-GAAP basis alignment）、`eps_non_gaap_extractor`、`rendered_markdown_zh` §1、pipeline 整合；`transcript_status=pending` 占位。
-- **財報 v3 Slice B–E**：`guidance_extractor`、`segment_extractor`、`financial_health_builder`、`transcript_agent`、`conclusion_agent`；完整六段 `rendered_markdown_zh`；Dashboard `/earnings/report/[reportId]`、首頁「今日財報」、同 Tier 橫向比較、`GET /api/v1/earnings/ai-infra`；ISR 含 `/earnings`。
+- [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
+
+### Docs
+- `README.md`、`TODOS.md`、`dashboard/README.md` 同步財報深度報告 v3（Finnhub、六段報告、待辦）。
+
+## [0.2.1] — 2026-05-22
+
+### Added
+- **財報深度報告 v3（完整）**：Finnhub 共識/日曆/股價/逐字稿；`scorecard_builder`（GAAP vs Non-GAAP 對齊，Mixed 不計 surprise）；六段 Markdown `rendered_markdown_zh`（Scorecard、指引/CapEx、分部、電話會議、財務體質、牛熊結論）。
+- **Pipeline agents**：`guidance_extractor`、`segment_extractor`、`financial_health_builder`、`transcript_agent`、`conclusion_agent`、`earnings_v3_enrich`。
+- **Dashboard 財報**：`/earnings/report/[reportId]`、首頁「今日財報」、`/earnings` 深度報告連結、同 Tier 橫向比較；`GET /api/v1/earnings/ai-infra`；Firestore v2→v3 adapter。
 - **財報雷達 S3–S7**：`EarningsNarrativeExtractor` + `EarningsAnalyzer`；`earnings_fact_guard` v2；Telegram `format_earnings_v2`；`VendorEarningsProvider`（預設 `EARNINGS_VENDOR_MODE=off`）；`pipeline_run_summary` earnings 指標；[`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md)、[`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)。
 - **財報 API（S6）**：`GET /api/v1/earnings/calendar`、`GET /api/v1/earnings/report/{reportId}`。
 - **財報雷達（首期）**：SEC XBRL 主數字、`config/earnings_watchlist.yaml`、`tech_pulse_earnings_reports`、Dashboard [`/earnings`](/earnings) 與 `GET /api/v1/earnings`。
@@ -26,18 +35,20 @@ All notable changes to this project will be documented in this file.
 - **繁中標題資料鏈**：extractor／`memory_store` 在缺 `zh_title` 時從 `zh_summary`／`zh_body`／`hook` 自動衍生；dashboard 讀取 `hook` 並僅在含漢字時採用繁中 fallback（避免英文 fallback 誤當標題）。
 - **Dashboard REST `/api/v1`**：`items`、`items/{id}`、`digest/today`、`tickers`、`archive/facets`、`health`；`API_READ_TOKEN` Bearer 授權。
 - **Social trending 接線**：Apify 熱門 hashtag 提升 `lexicon_score`（`SOCIAL_TRENDING_LEXICON_BOOST`），影響 Flash 打分候選排序。
+- **財報 Telegram**：`schema_version=earnings_v3` 時送精簡 Scorecard + 結論摘要；超長自動 chunk。
+- **ISR**：pipeline revalidate 預設路徑含 `/earnings`。
+- **Dashboard 排版**：UI 字級（`text-kicker` / `text-meta`）加大；dark mode 主文字與次要色提亮。
 
 ### Fixed
 - **財報 memory**：`archive_earnings_report` 實作誤放在 `MemoryService` Protocol，導致 `backfill_earnings` 與 production pipeline 寫入 memory 時 `AttributeError`；已移至 `FirestoreMemoryService`。
 - **Dashboard 財報 API**：`/api/v1/earnings/report/[reportId]` 動態 route 改為與 `items/[id]` 相同 auth 模式（修正 Vercel build）。
-- **Dashboard `/earnings/[ticker]`**：依 ticker 篩選時不再使用需複合索引的 `where + orderBy` 查詢（點擊財報列表 ticker 不再觸發 Vercel server error）；`metricBadge` 略過非數值指標。
+- **Dashboard `/earnings/[ticker]`**：依 ticker 篩選時不再使用需複合索引的 `where + orderBy` 查詢；`metricBadge` 略過非數值指標。
+
+### Added (ops / backfill)
 - **Backfill**：先批次讀取 Firestore（避免 stream 逾時）；覆寫缺 CJK 的 `zh_*`；Pro 全量 extractor 改為 Flash zh-only，避免 JSON 截斷導致 `updated=0`。
 
-### Changed
-- **Dashboard 排版**：UI 字級（`text-kicker` / `text-meta`）加大，與標題、內文更平衡；dark mode 主文字 (`--color-ink`) 與次要色提亮。
-- **Production 維運**：Vercel `REVALIDATE_TOKEN` 與 Cloud Run `DASHBOARD_REVALIDATE_*` 對齊；pipeline 送報後可 POST `/api/revalidate`（含 `/earnings` 路徑）。
-
 ### Ops
+- **Production 維運**：Vercel `REVALIDATE_TOKEN` 與 Cloud Run `DASHBOARD_REVALIDATE_*` 對齊。
 - **財報雷達資料**：`backfill_earnings`（2026-04-01〜05-21）寫入 production `tech_pulse_earnings_reports`（watchlist 19 筆 XBRL 報告）；Dashboard `/earnings` 不再空列表。
 
 ## [0.2.0] — 2026-05-19

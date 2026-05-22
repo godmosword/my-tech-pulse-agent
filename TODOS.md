@@ -41,6 +41,14 @@
 - [x] **Dashboard**：`GET /api/v1/earnings/report/{reportId}` 修正動態 route auth（對齊 `items/[id]`）
 - [x] **ISR webhook**：Vercel `REVALIDATE_TOKEN` 與 Cloud Run `DASHBOARD_REVALIDATE_URL` + `DASHBOARD_REVALIDATE_TOKEN` 已對齊（見 [`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md) §1.1 / §2.2）
 
+## 財報深度報告 v3（Finnhub + Slice A–E，2026-05-22 已合併 main）
+
+- [x] **Slice A**：`finnhub_provider`、`scorecard_builder`（GAAP/Non-GAAP basis alignment）、`eps_non_gaap_extractor`、`/earnings/[ticker]` Firestore 修復
+- [x] **Slice B**：`guidance_extractor`、`segment_extractor`、`financial_health`（XBRL FCF/CapEx）
+- [x] **Slice C**：`transcript_agent` + Finnhub transcript（lazy sync + timeout）；Tier ≤ 2
+- [x] **Slice D**：`conclusion_agent`、完整六段 `rendered_markdown_zh`、Telegram v3 精簡 + chunk
+- [x] **Slice E**：`/earnings/report/[reportId]`、首頁「今日財報」、同 Tier 橫向比較、`GET /api/v1/earnings/ai-infra`、v2→v3 Firestore adapter
+
 ## 進行中 / 下一步
 
 - [ ] **合約 `themes[]`**：pipeline 仍以 `category` 單值為主；若 Portal 需要陣列，additive 寫入 `themes` 並更新合約
@@ -48,14 +56,17 @@
 
 ### 財報 — 待辦（依優先序）
 
-- [ ] **P2 Vendor 實作**：`fmp_provider` / `finnhub_provider` HTTP + `tech_pulse_vendor_api_usage` + cache TTL
-- [ ] **P4 Telegram**：長文 chunking 測試矩陣（缺 EPS / 缺 estimate / SEC-only）
-- [ ] **P5 Dashboard UI**：surprise badge、首頁「今日財報」、SiC／持倉篩選、`/api/v1/earnings/ai-infra`
-- [ ] **P6 Preflight**：SEC 連線、CIK map、earnings collection smoke
-- [ ] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture；`earnings_fetcher` 與 submissions 整合測試
+- [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY` + `EARNINGS_VENDOR_MODE=free`；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`
+- [ ] **Backfill v3**：`scripts/backfill_earnings.py` 支援 `--deep-report` 回填歷史 `rendered_markdown_zh`（可選）
+- [ ] **P4 Telegram**：長文 chunking 正式測試矩陣（雙擊/雙殺/Mixed EPS/缺 transcript）
+- [ ] **P6 Preflight**：SEC + Finnhub ping + `tech_pulse_earnings_reports` smoke
+- [ ] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture；transcript timeout 整合測試
+- [ ] **Vendor 維運**：`tech_pulse_vendor_api_usage` + cache TTL（降 Finnhub 配額消耗）
+- [ ] **Dashboard**：SiC／持倉篩選（`tags: sic`）；TradingView 圖表（可選）
 - [ ] **Watchlist**：Tier 2–5 補滿至各 10 檔（不臆造 ticker）
+- [ ] **Async transcript worker**：`scripts/process_earnings_transcripts.py`（`EARNINGS_TRANSCRIPT_MODE=async_worker`）
 - [ ] **ETF**（SOXX / SMH）曝險參考 — Phase 2+
-- [ ] **Legacy**：`EarningsAgent` 保留供 smoke／judge；逐步改為僅 narrative 路徑
+- [ ] **Legacy**：`EarningsAgent` 保留 smoke/judge；生產路徑僅 v3 agents
 
 ## 積壓（Backlog）
 

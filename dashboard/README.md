@@ -9,6 +9,9 @@ renders three views:
   sections (mirrors the v1 Telegram formatter after PR1).
 - `/archive` — last 14 days grouped by delivery day.
 - `/item/[id]` — single-doc detail (full deep brief or expanded instant card).
+- `/earnings` — earnings radar list (`tech_pulse_earnings_reports`).
+- `/earnings/[ticker]` — per-ticker filings + same-tier comparison.
+- `/earnings/report/[reportId]` — v3 six-section deep report (Markdown).
 
 ## 公開讀（乙 + B）
 
@@ -88,6 +91,10 @@ break Portal contract v1) and have both consumers read it.
 | `GET /api/v1/digest/today` | 今日編排（同首頁 `buildDigest`） |
 | `GET /api/v1/tickers` | 熱門代號；`scope=today\|archive` |
 | `GET /api/v1/archive/facets` | 歸檔 facet 計數 |
+| `GET /api/v1/earnings` | 財報列表；`limit`, `ticker`, `max_tier` |
+| `GET /api/v1/earnings/report/{reportId}` | 單篇財報（含 v3 欄位） |
+| `GET /api/v1/earnings/calendar` | 財報日曆 stub |
+| `GET /api/v1/earnings/ai-infra` | 篩選 `ai_infra_signal` |
 
 **授權**
 
@@ -102,6 +109,7 @@ curl -s -H "Authorization: Bearer $API_READ_TOKEN" \
 ## Deployment (Vercel)
 
 Production 環境變數勾選表與驗證指令：[`../docs/DEPLOY_CHECKLIST.md`](../docs/DEPLOY_CHECKLIST.md)。
+財報 v3 僅需 Firestore 讀取（**不必**在 Vercel 設 `FINNHUB_API_KEY`）；Pipeline 端 Finnhub 設定見 [`../docs/EARNINGS_ENV.md`](../docs/EARNINGS_ENV.md)。
 
 1. Import the repo, point project root at `dashboard/`.
 2. Build command: `pnpm build`; output: `.next`.
@@ -123,7 +131,10 @@ Production 環境變數勾選表與驗證指令：[`../docs/DEPLOY_CHECKLIST.md`
    ```bash
    curl -X POST "https://<host>/api/revalidate?path=/" \
      -H "x-revalidate-token: $REVALIDATE_TOKEN"
+   curl -X POST "https://<host>/api/revalidate?path=/earnings" \
+     -H "x-revalidate-token: $REVALIDATE_TOKEN"
    ```
+   Pipeline [`delivery/revalidate.py`](../delivery/revalidate.py) also revalidates `/earnings` by default.
    The pipeline does this automatically when both env vars are set:
    - `DASHBOARD_REVALIDATE_URL` — full webhook URL, e.g.
      `https://your-dashboard.vercel.app/api/revalidate`
