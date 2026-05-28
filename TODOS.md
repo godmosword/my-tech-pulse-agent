@@ -85,17 +85,26 @@
 
 ### 財報 — 待辦（依優先序）
 
-- [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY` + `EARNINGS_VENDOR_MODE=free`；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`
-- [ ] **Backfill v3**：`scripts/backfill_earnings.py` 支援 `--deep-report` 回填歷史 `rendered_markdown_zh`（可選）
+- [ ] **Backfill v3**：`scripts/backfill_earnings.py` 支援 `--deep-report` 回填歷史 `rendered_markdown_zh`（可選；SEC/XBRL + LLM，不依賴 Vendor key）
 - [ ] **P4 Telegram**：長文 chunking 正式測試矩陣（雙擊/雙殺/Mixed EPS/缺 transcript）
-- [ ] **P6 Preflight**：SEC + Finnhub ping + `tech_pulse_earnings_reports` smoke
-- [ ] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture；transcript timeout 整合測試
-- [ ] **Vendor 維運**：`tech_pulse_vendor_api_usage` + cache TTL（降 Finnhub 配額消耗）
+- [ ] **P6 Preflight**：SEC 連線 + `tech_pulse_earnings_reports` smoke（Finnhub ping 見下方「付費 Vendor API」）
+- [ ] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture
 - [ ] **Dashboard**：SiC／持倉篩選（`tags: sic`）；TradingView 圖表（可選）
 - [ ] **Watchlist**：Tier 2–5 補滿至各 10 檔（不臆造 ticker）
-- [ ] **Async transcript worker**：`scripts/process_earnings_transcripts.py`（`EARNINGS_TRANSCRIPT_MODE=async_worker`）
 - [ ] **ETF**（SOXX / SMH）曝險參考 — Phase 2+
 - [ ] **Legacy**：`EarningsAgent` 保留 smoke/judge；生產路徑僅 v3 agents
+
+## 付費 Vendor API（暫緩）
+
+程式已合併（Finnhub provider、price_reaction、transcript、vendor enrich）；**production 暫不申請／不設定付費或配額型 API key**。未設 key 時 pipeline 仍以 SEC XBRL 為主，`price_reaction` / transcript / 共識 estimate 可能為 `degraded` 或略過。評估與 env 對照見 [`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md)。
+
+- [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY`；`EARNINGS_VENDOR_MODE=free`（或 `paid`）；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`
+- [ ] **P2 Vendor 實作**：`fmp_provider` / Finnhub HTTP 完整接線；`tech_pulse_vendor_api_usage` + cache TTL（降配額消耗）
+- [ ] **Preflight**：Finnhub ping（calendar / quote / candle）
+- [ ] **Async transcript worker**：`scripts/process_earnings_transcripts.py`（`EARNINGS_TRANSCRIPT_MODE=async_worker`）；Finnhub transcript 配額
+- [ ] **P1 整合測試**：transcript timeout；有 key 時 end-to-end `price_reaction` + scorecard surprise
+- [ ] **Backfill（需 key）**：歷史報告補 `price_reaction`、Finnhub 共識／transcript（可選）
+- [ ] **其他付費來源**（評估中）：FMP paid tier、NewsAPI / Apify 配額監控與降本
 
 ## 積壓（Backlog）
 
