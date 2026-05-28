@@ -63,6 +63,23 @@ export interface FinancialHealthRow {
   source_conflicts?: string[];
 }
 
+export interface SignalFactorRow {
+  name: string;
+  score?: number | null;
+  weight: number;
+  detail_zh: string;
+  available: boolean;
+}
+
+export interface InvestmentSignalRow {
+  score?: number | null;
+  rating: string;
+  conviction: string;
+  factors?: SignalFactorRow[];
+  rationale_zh?: string;
+  as_of?: string | null;
+}
+
 export interface EarningsReportRow {
   report_id: string;
   ticker: string;
@@ -92,6 +109,7 @@ export interface EarningsReportRow {
   ratios?: ValuationRatiosRow | null;
   surprise_history?: SurprisePointRow[];
   financial_health?: FinancialHealthRow | null;
+  investment_signal?: InvestmentSignalRow | null;
 }
 
 function metricFromHeadline(
@@ -203,6 +221,9 @@ function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | nu
       : undefined,
     financial_health: raw.financial_health
       ? (raw.financial_health as FinancialHealthRow)
+      : undefined,
+    investment_signal: raw.investment_signal
+      ? (raw.investment_signal as InvestmentSignalRow)
       : undefined,
   };
 }

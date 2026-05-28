@@ -95,6 +95,17 @@ def _try_fundamental_enrich(
     return report, fundamentals
 
 
+def _try_build_investment_signal(report: EarningsReport) -> EarningsReport:
+    from scoring.signal_engine import build_investment_signal
+
+    try:
+        signal = build_investment_signal(report)
+        return report.model_copy(update={"investment_signal": signal})
+    except Exception:
+        logger.warning("signal build failed for %s", report.ticker, exc_info=True)
+        return report
+
+
 def _published_at_from_filing(filing: EarningsFiling, period_filed: datetime | None) -> datetime:
     if filing.filed_at:
         return filing.filed_at if filing.filed_at.tzinfo else filing.filed_at.replace(tzinfo=timezone.utc)
@@ -278,6 +289,13 @@ class EarningsPipelineRunner:
                     fundamentals=fundamentals,
                 )
                 report = self.analyzer.analyze(report)
+                report = _try_build_investment_signal(report)
+                try:
+                    from backtest.decision_log import log_live_signal
+
+                    log_live_signal(report, finnhub=self.vendor.finnhub)
+                except Exception:
+                    logger.warning("decision_log failed for %s", report.ticker, exc_info=True)
                 report = finalize_conclusion(report)
                 report = report.model_copy(
                     update={"rendered_markdown_zh": render_deep_report_markdown(report)}
@@ -309,6 +327,13 @@ class EarningsPipelineRunner:
                     tier=None,
                     fundamentals=fundamentals,
                 )
+                report = _try_build_investment_signal(report)
+                try:
+                    from backtest.decision_log import log_live_signal
+
+                    log_live_signal(report, finnhub=self.vendor.finnhub)
+                except Exception:
+                    logger.warning("decision_log failed for %s", report.ticker, exc_info=True)
                 report = finalize_conclusion(report)
                 report = report.model_copy(
                     update={

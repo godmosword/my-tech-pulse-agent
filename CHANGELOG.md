@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Phase 6 — 宏觀與供應鏈對照（additive）**：`sources/macro_fred.py`（FRED，無 key graceful）、`sources/supply_chain.py`（TSM 月營收 + SIA/ASML manual yaml）、`sources/_cache.py`（檔案 TTL 快取）；`agents/macro_context_builder.py`（`theme_bias` 順逆風）；digest synthesizer 末段「宏觀與供應鏈對照」；`pipeline/crew.py` 寫 `output/macro_context_latest.json`；Dashboard `/macro` + `portfolioEnvironment()`；`tests/test_macro_context.py`（7 cases）。
+- **Phase 5 — Signal 回測校驗（point-in-time）**：`backtest/`（`pit_data`、`replay`、`metrics`、`decision_log`）、`scripts/backtest_signal.py`；`scoring/signal_engine.py` 支援 `exclude_factors`；live `log_live_signal`；Dashboard `/calibration`；`tests/test_backtest.py`。
+- **Phase 4 — 投資訊號引擎**：`scoring/signal_engine.py` + `scoring/signal_config.yaml`（fundamental / surprise / market / quality 因子）；`EarningsReport.investment_signal`；pipeline 掛載 + `decision_log`；Dashboard `/signals`、`InvestmentSignalCard`；`tests/test_signal_engine.py`。
 - **財報 Phase 2 — FMP 比率 / 現金流（additive）**：`FmpProvider`、`fmp_normalize`、`FundamentalProvider`（`EARNINGS_FUNDAMENTAL_MODE=off` 預設）；`ValuationRatios` / `SurprisePoint`；`build_financial_health(..., fundamentals=)` 補 FCF/ROIC、SEC vs FMP `source_conflicts`；Dashboard `FundamentalsCard`；`tests/test_fmp_fundamentals.py`（7 cases）。
 - **財報 Phase 1 — 多季 Trend**：`QuarterPoint` / `MetricTrend` / `EarningsTrend`；`SecXbrlFetcher.normalize_quarter_series`；`agents/trend_builder.py`；`build_report_from_filing` 填入 `EarningsReport.trend`（`tests/test_quarter_series.py`）。
 - **Dashboard 持倉層**：`config/portfolio.yaml`、`sources/portfolio.py`、`scripts/import_ibkr_portfolio.py`、`scripts/export_portfolio_json.py`；`/portfolio` 頁 + Nav「持倉」；`GET /api/v1/portfolio`；earnings API `portfolio_tier`；`portfolio-metrics` vitest + `tests/test_portfolio_store.py`。
@@ -14,11 +17,15 @@ All notable changes to this project will be documented in this file.
 - **Translation Agent**（`agents/translation_agent.py`）：Extractor 未產出含 CJK 的 `zh_title` / `zh_summary` 時，以 Gemini Flash 補繁中標題與兩句摘要；`pipeline_run_summary.translation_filled_count`；`TRANSLATION_AGENT_ENABLED`（預設 `1`）。
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
+### Changed
+- **`.env.example`**：`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
+
 ### Fixed
 - **Phase 1 trend pipeline**：Phase 3 merge 遺失 `build_report_from_filing` 內 `build_earnings_trend` 掛載；已恢復（與 `fc10e03` 一致）。
 
 ### Docs
 - `README.md`、`TODOS.md`、`dashboard/README.md` 同步財報深度報告 v3（Finnhub、六段報告、待辦）。
+- `CHANGELOG.md`、`TODOS.md` 同步 Phase 4–6（訊號、回測、宏觀）。
 - [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) — 本機指令：`main.py`、`backfill_zh_fields.py`、Dashboard、`setup_dashboard_sa.sh`、驗證清單。
 
 ## [0.2.1] — 2026-05-22

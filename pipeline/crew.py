@@ -304,8 +304,22 @@ class TechPulseCrew:
                 )
             if should_synthesize:
                 # Stage 3 — Synthesize (Gemini Pro)
+                macro_context: dict | None = None
                 try:
-                    digest = self.synthesizer.synthesize(summaries)
+                    from agents.macro_context_builder import fetch_macro_context
+
+                    macro_context = fetch_macro_context()
+                    if macro_context.get("theme_bias") or macro_context.get("macro"):
+                        self._save_json(
+                            OUTPUT_DIR / "macro_context_latest.json", macro_context
+                        )
+                except Exception as exc:
+                    logger.warning("Macro context fetch failed: %s", exc)
+
+                try:
+                    digest = self.synthesizer.synthesize(
+                        summaries, macro_context=macro_context
+                    )
                     if digest:
                         self._save_json(OUTPUT_DIR / f"digest_{timestamp}.json", digest.model_dump())
                         logger.info("Digest headline: %s", digest.headline)

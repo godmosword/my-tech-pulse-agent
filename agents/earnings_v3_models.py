@@ -133,3 +133,26 @@ class PriceReaction(BaseModel):
     ] = "資料不足"
     degraded: bool = False
     notes: list[str] = Field(default_factory=list)
+
+
+class SignalFactor(BaseModel):
+    name: str
+    score: Optional[float] = None
+    weight: float = 0.0
+    detail_zh: str = ""
+    available: bool = False
+
+
+InvestmentSignalRating = Literal[
+    "強力看多", "看多", "中性", "看空", "強力看空", "資料不足"
+]
+InvestmentSignalConviction = Literal["high", "medium", "low"]
+
+
+class InvestmentSignal(BaseModel):
+    score: Optional[float] = None
+    rating: InvestmentSignalRating = "資料不足"
+    conviction: InvestmentSignalConviction = "low"
+    factors: list[SignalFactor] = Field(default_factory=list)
+    rationale_zh: str = ""
+    as_of: Optional[str] = None

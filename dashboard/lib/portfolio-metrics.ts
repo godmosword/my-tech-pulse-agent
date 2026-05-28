@@ -82,6 +82,60 @@ export interface ThemeExposureRow {
   weightPct: number;
 }
 
+export type ThemeBiasLabel = "順風" | "中性" | "逆風";
+
+export interface ThemeBiasRow {
+  theme: string;
+  bias: ThemeBiasLabel;
+  drivers_zh: string[];
+}
+
+export interface PortfolioEnvironmentRow {
+  theme: string;
+  weight_pct: number;
+  bias: ThemeBiasLabel | "—";
+  drivers_zh: string[];
+}
+
+/** Overlay macro theme_bias onto portfolio theme exposure. */
+export function portfolioEnvironment(
+  themeExposureRows: ThemeExposureRow[],
+  themeBias: Record<string, { bias?: string; drivers_zh?: string[] }>,
+): PortfolioEnvironmentRow[] {
+  return themeExposureRows.map((row) => {
+    const hit = themeBias[row.theme];
+    const biasRaw = hit?.bias;
+    const bias: ThemeBiasLabel | "—" =
+      biasRaw === "順風" || biasRaw === "中性" || biasRaw === "逆風" ? biasRaw : "—";
+    return {
+      theme: row.theme,
+      weight_pct: row.weightPct,
+      bias,
+      drivers_zh: hit?.drivers_zh ?? [],
+    };
+  });
+}
+
+export function weightedEnvironmentBias(
+  rows: PortfolioEnvironmentRow[],
+): { label: ThemeBiasLabel | "—"; score: number } {
+  if (!rows.length) return { label: "—", score: 0 };
+  let score = 0;
+  let weight = 0;
+  for (const r of rows) {
+    if (r.bias === "—") continue;
+    const w = r.weight_pct;
+    weight += w;
+    if (r.bias === "順風") score += w;
+    else if (r.bias === "逆風") score -= w;
+  }
+  if (weight <= 0) return { label: "—", score: 0 };
+  const norm = score / weight;
+  if (norm > 0.15) return { label: "順風", score: norm };
+  if (norm < -0.15) return { label: "逆風", score: norm };
+  return { label: "中性", score: norm };
+}
+
 export function themeExposure(
   valued: ValuedPosition[],
   themeFor: (ticker: string) => string,

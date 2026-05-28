@@ -33,6 +33,15 @@ export function NavRail() {
         <Link href="/earnings" className="hover:text-accent">
           財報
         </Link>
+        <Link href="/signals" className="hover:text-accent">
+          訊號
+        </Link>
+        <Link href="/calibration" className="hover:text-accent">
+          校驗
+        </Link>
+        <Link href="/macro" className="hover:text-accent">
+          宏觀
+        </Link>
         <Link href="/portfolio" className="hover:text-accent">
           持倉
         </Link>
@@ -73,6 +82,15 @@ export function MobileMasthead() {
         </Link>
         <Link href="/earnings" className="hover:text-accent">
           財報
+        </Link>
+        <Link href="/signals" className="hover:text-accent">
+          訊號
+        </Link>
+        <Link href="/calibration" className="hover:text-accent">
+          校驗
+        </Link>
+        <Link href="/macro" className="hover:text-accent">
+          宏觀
         </Link>
         <Link href="/portfolio" className="hover:text-accent">
           持倉

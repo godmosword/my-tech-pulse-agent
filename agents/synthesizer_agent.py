@@ -27,7 +27,17 @@ Rules:
 - Explicitly flag contradictions between sources.
 - Write in clear, direct prose. No hype, no filler.
 - Avoid weak summarization phrases such as "這篇文章報導了", "本文指出", or "作者認為"; start directly with the thesis.
+- When macro_context is provided, add a final section in narrative titled「宏觀與供應鏈對照」: link theme_bias to tickers/themes in today's summaries using only macro_context data and drivers_zh. State tailwind/headwind as factual context only—no predictions or investment advice. Skip themes with no data in macro_context.
 - Output valid JSON only.
+"""
+
+MACRO_NARRATIVE_RULES = """\
+Macro section rules (when macro_context JSON is non-empty):
+- Append to the end of "narrative" a short section「宏觀與供應鏈對照」(1–2 paragraphs).
+- Connect today's entities/tickers to theme_bias where relevant (e.g. memory names ↔ memory theme).
+- Each bias claim must cite a drivers_zh reason from macro_context; do not invent drivers.
+- Tone example: 「本期 MU 相關報導落在記憶體循環上行（SIA 銷售 YoY 連3月為正）的順風環境。」
+- No buy/sell language; data and environment only.
 """
 
 SYNTHESIS_PROMPT = """\
@@ -57,8 +67,15 @@ Return a JSON object with these fields:
 
 Do not make the first sentence of "narrative" paraphrase the "headline" (same thesis in different words). Open narrative with a complementary angle, mechanism detail, or tension across sources. The Telegram preamble uses narrative line 1 separately—ensure headline vs narrative line 1 are meaningfully distinct.
 
+{macro_section}
+
 Article summaries (JSON array):
 {summaries_json}
+"""
+
+MACRO_CONTEXT_BLOCK = """\
+Optional macro_context (JSON) for supply-chain / rates environment — use only if non-empty:
+{macro_context_json}
 """
 
 
@@ -98,7 +115,12 @@ class SynthesizerAgent:
     def __init__(self):
         self._client = None
 
-    def synthesize(self, summaries: list[ArticleSummary]) -> Optional[DigestOutput]:
+    def synthesize(
+        self,
+        summaries: list[ArticleSummary],
+        *,
+        macro_context: dict | None = None,
+    ) -> Optional[DigestOutput]:
         if not summaries:
             logger.warning("Synthesizer received empty summaries list")
             return None
@@ -106,7 +128,24 @@ class SynthesizerAgent:
         summaries_json = json.dumps(
             [s.model_dump() for s in summaries], ensure_ascii=False, indent=2
         )
-        prompt = SYNTHESIS_PROMPT.format(summaries_json=summaries_json[:12000])
+        macro_block = ""
+        macro_section = ""
+        if macro_context and (
+            macro_context.get("theme_bias") or macro_context.get("macro")
+        ):
+            macro_block = MACRO_CONTEXT_BLOCK.format(
+                macro_context_json=json.dumps(macro_context, ensure_ascii=False, indent=2)[
+                    :8000
+                ]
+            )
+            macro_section = MACRO_NARRATIVE_RULES
+
+        prompt = SYNTHESIS_PROMPT.format(
+            summaries_json=summaries_json[:12000],
+            macro_section=macro_block,
+        )
+        if macro_section:
+            prompt = f"{prompt}\n\n{macro_section}"
 
         try:
             data, raw = generate_json(

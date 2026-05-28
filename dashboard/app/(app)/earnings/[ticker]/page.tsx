@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
 import { FundamentalsCard } from "@/components/FundamentalsCard";
+import { InvestmentSignalCard } from "@/components/InvestmentSignalCard";
 import { PriceReactionCard } from "@/components/PriceReactionCard";
 import { listEarningsPeers, listEarningsReports } from "@/lib/earnings-firestore";
 
@@ -53,6 +54,10 @@ export default async function EarningsTickerPage({ params }: Props) {
         surpriseHistory={latest?.surprise_history}
         financialHealth={latest?.financial_health}
       />
+
+      {latest?.investment_signal && (
+        <InvestmentSignalCard signal={latest.investment_signal} />
+      )}
 
       <ul className="mt-6 divide-y divide-rule">
         {rows.map((row) => (

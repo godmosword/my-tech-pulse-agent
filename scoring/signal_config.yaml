@@ -1,0 +1,23 @@
+# Investment Signal 權重與閾值。可日後回測調參。
+weights:
+  fundamental_momentum: 0.35
+  surprise: 0.25
+  market_confirmation: 0.25
+  quality: 0.15
+# 正規化參考點（把原始值映射到 0..100 的飽和區間）
+normalization:
+  rev_yoy_strong_pct: 30
+  eps_yoy_strong_pct: 40
+  surprise_strong_pct: 10
+  excess_strong_pct: 5
+  roic_strong_pct: 20
+  fcf_margin_strong_pct: 25
+  debt_equity_high: 2.0
+rating_buckets:
+  strong_buy: 75
+  buy: 60
+  neutral: 45
+  sell: 30
+conviction:
+  high_min_factors: 4
+  medium_min_factors: 2

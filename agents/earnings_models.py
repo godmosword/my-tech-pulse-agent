@@ -15,6 +15,7 @@ from agents.earnings_v3_models import (
     GuidanceCapex,
     MarketContext,
     EarningsTrend,
+    InvestmentSignal,
     PriceReaction,
     Scorecard,
     SegmentRow,
@@ -92,6 +93,7 @@ class EarningsReport(BaseModel):
     price_reaction: PriceReaction | None = None
     ratios: ValuationRatios | None = None
     surprise_history: list[SurprisePoint] = Field(default_factory=list)
+    investment_signal: InvestmentSignal | None = None
 
 
 def _metric_value(metrics: list[EarningsFact], name: str) -> Optional[float]:

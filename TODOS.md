@@ -83,6 +83,29 @@
 - [x] **測試** `tests/test_fmp_fundamentals.py`（7 cases）
 - [ ] **Production env**：Cloud Run 設 `FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`（見「付費 Vendor API」）
 
+## 財報 — Phase 4 投資訊號（2026-05-21）
+
+- [x] **`scoring/signal_engine.py`** + `signal_config.yaml`；`build_investment_signal`
+- [x] **Pipeline**：`earnings_pipeline` 掛載 signal + live decision log
+- [x] **Dashboard**：`/signals`、`InvestmentSignalCard`；earnings ticker 頁訊號卡
+- [x] **測試** `tests/test_signal_engine.py`
+
+## 財報 — Phase 5 Signal 回測（2026-05-21）
+
+- [x] **`backtest/`** point-in-time replay + `scripts/backtest_signal.py`
+- [x] **`decision_log`** live signal 記錄 + 事後評估
+- [x] **Dashboard** `/calibration` + `BacktestCalibrationPanel`
+- [x] **測試** `tests/test_backtest.py`
+
+## 宏觀 — Phase 6 供應鏈對照（2026-05-21）
+
+- [x] **FRED** `sources/macro_fred.py` + `_cache.py`（`FRED_API_KEY` 可選）
+- [x] **供應鏈** `sources/supply_chain.py` + `config/supply_chain_manual.yaml`
+- [x] **主題映射** `agents/macro_context_builder.py` → digest macro 段落
+- [x] **Dashboard** `/macro` + 持倉加權環境 `portfolioEnvironment`
+- [x] **測試** `tests/test_macro_context.py`（7 cases）
+- [ ] **Production env**：Cloud Run 設 `FRED_API_KEY`（可選）；定期更新 `supply_chain_manual.yaml` as_of
+
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）

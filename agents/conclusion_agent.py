@@ -19,9 +19,12 @@ MODEL = GEMINI_MODEL
 SYSTEM = """\
 Write Traditional Chinese (zh-TW) bull/bear/watch bullets for an earnings report.
 Rules:
-- Use ONLY facts in the JSON payload (scorecard, segments, call_insights, financial_health, price_reaction).
+- Use ONLY facts in the JSON payload (scorecard, segments, call_insights, financial_health, price_reaction, investment_signal).
 - If scorecard.eps.accounting_basis is Mixed, do NOT claim EPS beat/miss.
 - If headline_verdict is 無法判定, say data basis is insufficient for EPS surprise claims.
+- If investment_signal is present, you may reference its rating and conviction to describe overall tilt,
+  but MUST note this is a system composite signal, not investment advice.
+- If investment_signal.conviction is low, explicitly state that data is insufficient and signal 參考性有限.
 - If price_reaction.reaction_label is 利多不漲: bear_case or watch_items must note that
   results beat expectations but the stock did not earn excess returns vs the benchmark
   (priced-in risk). Do not claim causality — describe market reaction only.
@@ -54,6 +57,10 @@ class ConclusionAgent:
             "segments": [s.model_dump() for s in report.segments],
             "call_insights": report.call_insights.model_dump() if report.call_insights else None,
             "financial_health": report.financial_health.model_dump() if report.financial_health else None,
+            "price_reaction": report.price_reaction.model_dump() if report.price_reaction else None,
+            "investment_signal": (
+                report.investment_signal.model_dump() if report.investment_signal else None
+            ),
             "investment_takeaway_zh": report.investment_takeaway_zh,
             "risk_flags": report.risk_flags,
             "transcript_status": report.transcript_status,
