@@ -33,6 +33,9 @@ export function NavRail() {
         <Link href="/earnings" className="hover:text-accent">
           財報
         </Link>
+        <Link href="/portfolio" className="hover:text-accent">
+          持倉
+        </Link>
         <AuthNav />
       </nav>
 
@@ -70,6 +73,9 @@ export function MobileMasthead() {
         </Link>
         <Link href="/earnings" className="hover:text-accent">
           財報
+        </Link>
+        <Link href="/portfolio" className="hover:text-accent">
+          持倉
         </Link>
         <AuthNav />
         <span className="flex items-center gap-2">

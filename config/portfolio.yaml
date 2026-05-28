@@ -1,0 +1,16 @@
+# 持倉與目標配置。positions 為唯一真實來源；可手動編輯或由 IBKR 匯入腳本覆寫。
+base_currency: USD
+as_of: "2026-05-28"
+positions:
+  - { ticker: NVDA, shares: 100, avg_cost: 110.0 }
+  - { ticker: AVGO, shares: 50, avg_cost: 1200.0 }
+  - { ticker: MU, shares: 200, avg_cost: 95.0 }
+  - { ticker: TSM, shares: 80, avg_cost: 180.0 }
+  - { ticker: MRVL, shares: 150, avg_cost: 70.0 }
+# 目標配置：依主題(theme)設定目標權重，用於漂移計算。權重加總應 ≈ 1.0。
+target_allocation:
+  ai_silicon: 0.40
+  semiconductor: 0.25
+  memory: 0.15
+  equipment: 0.10
+  cloud_software: 0.10

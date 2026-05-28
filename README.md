@@ -46,19 +46,11 @@ numbers; Finnhub supplies consensus, calendar, quote, and transcripts when enabl
 
 ```
 SEC EDGAR RSS → XBRL headline facts → narrative (8-K text)
-             → multi-quarter trend (≤8Q YoY/QoQ/direction; optional `report.trend`)
              → Finnhub estimates/quote/calendar (optional)
              → scorecard (basis-aligned surprise) → guidance/segments/transcript
              → analyzer + conclusion → six-section Markdown
              → Firestore + Telegram + Dashboard /earnings/report/{id}
 ```
-
-Each archived report may include an additive **`trend`** object (`EarningsTrend`): up to eight
-quarters of headline XBRL metrics (revenue, diluted EPS, net/operating income, derived gross
-margin %) with YoY, QoQ, and a three-point direction label (`擴張` / `收縮` / `持平`). Built by
-[`agents/trend_builder.py`](agents/trend_builder.py) from
-[`SecXbrlFetcher.normalize_quarter_series`](sources/sec_xbrl_fetcher.py); failures are logged and
-do not block the main filing path. Dashboard UI for trends is planned (Phase 2).
 
 See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
 [`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md), and
@@ -135,6 +127,13 @@ Reader UI lives under [`dashboard/`](dashboard/). Deploy to Vercel with project 
 | [`/earnings`](dashboard/app/(app)/earnings/page.tsx) | Recent filings by `published_at` |
 | [`/earnings/[ticker]`](dashboard/app/(app)/earnings/[ticker]/page.tsx) | Per-symbol history + same-tier peers |
 | [`/earnings/report/[reportId]`](dashboard/app/(app)/earnings/report/[reportId]/page.tsx) | Full v3 deep report (`rendered_markdown_zh`) |
+| [`/portfolio`](dashboard/app/(app)/portfolio/page.tsx) | Holdings, theme exposure, allocation drift vs `config/portfolio.yaml` |
+
+**Portfolio** data lives in [`config/portfolio.yaml`](config/portfolio.yaml) (manual edit or
+[`scripts/import_ibkr_portfolio.py`](scripts/import_ibkr_portfolio.py) from IBKR Flex:
+`IBKR_FLEX_TOKEN`, `IBKR_FLEX_QUERY_ID`). After editing yaml, run
+`python3 scripts/export_portfolio_json.py` before `npm run build` in `dashboard/`. Optional
+`FINNHUB_API_KEY` on Vercel enables live quotes; otherwise the UI shows cost-basis valuation.
 
 Homepage shows **今日財報** when filings landed today (Asia/Taipei). Finnhub keys are configured on the **pipeline** (Cloud Run), not Vercel — the dashboard only needs Firestore read access.
 

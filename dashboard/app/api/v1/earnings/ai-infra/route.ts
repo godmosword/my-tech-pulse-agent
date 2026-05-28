@@ -1,5 +1,6 @@
 import { listEarningsReports } from "@/lib/earnings-firestore";
 import { apiJson, authorizeApiRequest } from "@/lib/api-auth";
+import { withPortfolioTierOnReports } from "@/lib/portfolio-server";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 

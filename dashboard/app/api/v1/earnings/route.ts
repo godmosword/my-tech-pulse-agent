@@ -1,5 +1,6 @@
 import { listEarningsReports } from "@/lib/earnings-firestore";
 import { apiJson, withApiAuth } from "@/lib/api-route";
+import { withPortfolioTierOnReports } from "@/lib/portfolio-server";
 
 export const GET = withApiAuth(async (request) => {
   const url = new URL(request.url);
@@ -8,5 +9,6 @@ export const GET = withApiAuth(async (request) => {
   const maxTier = Number(url.searchParams.get("max_tier") || 5);
 
   const rows = await listEarningsReports({ limit, ticker, maxTier });
-  return apiJson({ items: rows, count: rows.length });
+  const items = withPortfolioTierOnReports(rows);
+  return apiJson({ items, count: items.length });
 });

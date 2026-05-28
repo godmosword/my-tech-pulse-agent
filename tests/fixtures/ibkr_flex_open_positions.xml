@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexQueryResponse queryName="OpenPositions" type="AF">
+  <FlexStatements count="1">
+    <FlexStatement accountId="U1234567" fromDate="20260528" toDate="20260528">
+      <OpenPositions>
+        <OpenPosition symbol="NVDA" position="100" costBasisPrice="110" markPrice="950" />
+        <OpenPosition symbol="NVDA" position="50" costBasisPrice="120" markPrice="950" />
+        <OpenPosition symbol="MU" position="200" costBasisPrice="95" markPrice="100" />
+      </OpenPositions>
+    </FlexStatement>
+  </FlexStatements>
+</FlexQueryResponse>

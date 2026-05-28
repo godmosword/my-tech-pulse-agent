@@ -1,0 +1,38 @@
+{
+  "base_currency": "USD",
+  "as_of": "2026-05-28",
+  "positions": [
+    {
+      "ticker": "NVDA",
+      "shares": 100.0,
+      "avg_cost": 110.0
+    },
+    {
+      "ticker": "AVGO",
+      "shares": 50.0,
+      "avg_cost": 1200.0
+    },
+    {
+      "ticker": "MU",
+      "shares": 200.0,
+      "avg_cost": 95.0
+    },
+    {
+      "ticker": "TSM",
+      "shares": 80.0,
+      "avg_cost": 180.0
+    },
+    {
+      "ticker": "MRVL",
+      "shares": 150.0,
+      "avg_cost": 70.0
+    }
+  ],
+  "target_allocation": {
+    "ai_silicon": 0.4,
+    "semiconductor": 0.25,
+    "memory": 0.15,
+    "equipment": 0.1,
+    "cloud_software": 0.1
+  }
+}

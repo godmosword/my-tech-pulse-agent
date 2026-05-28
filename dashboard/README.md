@@ -12,6 +12,16 @@ renders three views:
 - `/earnings` — earnings radar list (`tech_pulse_earnings_reports`).
 - `/earnings/[ticker]` — per-ticker filings + same-tier comparison.
 - `/earnings/report/[reportId]` — v3 six-section deep report (Markdown).
+- `/portfolio` — holdings, theme exposure, allocation drift (`config/portfolio.yaml`).
+
+After editing `../config/portfolio.yaml`, run from repo root:
+
+```bash
+python3 scripts/export_portfolio_json.py
+```
+
+Optional `FINNHUB_API_KEY` in `.env.local` enables live quotes on `/portfolio` and
+`GET /api/v1/portfolio`; without it, market values fall back to cost basis.
 
 ## 公開讀（乙 + B）
 

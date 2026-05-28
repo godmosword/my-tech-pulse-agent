@@ -60,15 +60,13 @@
 
 ### 財報 — 待辦（依優先序）
 
-- [ ] **Phase 2 — Trend UI**：Dashboard `/earnings/report/[reportId]` 與 API 呈現 `trend`（營收/EPS/毛利率 sparkline 或表格）；Firestore adapter 確保序列化
-- [ ] **Phase 2 — Trend 敘事**（可選）：將 `EarningsTrend` 摘要併入 `rendered_markdown_zh` 或 Telegram 精簡卡（additive）
 - [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY` + `EARNINGS_VENDOR_MODE=free`；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`
 - [ ] **Backfill v3**：`scripts/backfill_earnings.py` 支援 `--deep-report` 回填歷史 `rendered_markdown_zh`（可選）
 - [ ] **P4 Telegram**：長文 chunking 正式測試矩陣（雙擊/雙殺/Mixed EPS/缺 transcript）
 - [ ] **P6 Preflight**：SEC + Finnhub ping + `tech_pulse_earnings_reports` smoke
 - [ ] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture；transcript timeout 整合測試
 - [ ] **Vendor 維運**：`tech_pulse_vendor_api_usage` + cache TTL（降 Finnhub 配額消耗）
-- [ ] **Dashboard**：SiC／持倉篩選（`tags: sic`）；TradingView 圖表（可選）
+- [ ] **Dashboard**：SiC 篩選（`tags: sic`）；TradingView 圖表（可選）— 持倉總覽見 `/portfolio`
 - [ ] **Watchlist**：Tier 2–5 補滿至各 10 檔（不臆造 ticker）
 - [ ] **Async transcript worker**：`scripts/process_earnings_transcripts.py`（`EARNINGS_TRANSCRIPT_MODE=async_worker`）
 - [ ] **ETF**（SOXX / SMH）曝險參考 — Phase 2+

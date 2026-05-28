@@ -1,5 +1,6 @@
 import { apiJson, withApiAuth } from "@/lib/api-route";
 import { loadUpcomingEarnings } from "@/lib/earnings-portal";
+import { withPortfolioTierOnSymbols } from "@/lib/portfolio-server";
 
 export const GET = withApiAuth(async (request) => {
   const url = new URL(request.url);
@@ -7,8 +8,10 @@ export const GET = withApiAuth(async (request) => {
 
   try {
     const payload = await loadUpcomingEarnings(days);
+    const items = withPortfolioTierOnSymbols(payload.items);
     return apiJson({
       ...payload,
+      items,
       available: true,
       source: "tech_pulse_earnings_api",
     });
