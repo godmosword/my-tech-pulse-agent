@@ -5,13 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **財報 Phase 1 — 多季 Trend 時間序列**：`QuarterPoint` / `MetricTrend` / `EarningsTrend`（`agents/earnings_v3_models.py`）；`SecXbrlFetcher.quarter_series_for_spec` / `normalize_quarter_series`；`agents/trend_builder.build_earnings_trend`（YoY/QoQ/方向、毛利率衍生）；`EarningsReport.trend`；pipeline 組裝時 best-effort 填入。
 - **Portal Earnings API（Slice 2）**：`GET /api/v1/earnings/upcoming`、`/{symbol}/insight`、`/watchlist`；Finnhub 行事曆 + Firestore fallback；`config/earnings_watchlist.yaml` 併入 Q-Silicon mega-cap；`scripts/export_earnings_watchlist_json.py`。
 - **Portal News API（Slice 1）**：`GET /api/v1/news/digest|deep|deep/{id}|themes`（`dashboard/lib/news-api.ts`），對齊 Q-Silicon `api_routers/news.py`；digest 含 `summary` 供 `TECH_PULSE_URL`。
 - **Translation Agent**（`agents/translation_agent.py`）：Extractor 未產出含 CJK 的 `zh_title` / `zh_summary` 時，以 Gemini Flash 補繁中標題與兩句摘要；`pipeline_run_summary.translation_filled_count`；`TRANSLATION_AGENT_ENABLED`（預設 `1`）。
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Docs
+- `README.md`、`TODOS.md` 同步財報 Phase 1 多季 `EarningsReport.trend`（XBRL 序列、YoY/QoQ、待辦 Phase 2 UI）。
 - `README.md`、`TODOS.md`、`dashboard/README.md` 同步財報深度報告 v3（Finnhub、六段報告、待辦）。
 - [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) — 本機指令：`main.py`、`backfill_zh_fields.py`、Dashboard、`setup_dashboard_sa.sh`、驗證清單。
 
