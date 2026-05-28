@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **財報 Phase 2 — FMP 比率 / 現金流（additive）**：`FmpProvider`、`fmp_normalize`、`FundamentalProvider`（`EARNINGS_FUNDAMENTAL_MODE=off` 預設）；`ValuationRatios` / `SurprisePoint`；`build_financial_health(..., fundamentals=)` 補 FCF/ROIC、SEC vs FMP `source_conflicts`；Dashboard `FundamentalsCard`；`tests/test_fmp_fundamentals.py`（7 cases）。
 - **財報 Phase 1 — 多季 Trend**：`QuarterPoint` / `MetricTrend` / `EarningsTrend`；`SecXbrlFetcher.normalize_quarter_series`；`agents/trend_builder.py`；`build_report_from_filing` 填入 `EarningsReport.trend`（`tests/test_quarter_series.py`）。
 - **Dashboard 持倉層**：`config/portfolio.yaml`、`sources/portfolio.py`、`scripts/import_ibkr_portfolio.py`、`scripts/export_portfolio_json.py`；`/portfolio` 頁 + Nav「持倉」；`GET /api/v1/portfolio`；earnings API `portfolio_tier`；`portfolio-metrics` vitest + `tests/test_portfolio_store.py`。
 - **財報 Phase 3 — 價格反應 `price_reaction`**：`FinnhubProvider.candle`、`price_reaction_builder`（1d/5d vs SOXX、四象限 label）；`EarningsReport.price_reaction`；結論層 payload；Dashboard `/earnings/[ticker]` 市場反應卡。

@@ -36,6 +36,33 @@ export interface PriceReactionRow {
   degraded?: boolean;
 }
 
+export interface ValuationRatiosRow {
+  gross_margin?: number | null;
+  operating_margin?: number | null;
+  net_margin?: number | null;
+  roe?: number | null;
+  roic?: number | null;
+  debt_to_equity?: number | null;
+  fcf_margin?: number | null;
+  source?: string;
+  period_matched?: string;
+}
+
+export interface SurprisePointRow {
+  period: string;
+  eps_actual?: number | null;
+  eps_estimate?: number | null;
+  surprise_pct?: number | null;
+}
+
+export interface FinancialHealthRow {
+  fcf?: number | null;
+  fcf_conversion_pct?: number | null;
+  roic_trend?: string;
+  shareholder_returns_zh?: string;
+  source_conflicts?: string[];
+}
+
 export interface EarningsReportRow {
   report_id: string;
   ticker: string;
@@ -61,6 +88,10 @@ export interface EarningsReportRow {
   ai_infra_signal?: string;
   risk_flags?: string[];
   source_url: string;
+  price_reaction?: PriceReactionRow | null;
+  ratios?: ValuationRatiosRow | null;
+  surprise_history?: SurprisePointRow[];
+  financial_health?: FinancialHealthRow | null;
 }
 
 function metricFromHeadline(
@@ -163,6 +194,16 @@ function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | nu
       ? raw.risk_flags.map(String)
       : undefined,
     source_url: String(firstDoc.filing_url || ""),
+    price_reaction: raw.price_reaction
+      ? (raw.price_reaction as PriceReactionRow)
+      : undefined,
+    ratios: raw.ratios ? (raw.ratios as ValuationRatiosRow) : undefined,
+    surprise_history: Array.isArray(raw.surprise_history)
+      ? (raw.surprise_history as SurprisePointRow[])
+      : undefined,
+    financial_health: raw.financial_health
+      ? (raw.financial_health as FinancialHealthRow)
+      : undefined,
   };
 }
 

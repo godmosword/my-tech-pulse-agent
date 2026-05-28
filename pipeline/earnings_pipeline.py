@@ -75,6 +75,26 @@ def _try_attach_price_reaction(
     return report
 
 
+def _try_fundamental_enrich(
+    report: EarningsReport,
+) -> tuple[EarningsReport, dict | None]:
+    from sources.fundamental_provider import (
+        FundamentalProvider,
+        attach_fmp_fields_to_report,
+    )
+
+    fundamentals: dict = {}
+    try:
+        fundamentals = FundamentalProvider().enrich_for_report(report) or {}
+    except Exception:
+        logger.warning("FMP enrich failed for %s", report.ticker, exc_info=True)
+        fundamentals = {}
+    if not fundamentals:
+        return report, None
+    report = attach_fmp_fields_to_report(report, fundamentals)
+    return report, fundamentals
+
+
 def _published_at_from_filing(filing: EarningsFiling, period_filed: datetime | None) -> datetime:
     if filing.filed_at:
         return filing.filed_at if filing.filed_at.tzinfo else filing.filed_at.replace(tzinfo=timezone.utc)
@@ -247,6 +267,7 @@ class EarningsPipelineRunner:
                     vendor_market=vendor_result.market_context,
                 )
                 report = _try_attach_price_reaction(report, self.vendor.finnhub)
+                report, fundamentals = _try_fundamental_enrich(report)
                 report = enrich_earnings_v3(
                     report,
                     filing_text=filing.raw_text or "",
@@ -254,6 +275,7 @@ class EarningsPipelineRunner:
                     xbrl=self.xbrl,
                     finnhub=self.vendor.finnhub,
                     tier=tier,
+                    fundamentals=fundamentals,
                 )
                 report = self.analyzer.analyze(report)
                 report = finalize_conclusion(report)
@@ -277,6 +299,7 @@ class EarningsPipelineRunner:
                     vendor_estimates=None,
                     vendor_market=None,
                 )
+                report, fundamentals = _try_fundamental_enrich(report)
                 report = enrich_earnings_v3(
                     report,
                     filing_text="",
@@ -284,6 +307,7 @@ class EarningsPipelineRunner:
                     xbrl=self.xbrl,
                     finnhub=None,
                     tier=None,
+                    fundamentals=fundamentals,
                 )
                 report = finalize_conclusion(report)
                 report = report.model_copy(

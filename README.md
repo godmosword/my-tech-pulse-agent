@@ -82,6 +82,9 @@ See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
 | `MAX_EARNINGS_FILINGS_BROAD` | ❌ | Non-watchlist XBRL archive per run (`30`) |
 | `EARNINGS_REPORTS_ENABLED` | ❌ | Write `tech_pulse_earnings_reports` (`1`) |
 | `EARNINGS_VENDOR_MODE` | ❌ | `off` \| `free` \| `paid` — Finnhub enrich (`off` default) |
+| `EARNINGS_FUNDAMENTAL_MODE` | ❌ | `off` \| `free` \| `paid` — FMP ratios / cash-flow fill-in (`off` = SEC-only) |
+| `FMP_API_KEY` | ❌ | **Required** when `EARNINGS_FUNDAMENTAL_MODE=free\|paid` |
+| `MAX_FMP_CALLS_PER_RUN` | ❌ | FMP HTTP calls per pipeline run (`40`) |
 | `FINNHUB_API_KEY` | ❌ | **Required** when `EARNINGS_VENDOR_MODE=free\|paid` |
 | `FINNHUB_HTTP_TIMEOUT_SEC` | ❌ | Finnhub HTTP timeout (`10`) |
 | `FINNHUB_TRANSCRIPT_TIMEOUT_SEC` | ❌ | Transcript fetch cap per filing (`15`) |

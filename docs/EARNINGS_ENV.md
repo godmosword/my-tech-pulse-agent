@@ -24,6 +24,14 @@ Pipeline（Cloud Run Job）與 Dashboard（Vercel）分工不同：**Finnhub 只
 | `EARNINGS_TRANSCRIPT_MAX_TIER` | `2` | Tier ≤ 2 才拉逐字稿 + TranscriptAgent |
 | `MAX_VENDOR_CALLS_PER_RUN` | `20` | 每輪 pipeline Finnhub 呼叫上限 |
 
+## 財報 v3 可選（FMP 比率 / 現金流補充）
+
+| 變數 | 建議值 | 說明 |
+|------|--------|------|
+| `EARNINGS_FUNDAMENTAL_MODE` | `off` | `off` 時純 SEC；`free`/`paid` + key 時以 FMP 補 FCF/ROIC/比率（不覆寫 SEC headline） |
+| `FMP_API_KEY` | （FMP 主控台） | [https://financialmodelingprep.com/](https://financialmodelingprep.com/) |
+| `MAX_FMP_CALLS_PER_RUN` | `40` | 每輪 pipeline FMP HTTP 呼叫上限 |
+
 ## 財報管線調校（可選）
 
 | 變數 | 預設 | 說明 |

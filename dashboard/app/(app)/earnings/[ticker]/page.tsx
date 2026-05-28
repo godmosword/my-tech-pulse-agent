@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
+import { FundamentalsCard } from "@/components/FundamentalsCard";
 import { PriceReactionCard } from "@/components/PriceReactionCard";
 import { listEarningsPeers, listEarningsReports } from "@/lib/earnings-firestore";
 
@@ -25,6 +26,7 @@ export default async function EarningsTickerPage({ params }: Props) {
   }
 
   const tier = rows[0]?.tier;
+  const latest = rows[0];
   const peers =
     tier != null ? await listEarningsPeers(tier, symbol, 6) : [];
 
@@ -41,7 +43,18 @@ export default async function EarningsTickerPage({ params }: Props) {
         {rows[0]?.company}
       </p>
       <Hairline className="mt-6" />
-      <ul className="divide-y divide-rule">
+
+      {latest?.price_reaction && (
+        <PriceReactionCard reaction={latest.price_reaction} />
+      )}
+
+      <FundamentalsCard
+        ratios={latest?.ratios}
+        surpriseHistory={latest?.surprise_history}
+        financialHealth={latest?.financial_health}
+      />
+
+      <ul className="mt-6 divide-y divide-rule">
         {rows.map((row) => (
           <li key={row.report_id} className="py-5">
             <Link

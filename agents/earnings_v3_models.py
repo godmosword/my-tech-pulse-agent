@@ -65,6 +65,26 @@ class FinancialHealth(BaseModel):
     fcf_conversion_pct: Optional[float] = None
     roic_trend: str = "資料不足"
     shareholder_returns_zh: str = ""
+    source_conflicts: list[str] = Field(default_factory=list)
+
+
+class ValuationRatios(BaseModel):
+    gross_margin: Optional[float] = None
+    operating_margin: Optional[float] = None
+    net_margin: Optional[float] = None
+    roe: Optional[float] = None
+    roic: Optional[float] = None
+    debt_to_equity: Optional[float] = None
+    fcf_margin: Optional[float] = None
+    source: str = "fmp"
+    period_matched: str = "none"
+
+
+class SurprisePoint(BaseModel):
+    period: str
+    eps_actual: Optional[float] = None
+    eps_estimate: Optional[float] = None
+    surprise_pct: Optional[float] = None
 
 
 class ConclusionBlock(BaseModel):

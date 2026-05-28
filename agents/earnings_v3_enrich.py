@@ -59,6 +59,7 @@ def enrich_earnings_v3(
     xbrl: SecXbrlFetcher,
     finnhub: FinnhubProvider | None = None,
     tier: int | None = None,
+    fundamentals: dict | None = None,
 ) -> EarningsReport:
     next_q_consensus = None
     if report.estimates.get("revenue"):
@@ -104,6 +105,7 @@ def enrich_earnings_v3(
         company_facts=company_facts,
         xbrl=xbrl,
         filing_text=filing_text,
+        fundamentals=fundamentals,
     )
 
     return report.model_copy(

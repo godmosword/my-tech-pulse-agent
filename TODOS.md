@@ -74,6 +74,15 @@
 - [x] **Dashboard** `PriceReactionCard` on `/earnings/[ticker]`
 - [x] **測試** `tests/test_price_reaction.py`（8 cases）
 
+## 財報 — Phase 2 FMP 比率（2026-05-21）
+
+- [x] **Provider**：`sources/fmp_provider.py`、`fmp_normalize.py`、`fundamental_provider.py`（`EARNINGS_FUNDAMENTAL_MODE=off` 預設）
+- [x] **模型**：`ValuationRatios`、`SurprisePoint`；`FinancialHealth.source_conflicts`
+- [x] **Pipeline**：`_try_fundamental_enrich`；SEC headline 不覆寫；FMP 失敗不影響主流程
+- [x] **Dashboard**：`/earnings/[ticker]` 估值比率 + EPS surprise 迷你表
+- [x] **測試** `tests/test_fmp_fundamentals.py`（7 cases）
+- [ ] **Production env**：Cloud Run 設 `FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`（見「付費 Vendor API」）
+
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）
@@ -96,10 +105,12 @@
 
 ## 付費 Vendor API（暫緩）
 
-程式已合併（Finnhub provider、price_reaction、transcript、vendor enrich）；**production 暫不申請／不設定付費或配額型 API key**。未設 key 時 pipeline 仍以 SEC XBRL 為主，`price_reaction` / transcript / 共識 estimate 可能為 `degraded` 或略過。評估與 env 對照見 [`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md)。
+程式已合併（Finnhub provider、price_reaction、transcript、vendor enrich、**FMP fundamental enrich**）；**production 暫不申請／不設定付費或配額型 API key**。未設 key 時 pipeline 仍以 SEC XBRL 為主，`price_reaction` / transcript / 共識 estimate / FMP 比率可能為 `degraded` 或略過。評估與 env 對照見 [`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md)。
 
 - [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY`；`EARNINGS_VENDOR_MODE=free`（或 `paid`）；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`
-- [ ] **P2 Vendor 實作**：`fmp_provider` / Finnhub HTTP 完整接線；`tech_pulse_vendor_api_usage` + cache TTL（降配額消耗）
+- [ ] **Production env（FMP）**：`FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`；驗證 report 含 `ratios` / `surprise_history`
+- [x] **FMP 程式**：`fmp_provider` / `fundamental_provider` / normalize + pipeline hook（`off` = 純 SEC）
+- [ ] **P2 Vendor 實作**：Finnhub HTTP 完整接線；`tech_pulse_vendor_api_usage` + cache TTL（降配額消耗）
 - [ ] **Preflight**：Finnhub ping（calendar / quote / candle）
 - [ ] **Async transcript worker**：`scripts/process_earnings_transcripts.py`（`EARNINGS_TRANSCRIPT_MODE=async_worker`）；Finnhub transcript 配額
 - [ ] **P1 整合測試**：transcript timeout；有 key 時 end-to-end `price_reaction` + scorecard surprise

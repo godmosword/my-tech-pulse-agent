@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from agents.earnings_models import EarningsReport
 from agents.earnings_v3_models import FinancialHealth
@@ -19,8 +19,6 @@ def _metric(
     fy: int,
     fp: str,
 ) -> Optional[float]:
-    from sources.sec_concept_map import ConceptSpec  # noqa: PLC0415
-
     spec = next((s for s in HEALTH_CONCEPTS if s.metric == metric), None)
     if not spec:
         return None
@@ -54,12 +52,28 @@ def _shareholder_returns_from_text(text: str) -> str:
     return "；".join(parts) if parts else ""
 
 
+def _source_conflict(metric: str, sec_val: float, fmp_val: float) -> str | None:
+    denom = max(abs(sec_val), 1e-9)
+    diff_pct = abs(sec_val - fmp_val) / denom * 100.0
+    if diff_pct > 5.0:
+        return f"{metric} SEC={sec_val} FMP={fmp_val} diff={diff_pct:.1f}%"
+    return None
+
+
+def _revenue_from_report(report: EarningsReport) -> float | None:
+    for m in report.headline_metrics:
+        if m.metric == "revenue":
+            return m.value
+    return None
+
+
 def build_financial_health(
     report: EarningsReport,
     *,
     company_facts: dict,
     xbrl: SecXbrlFetcher,
     filing_text: str = "",
+    fundamentals: dict[str, Any] | None = None,
 ) -> FinancialHealth:
     fy = report.fiscal_year
     fp = report.fiscal_period or ""
@@ -74,11 +88,7 @@ def build_financial_health(
     fcf_conv = None
     if ocf is not None:
         fcf = ocf - (capex or 0.0)
-        rev = None
-        for m in report.headline_metrics:
-            if m.metric == "revenue":
-                rev = m.value
-                break
+        rev = _revenue_from_report(report)
         if rev and rev > 0 and fcf is not None:
             fcf_conv = round((fcf / rev) * 100.0, 1)
 
@@ -90,9 +100,40 @@ def build_financial_health(
         if ni and ni_now:
             roic_trend = "上升" if ni_now > ni else "下降" if ni_now < ni else "持平"
 
+    conflicts: list[str] = []
+    shareholder_returns = _shareholder_returns_from_text(filing_text)
+
+    if fundamentals:
+        fmp_cf = fundamentals.get("cash_flow") or {}
+        fmp_ratios = fundamentals.get("ratios") or {}
+
+        fmp_ocf = fmp_cf.get("operating_cf")
+        if ocf is not None and fmp_ocf is not None:
+            msg = _source_conflict("operating_cash_flow", ocf, float(fmp_ocf))
+            if msg:
+                conflicts.append(msg)
+
+        fmp_capex = fmp_cf.get("capex")
+        if capex is not None and fmp_capex is not None:
+            msg = _source_conflict("capex", capex, float(fmp_capex))
+            if msg:
+                conflicts.append(msg)
+
+        if fcf is None and fmp_cf.get("free_cash_flow") is not None:
+            fcf = float(fmp_cf["free_cash_flow"])
+            rev = _revenue_from_report(report)
+            if rev and rev > 0:
+                fcf_conv = round((fcf / rev) * 100.0, 1)
+            elif fmp_cf.get("fcf_margin") is not None:
+                fcf_conv = float(fmp_cf["fcf_margin"])
+
+        if roic_trend == "資料不足" and fmp_ratios.get("roic") is not None:
+            roic_trend = f"ROIC {float(fmp_ratios['roic']):.1f}% (FMP)"
+
     return FinancialHealth(
         fcf=fcf,
         fcf_conversion_pct=fcf_conv,
         roic_trend=roic_trend,
-        shareholder_returns_zh=_shareholder_returns_from_text(filing_text),
+        shareholder_returns_zh=shareholder_returns,
+        source_conflicts=conflicts,
     )

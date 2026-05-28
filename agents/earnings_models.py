@@ -18,7 +18,9 @@ from agents.earnings_v3_models import (
     PriceReaction,
     Scorecard,
     SegmentRow,
+    SurprisePoint,
     TranscriptStatus,
+    ValuationRatios,
 )
 
 AiInfraSignal = Literal["strong", "medium", "weak", "not_relevant"]
@@ -88,6 +90,8 @@ class EarningsReport(BaseModel):
     conclusion: ConclusionBlock | None = None
     trend: EarningsTrend | None = None
     price_reaction: PriceReaction | None = None
+    ratios: ValuationRatios | None = None
+    surprise_history: list[SurprisePoint] = Field(default_factory=list)
 
 
 def _metric_value(metrics: list[EarningsFact], name: str) -> Optional[float]:
