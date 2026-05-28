@@ -49,6 +49,23 @@
 - [x] **Slice D**：`conclusion_agent`、完整六段 `rendered_markdown_zh`、Telegram v3 精簡 + chunk
 - [x] **Slice E**：`/earnings/report/[reportId]`、首頁「今日財報」、同 Tier 橫向比較、`GET /api/v1/earnings/ai-infra`、v2→v3 Firestore adapter
 
+## 財報 — Phase 1 多季 Trend（2026-05-28）
+
+- [x] **模型**：`QuarterPoint` / `MetricTrend` / `EarningsTrend`；`EarningsReport.trend`
+- [x] **XBRL**：`SecXbrlFetcher.quarter_series_for_spec` / `normalize_quarter_series`
+- [x] **Builder**：`agents/trend_builder.py`；`tests/test_quarter_series.py`
+- [x] **Pipeline**：`build_report_from_filing` 填入 trend（Phase 3 merge 遺失已補回）
+- [ ] **Dashboard UI（Phase 2）**：`/earnings/[ticker]` 或 report 頁顯示多季 trend 圖表
+
+## Dashboard 持倉層（2026-05-28）
+
+- [x] **`config/portfolio.yaml`** + `scripts/export_portfolio_json.py`（改 yaml 後必跑）
+- [x] **`sources/portfolio.py`**、`scripts/import_ibkr_portfolio.py`（IBKR Flex XML）
+- [x] **`/portfolio`** 頁、Nav「持倉」、`GET /api/v1/portfolio`
+- [x] **Earnings API** `portfolio_tier` 標記
+- [x] **測試**：`tests/test_portfolio_store.py`、`dashboard/lib/portfolio-metrics.test.ts`
+- [ ] **UI 延伸**：`portfolio_tier` 在更多 earnings 列表／首頁露出；SiC tag 篩選
+
 ## 財報 — Phase 3 價格反應（2026-05-28）
 
 - [x] **Finnhub `candle`** + `build_price_reaction`（SOXX 超額、四象限、degraded fallback）

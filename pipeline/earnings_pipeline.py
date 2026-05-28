@@ -120,7 +120,7 @@ def build_report_from_filing(
     report_id = build_report_id(ticker, int(fy) if fy is not None else None, fp)
     confidence: str = "high" if headline else "low"
 
-    return EarningsReport(
+    report = EarningsReport(
         report_id=report_id,
         ticker=ticker.upper(),
         company=filing.company or ticker,
@@ -143,6 +143,13 @@ def build_report_from_filing(
         ],
         confidence=confidence,  # type: ignore[arg-type]
     )
+    from agents.trend_builder import build_earnings_trend
+
+    try:
+        report.trend = build_earnings_trend(xbrl, company_facts, max_quarters=8)
+    except Exception:
+        logger.warning("trend build failed for %s", ticker, exc_info=True)
+    return report
 
 
 class EarningsPipelineRunner:

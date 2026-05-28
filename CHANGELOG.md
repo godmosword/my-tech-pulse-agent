@@ -5,11 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **財報 Phase 1 — 多季 Trend**：`QuarterPoint` / `MetricTrend` / `EarningsTrend`；`SecXbrlFetcher.normalize_quarter_series`；`agents/trend_builder.py`；`build_report_from_filing` 填入 `EarningsReport.trend`（`tests/test_quarter_series.py`）。
+- **Dashboard 持倉層**：`config/portfolio.yaml`、`sources/portfolio.py`、`scripts/import_ibkr_portfolio.py`、`scripts/export_portfolio_json.py`；`/portfolio` 頁 + Nav「持倉」；`GET /api/v1/portfolio`；earnings API `portfolio_tier`；`portfolio-metrics` vitest + `tests/test_portfolio_store.py`。
 - **財報 Phase 3 — 價格反應 `price_reaction`**：`FinnhubProvider.candle`、`price_reaction_builder`（1d/5d vs SOXX、四象限 label）；`EarningsReport.price_reaction`；結論層 payload；Dashboard `/earnings/[ticker]` 市場反應卡。
 - **Portal Earnings API（Slice 2）**：`GET /api/v1/earnings/upcoming`、`/{symbol}/insight`、`/watchlist`；Finnhub 行事曆 + Firestore fallback；`config/earnings_watchlist.yaml` 併入 Q-Silicon mega-cap；`scripts/export_earnings_watchlist_json.py`。
 - **Portal News API（Slice 1）**：`GET /api/v1/news/digest|deep|deep/{id}|themes`（`dashboard/lib/news-api.ts`），對齊 Q-Silicon `api_routers/news.py`；digest 含 `summary` 供 `TECH_PULSE_URL`。
 - **Translation Agent**（`agents/translation_agent.py`）：Extractor 未產出含 CJK 的 `zh_title` / `zh_summary` 時，以 Gemini Flash 補繁中標題與兩句摘要；`pipeline_run_summary.translation_filled_count`；`TRANSLATION_AGENT_ENABLED`（預設 `1`）。
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
+
+### Fixed
+- **Phase 1 trend pipeline**：Phase 3 merge 遺失 `build_report_from_filing` 內 `build_earnings_trend` 掛載；已恢復（與 `fc10e03` 一致）。
 
 ### Docs
 - `README.md`、`TODOS.md`、`dashboard/README.md` 同步財報深度報告 v3（Finnhub、六段報告、待辦）。
