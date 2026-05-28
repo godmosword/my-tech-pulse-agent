@@ -34,7 +34,7 @@ export function StatCard({
           <SourceTag source={source} asOf={asOf} manual={manual} degraded={degraded} />
         )}
       </div>
-      <p className="stat-hero text-ink">
+      <p className="stat-hero min-w-0 text-ink">
         {value}
         {unit && (
           <span className="ml-1 font-sans text-lg font-normal text-ink-soft">{unit}</span>

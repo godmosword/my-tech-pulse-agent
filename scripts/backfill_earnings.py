@@ -39,7 +39,7 @@ load_dotenv()
 from agents.earnings_analyzer import EarningsAnalyzer  # noqa: E402
 from agents.earnings_fact_guard import apply_fact_guard_v2  # noqa: E402
 from agents.earnings_narrative_extractor import EarningsNarrativeExtractor  # noqa: E402
-from pipeline.earnings_pipeline import build_report_from_filing  # noqa: E402
+from pipeline.earnings_pipeline import build_report_from_filing, _try_build_investment_signal  # noqa: E402
 from scoring.earnings_report_store import make_earnings_report_store  # noqa: E402
 from scoring.memory_store import make_memory_service  # noqa: E402
 from sources.sec_client import SecClient  # noqa: E402
@@ -177,6 +177,8 @@ def main() -> int:
                 report = narrative.enrich_report(report, filing)
                 report = analyzer.analyze(report)
                 report = apply_fact_guard_v2(report, filing_text=filing.raw_text or "")
+
+            report = _try_build_investment_signal(report)
 
             store.save(report)
             memory.archive_earnings_report(report, delivered_at=report.published_at)

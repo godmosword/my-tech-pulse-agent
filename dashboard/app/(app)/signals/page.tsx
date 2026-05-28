@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BackfillCode, BackfillHint } from "@/components/data/BackfillHint";
 import { DensePageShell } from "@/components/data/DensePageShell";
 import { RatingBadge } from "@/components/data/RatingBadge";
 import { SignalsTable } from "@/components/data/SignalsTable";
@@ -145,9 +146,19 @@ export default async function SignalsPage({ searchParams }: Props) {
       </div>
 
       {items.length === 0 ? (
-        <p className="mt-8 font-sans text-body text-ink-faint">
-          尚無含 investment_signal 的近期財報（需 pipeline 重跑後寫入）。
-        </p>
+        <BackfillHint
+          title="尚無含 investment_signal 的近期財報"
+          note="Vercel 部署讀 Firestore；本機 dashboard 需 ADC 與同一 GCP 專案。既有舊報告若缺 signal，需用 backfill 重寫。"
+        >
+          <p>1. 新財報（Cloud Run 排程或本機完整 pipeline）：</p>
+          <BackfillCode>{`cd /path/to/my-tech-pulse-agent
+python main.py`}</BackfillCode>
+          <p>2. 依 SEC 申報日區間 backfill（寫入 Firestore 並附 investment_signal）：</p>
+          <BackfillCode>{`python scripts/backfill_earnings.py \\
+  --since 2026-01-01 --until 2026-05-21 \\
+  --max-filings 20`}</BackfillCode>
+          <p>環境：SEC_USER_AGENT、Firestore ADC（GOOGLE_APPLICATION_CREDENTIALS 或 gcloud auth）。</p>
+        </BackfillHint>
       ) : (
         <div className="mt-6">
           <SignalsTable items={items} />

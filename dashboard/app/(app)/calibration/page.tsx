@@ -1,4 +1,5 @@
 import { BacktestCalibrationPanel } from "@/components/BacktestCalibrationPanel";
+import { BackfillCode, BackfillHint } from "@/components/data/BackfillHint";
 import { DensePageShell } from "@/components/data/DensePageShell";
 import { hasInsufficientSample, loadBacktestSummary, loadLiveEvalSummary } from "@/lib/backtest-data";
 
@@ -28,9 +29,18 @@ export default function CalibrationPage() {
       )}
 
       {!backtest ? (
-        <p className="font-sans text-body text-ink-faint">
-          尚無回測結果。請在 repo 根目錄執行：python scripts/backtest_signal.py --dry-run
-        </p>
+        <BackfillHint
+          title="尚無回測結果"
+          note="Vercel 預設不含 backtest/results/。本機 npm run dev 可讀；若要在線展示可 commit summary.json 到 repo（非 gitignore）。"
+        >
+          <p>快速 smoke（3 檔 ticker，仍會寫入 backtest/results/summary.json）：</p>
+          <BackfillCode>{`export FINNHUB_API_KEY=your_key
+export SEC_USER_AGENT="YourName your@email.com"
+python scripts/backtest_signal.py --dry-run`}</BackfillCode>
+          <p>完整 watchlist：</p>
+          <BackfillCode>python scripts/backtest_signal.py --since 2022-01-01</BackfillCode>
+          <p>產物：summary.json、records.csv、report.md</p>
+        </BackfillHint>
       ) : (
         <BacktestCalibrationPanel summary={backtest} title="離線回測（point-in-time）" />
       )}

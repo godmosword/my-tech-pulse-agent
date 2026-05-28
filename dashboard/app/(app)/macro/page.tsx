@@ -1,3 +1,4 @@
+import { BackfillCode, BackfillHint } from "@/components/data/BackfillHint";
 import { DensePageShell } from "@/components/data/DensePageShell";
 import { MacroDashboardPanel } from "@/components/MacroDashboardPanel";
 import { loadMacroContextSnapshot } from "@/lib/macro-data";
@@ -38,10 +39,24 @@ export default async function MacroPage() {
       asOf={snapshot?.as_of?.slice(0, 10)}
     >
       {!snapshot ? (
-        <p className="font-sans text-body text-ink-faint">
-          尚無 macro_context。pipeline 合成 digest 後會寫入 output/macro_context_latest.json，或本地執行
-          pipeline 一次。
-        </p>
+        <BackfillHint
+          title="尚無 macro_context"
+          note="Vercel 不會帶 output/（gitignore）。要在線上看到資料，需改讀 Firestore／API，或 commit 快照到 repo 並調整讀取路徑。本機 npm run dev 可直接讀 output/。"
+        >
+          <p>在 repo 根目錄產生 output/macro_context_latest.json（可選 FRED_API_KEY）：</p>
+          <BackfillCode>{`python -c "
+from agents.macro_context_builder import fetch_macro_context
+import json
+from pathlib import Path
+ctx = fetch_macro_context()
+Path('output').mkdir(exist_ok=True)
+Path('output/macro_context_latest.json').write_text(
+    json.dumps(ctx, ensure_ascii=False, indent=2), encoding='utf-8')
+print('themes', len(ctx.get('theme_bias', {})))
+"`}</BackfillCode>
+          <p>或跑完整 pipeline（Stage 3 合成 digest 前會寫入同檔）：</p>
+          <BackfillCode>python main.py</BackfillCode>
+        </BackfillHint>
       ) : (
         <MacroDashboardPanel
           snapshot={snapshot}

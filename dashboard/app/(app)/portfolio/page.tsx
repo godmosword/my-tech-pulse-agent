@@ -7,6 +7,7 @@ import { DensePageShell } from "@/components/data/DensePageShell";
 import { SourceTag } from "@/components/data/SourceTag";
 import { StackedExposureBar } from "@/components/data/StackedExposureBar";
 import { StatCard } from "@/components/data/StatCard";
+import { THEME_LABELS } from "@/lib/macro-data";
 import { buildPortfolioPayload } from "@/lib/portfolio-server";
 
 export const dynamic = "force-dynamic";
@@ -38,15 +39,61 @@ function tierBadge(tier: string) {
   return <span className={`${base} border-rule text-ink-faint`}>其他</span>;
 }
 
-function rebalanceHint(driftPct: number): string {
-  if (driftPct > 2) return "超配 — 可考慮減碼或再平衡（僅提示）";
-  if (driftPct < -2) return "低配 — 可考慮補倉或再平衡（僅提示）";
+function themeLabel(theme: string): string {
+  return THEME_LABELS[theme] ?? theme;
+}
+
+function driftStatus(driftPct: number): string {
+  if (driftPct > 2) return "超配";
+  if (driftPct < -2) return "低配";
   return "接近目標";
 }
+
+type DriftRow = Awaited<ReturnType<typeof buildPortfolioPayload>>["allocation_drift"][number];
 
 export default async function PortfolioPage() {
   const data = await buildPortfolioPayload();
   const topTheme = data.theme_exposure[0];
+
+  const driftColumns: DataColumn<DriftRow>[] = [
+    {
+      key: "theme",
+      header: "主題",
+      render: (row) => themeLabel(row.theme),
+    },
+    {
+      key: "currentPct",
+      header: "目前%",
+      numeric: true,
+      render: (row) => `${row.currentPct.toFixed(1)}%`,
+    },
+    {
+      key: "targetPct",
+      header: "目標%",
+      numeric: true,
+      render: (row) => `${row.targetPct.toFixed(1)}%`,
+    },
+    {
+      key: "driftPct",
+      header: "偏差",
+      numeric: true,
+      render: (row) => <Delta value={row.driftPct} suffix="%" />,
+    },
+    {
+      key: "status",
+      header: "狀態",
+      render: (row) => {
+        const status = driftStatus(row.driftPct);
+        const tone =
+          row.driftPct > 2
+            ? "text-warn"
+            : row.driftPct < -2
+              ? "text-info"
+              : "text-ink-faint";
+        return <span className={`font-sans text-meta ${tone}`}>{status}</span>;
+      },
+    },
+  ];
 
   const positionColumns: DataColumn<PositionRow>[] = [
     {
@@ -83,7 +130,7 @@ export default async function PortfolioPage() {
       render: (row) =>
         row.unrealized_pct != null ? <Delta value={row.unrealized_pct} /> : "—",
     },
-    { key: "theme", header: "主題", render: (row) => row.theme },
+    { key: "theme", header: "主題", render: (row) => themeLabel(row.theme) },
     { key: "tier", header: "分層", render: (row) => tierBadge(row.tier) },
   ];
 
@@ -109,8 +156,8 @@ export default async function PortfolioPage() {
             value={`${topTheme.weightPct.toFixed(1)}%`}
             footnote={
               topTheme.weightPct > 50
-                ? `${topTheme.theme} — 超過 50% 警示`
-                : topTheme.theme
+                ? `${themeLabel(topTheme.theme)} — 超過 50% 警示`
+                : themeLabel(topTheme.theme)
             }
           />
         )}
@@ -144,13 +191,13 @@ export default async function PortfolioPage() {
           </h2>
           {topTheme && topTheme.weightPct > 50 && (
             <span className="font-sans text-meta font-semibold text-warn">
-              {topTheme.theme} 超過 50%
+              {themeLabel(topTheme.theme)} 超過 50%
             </span>
           )}
         </div>
         <StackedExposureBar
           segments={data.theme_exposure.map((row) => ({
-            label: row.theme,
+            label: themeLabel(row.theme),
             pct: row.weightPct,
             theme: row.theme,
           }))}
@@ -159,36 +206,19 @@ export default async function PortfolioPage() {
 
       <section className="section-band mt-8">
         <h2 className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
-          配置漂移
+          目標配置偏差
         </h2>
         <p className="mt-1 font-sans text-meta text-ink-faint">
-          正 drift = 超配；負 drift = 低配（相對目標配置）。
+          比較「持倉主題占比」與 config/portfolio.yaml 的 target_allocation。偏差 = 目前% −
+          目標%；正數代表超配、負數代表低配（僅供再平衡參考，非投資建議）。
         </p>
-        <ul className="mt-4 divide-y divide-rule">
-          {data.allocation_drift.map((row) => (
-            <li
-              key={row.theme}
-              className="flex flex-col gap-1 py-3 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between"
-            >
-              <span className="font-sans text-body font-semibold text-ink">{row.theme}</span>
-              <span className="data-num font-sans text-meta text-ink-soft">
-                目前 {row.currentPct.toFixed(1)}% · 目標 {row.targetPct.toFixed(1)}%
-              </span>
-              <span
-                className={`w-full font-sans text-meta ${
-                  row.driftPct > 2
-                    ? "text-warn"
-                    : row.driftPct < -2
-                      ? "text-info"
-                      : "text-ink-faint"
-                }`}
-              >
-                drift {row.driftPct >= 0 ? "+" : ""}
-                {row.driftPct.toFixed(1)}% — {rebalanceHint(row.driftPct)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-4">
+          <DataTable
+            columns={driftColumns}
+            rows={data.allocation_drift}
+            rowKey={(row) => row.theme}
+          />
+        </div>
       </section>
     </DensePageShell>
   );

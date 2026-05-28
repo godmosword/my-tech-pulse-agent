@@ -114,6 +114,9 @@
 - [x] **數據頁重構**：`/portfolio`、`/signals`、`/macro`、`/calibration`
 - [x] **校驗圖表**：recharts（僅 calibration 頁）
 - [x] **手機 RWD**：DataTable 卡片化、signals 精簡列表 + 展開因子
+- [x] **Portfolio UX**：Stat 防溢出、目標配置偏差表、主題中文標籤
+- [x] **Backfill 空狀態**：`/signals`、`/macro`、`/calibration` 操作指引（`BackfillHint`）
+- [x] **Backfill signal**：`backfill_earnings.py` 寫入 `investment_signal`
 
 ## 進行中 / 下一步
 
