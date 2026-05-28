@@ -168,3 +168,38 @@ class SecXbrlFetcher:
                 "confidence": "high",
             })
         return out
+
+    def quarter_series_for_spec(
+        self, company_facts: dict, spec: ConceptSpec, *, max_quarters: int = 8
+    ) -> list[dict]:
+        """Return up to max_quarters quarterly rows for a concept, oldest→newest."""
+        entries = self.extract_concept_entries(company_facts, spec)
+        seen: dict[tuple, dict] = {}
+        for e in entries:
+            if str(e.get("fp", "")).upper() not in QUARTERLY_FP:
+                continue
+            if e.get("val") is None:
+                continue
+            key = (e.get("fy"), str(e.get("fp")).upper(), e.get("end"))
+            prev = seen.get(key)
+            if prev is None or str(e.get("filed") or "") > str(prev.get("filed") or ""):
+                seen[key] = e
+        rows = sorted(
+            seen.values(),
+            key=lambda e: (str(e.get("end") or ""), str(e.get("filed") or "")),
+        )
+        return rows[-max_quarters:]
+
+    def normalize_quarter_series(
+        self, company_facts: dict, *, max_quarters: int = 8
+    ) -> dict[str, list[dict]]:
+        """Per HEADLINE_CONCEPT metric, return {metric: [rows...]} with label_zh injected."""
+        out: dict[str, list[dict]] = {}
+        for spec in HEADLINE_CONCEPTS:
+            rows = self.quarter_series_for_spec(company_facts, spec, max_quarters=max_quarters)
+            for r in rows:
+                r["metric"] = spec.metric
+                r["label_zh"] = spec.label_zh
+            if rows:
+                out[spec.metric] = rows
+        return out

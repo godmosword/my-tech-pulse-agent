@@ -71,3 +71,25 @@ class ConclusionBlock(BaseModel):
     bull_case_zh: str = ""
     bear_case_zh: str = ""
     watch_items_zh: list[str] = Field(default_factory=list)
+
+
+class QuarterPoint(BaseModel):
+    fiscal_year: int
+    fiscal_period: str
+    period_end: Optional[str] = None
+    value: Optional[float] = None
+    filed: Optional[str] = None
+
+
+class MetricTrend(BaseModel):
+    metric: str
+    label_zh: str = ""
+    points: list[QuarterPoint] = Field(default_factory=list)
+    yoy_pct: Optional[float] = None
+    qoq_pct: Optional[float] = None
+    direction: Literal["擴張", "收縮", "持平", "資料不足"] = "資料不足"
+
+
+class EarningsTrend(BaseModel):
+    trends: list[MetricTrend] = Field(default_factory=list)
+    quarters_covered: int = 0
