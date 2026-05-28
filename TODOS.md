@@ -106,6 +106,15 @@
 - [x] **測試** `tests/test_macro_context.py`（7 cases）
 - [ ] **Production env**：Cloud Run 設 `FRED_API_KEY`（可選）；定期更新 `supply_chain_manual.yaml` as_of
 
+## Dashboard dense 設計系統（2026-05-21）
+
+- [x] **語意色 token**：`pos/neg/warn/info` + bg（light/dark）
+- [x] **Dense utilities**：`.dense`、`.dense-grid`、`.data-table`、`.stat-hero`、`.section-band`
+- [x] **Data components**：`StatCard`、`Delta`、`RatingBadge`、`StackedExposureBar`、`DataTable`、`SourceTag`
+- [x] **數據頁重構**：`/portfolio`、`/signals`、`/macro`、`/calibration`
+- [x] **校驗圖表**：recharts（僅 calibration 頁）
+- [x] **手機 RWD**：DataTable 卡片化、signals 精簡列表 + 展開因子
+
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）

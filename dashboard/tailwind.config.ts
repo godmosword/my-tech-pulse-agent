@@ -45,6 +45,22 @@ const config: Config = {
         },
         rule: "var(--color-rule)",
         accent: "var(--color-accent)",
+        pos: {
+          DEFAULT: "var(--color-pos)",
+          bg: "var(--color-pos-bg)",
+        },
+        neg: {
+          DEFAULT: "var(--color-neg)",
+          bg: "var(--color-neg-bg)",
+        },
+        warn: {
+          DEFAULT: "var(--color-warn)",
+          bg: "var(--color-warn-bg)",
+        },
+        info: {
+          DEFAULT: "var(--color-info)",
+          bg: "var(--color-info-bg)",
+        },
       },
       fontSize: {
         // UI chrome (nav, labels, meta) — sized closer to article dek/body (17–18px).

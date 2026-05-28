@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Hairline } from "@/components/Hairline";
-import { Kicker } from "@/components/Kicker";
+import { DensePageShell } from "@/components/data/DensePageShell";
+import { RatingBadge } from "@/components/data/RatingBadge";
+import { SignalsTable } from "@/components/data/SignalsTable";
+import { StatCard } from "@/components/data/StatCard";
 import { listEarningsSince } from "@/lib/earnings-firestore";
 import { classifyTier, type PortfolioTier } from "@/lib/portfolio-metrics";
 import { getPortfolioTierSets } from "@/lib/portfolio-server";
@@ -12,21 +14,6 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "投資訊號排行",
   description: "依綜合投資訊號分數排序的近期財報。",
-};
-
-const FACTOR_LABELS: Record<string, string> = {
-  fundamental_momentum: "動能",
-  surprise: "驚喜",
-  market_confirmation: "市場",
-  quality: "品質",
-};
-
-const RATING_CLASS: Record<string, string> = {
-  強力看多: "text-emerald-700 dark:text-emerald-300",
-  看多: "text-emerald-600 dark:text-emerald-400",
-  中性: "text-ink-soft",
-  看空: "text-rose-600 dark:text-rose-400",
-  強力看空: "text-rose-700 dark:text-rose-300",
 };
 
 type Props = {
@@ -59,7 +46,12 @@ export default async function SignalsPage({ searchParams }: Props) {
         rating: sig.rating,
         conviction: sig.conviction,
         top_factor: top?.name ?? "—",
-        portfolio_tier: classifyTier(r.ticker, holdingsSet, watchlistSet),
+        portfolio_tier: classifyTier(r.ticker, holdingsSet, watchlistSet) as PortfolioTier,
+        factors: (sig.factors ?? []).map((f) => ({
+          name: f.name,
+          score: f.score ?? null,
+          available: f.available,
+        })),
       };
     });
 
@@ -88,46 +80,32 @@ export default async function SignalsPage({ searchParams }: Props) {
     return q ? `/signals?${q}` : "/signals";
   }
 
-  function tierBadge(pt: PortfolioTier) {
-    if (pt === "holding") {
-      return (
-        <span className="rounded bg-accent/15 px-1.5 py-0.5 font-sans text-meta text-accent">
-          持倉
-        </span>
-      );
-    }
-    if (pt === "watchlist") {
-      return (
-        <span className="rounded border border-rule px-1.5 py-0.5 font-sans text-meta text-ink-faint">
-          觀察
-        </span>
-      );
-    }
-    return null;
-  }
-
   return (
-    <div>
-      <Kicker tone="accent">Signal Engine</Kicker>
-      <h1 className="mt-2 font-serif text-3xl font-semibold text-ink">投資訊號排行</h1>
-      <p className="mt-3 max-w-prose font-sans text-body text-ink-soft">
-        近 30 日財報的綜合訊號（0–100），僅讀取既有 scorecard / trend / 市場反應 /
-        比率欄位。非投資建議。
-      </p>
-
+    <DensePageShell
+      kicker="Signal Engine"
+      title="投資訊號排行"
+      description="近 30 日財報綜合訊號（0–100），僅讀既有 scorecard / trend / 市場反應 / 比率欄位。非投資建議。"
+      source="Firestore earnings"
+    >
       {(topBuy || topAvoid) && (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {topBuy && (
-            <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 font-sans text-body text-ink-soft">
-              本期偏強：<strong className="text-ink">{topBuy.ticker}</strong>{" "}
-              {topBuy.quarter_label} · {topBuy.score.toFixed(1)} · {topBuy.rating}
-            </p>
+            <StatCard
+              kicker="本期偏強"
+              value={topBuy.score.toFixed(1)}
+              unit="/ 100"
+              footnote={`${topBuy.ticker} · ${topBuy.quarter_label}`}
+            />
           )}
           {topAvoid && (
-            <p className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 font-sans text-body text-ink-soft">
-              本期偏弱：<strong className="text-ink">{topAvoid.ticker}</strong>{" "}
-              {topAvoid.quarter_label} · {topAvoid.score.toFixed(1)} · {topAvoid.rating}
-            </p>
+            <div className="section-band border-neg/30">
+              <p className="font-sans text-meta text-ink-faint">本期偏弱</p>
+              <p className="stat-hero text-neg">{topAvoid.score.toFixed(1)}</p>
+              <p className="mt-1 font-sans text-body text-ink-soft">
+                {topAvoid.ticker} · {topAvoid.quarter_label}
+              </p>
+              <RatingBadge rating={topAvoid.rating} conviction={topAvoid.conviction} />
+            </div>
           )}
         </div>
       )}
@@ -166,64 +144,15 @@ export default async function SignalsPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <Hairline className="mt-6" />
-
       {items.length === 0 ? (
         <p className="mt-8 font-sans text-body text-ink-faint">
           尚無含 investment_signal 的近期財報（需 pipeline 重跑後寫入）。
         </p>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[640px] font-sans text-body">
-            <thead>
-              <tr className="border-b border-rule text-left text-meta text-ink-faint">
-                <th className="pb-3 pr-4 font-normal">#</th>
-                <th className="pb-3 pr-4 font-normal">代號</th>
-                <th className="pb-3 pr-4 font-normal">季度</th>
-                <th className="pb-3 pr-4 font-normal">分數</th>
-                <th className="pb-3 pr-4 font-normal">評級</th>
-                <th className="pb-3 pr-4 font-normal">信心</th>
-                <th className="pb-3 font-normal">主因子</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((row, idx) => (
-                <tr
-                  key={row.report_id}
-                  className={`border-b border-rule/60 ${row.portfolio_tier === "holding" ? "bg-accent/5" : ""}`}
-                >
-                  <td className="py-3 pr-4 font-mono text-meta text-ink-faint">{idx + 1}</td>
-                  <td className="py-3 pr-4">
-                    <Link
-                      href={`/earnings/${row.ticker}`}
-                      className="font-medium text-ink hover:text-accent"
-                    >
-                      {row.ticker}
-                    </Link>{" "}
-                    {tierBadge(row.portfolio_tier)}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <Link
-                      href={`/earnings/report/${encodeURIComponent(row.report_id)}`}
-                      className="text-ink-soft hover:text-accent"
-                    >
-                      {row.quarter_label}
-                    </Link>
-                  </td>
-                  <td className="py-3 pr-4 font-mono font-semibold tabular-nums">
-                    {row.score.toFixed(1)}
-                  </td>
-                  <td className={`py-3 pr-4 ${RATING_CLASS[row.rating] ?? ""}`}>{row.rating}</td>
-                  <td className="py-3 pr-4 text-meta text-ink-soft">{row.conviction}</td>
-                  <td className="py-3 text-meta text-ink-faint">
-                    {FACTOR_LABELS[row.top_factor] ?? row.top_factor}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-6">
+          <SignalsTable items={items} />
         </div>
       )}
-    </div>
+    </DensePageShell>
   );
 }

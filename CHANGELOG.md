@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Dashboard dense 模式 + 美股語意色**：`globals.css` 新增 `pos/neg/warn/info` token（深淺色）；Tailwind 映射；`components/data/`（`StatCard`、`Delta`、`RatingBadge`、`StackedExposureBar`、`DataTable`、`SourceTag`、`DensePageShell`、`SignalsTable`）；`/portfolio`、`/signals`、`/macro`、`/calibration` 改用 dense 排版；校驗頁引入 `recharts` 分位/校準圖（語意色）。Editorial 頁（digest/文章/財報敘述）不變。
 - **Phase 6 — 宏觀與供應鏈對照（additive）**：`sources/macro_fred.py`（FRED，無 key graceful）、`sources/supply_chain.py`（TSM 月營收 + SIA/ASML manual yaml）、`sources/_cache.py`（檔案 TTL 快取）；`agents/macro_context_builder.py`（`theme_bias` 順逆風）；digest synthesizer 末段「宏觀與供應鏈對照」；`pipeline/crew.py` 寫 `output/macro_context_latest.json`；Dashboard `/macro` + `portfolioEnvironment()`；`tests/test_macro_context.py`（7 cases）。
 - **Phase 5 — Signal 回測校驗（point-in-time）**：`backtest/`（`pit_data`、`replay`、`metrics`、`decision_log`）、`scripts/backtest_signal.py`；`scoring/signal_engine.py` 支援 `exclude_factors`；live `log_live_signal`；Dashboard `/calibration`；`tests/test_backtest.py`。
 - **Phase 4 — 投資訊號引擎**：`scoring/signal_engine.py` + `scoring/signal_config.yaml`（fundamental / surprise / market / quality 因子）；`EarningsReport.investment_signal`；pipeline 掛載 + `decision_log`；Dashboard `/signals`、`InvestmentSignalCard`；`tests/test_signal_engine.py`。
