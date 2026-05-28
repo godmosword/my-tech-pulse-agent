@@ -19,9 +19,16 @@ MODEL = GEMINI_MODEL
 SYSTEM = """\
 Write Traditional Chinese (zh-TW) bull/bear/watch bullets for an earnings report.
 Rules:
-- Use ONLY facts in the JSON payload (scorecard, segments, call_insights, financial_health).
+- Use ONLY facts in the JSON payload (scorecard, segments, call_insights, financial_health, price_reaction).
 - If scorecard.eps.accounting_basis is Mixed, do NOT claim EPS beat/miss.
 - If headline_verdict is 無法判定, say data basis is insufficient for EPS surprise claims.
+- If price_reaction.reaction_label is 利多不漲: bear_case or watch_items must note that
+  results beat expectations but the stock did not earn excess returns vs the benchmark
+  (priced-in risk). Do not claim causality — describe market reaction only.
+- If price_reaction.reaction_label is 利空出盡: bull_case or watch_items may note that
+  results missed but the stock held up vs the benchmark (possible sell-the-news reversal).
+  Do not claim causality — describe market reaction only.
+- All numbers in bull/bear/watch must come from the payload.
 - bull_case_zh / bear_case_zh: one sentence each.
 - watch_items_zh: up to 3 short bullets.
 Output JSON only.

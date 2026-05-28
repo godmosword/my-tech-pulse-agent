@@ -11,10 +11,11 @@ from agents.earnings_agent import EarningsOutput, EPSData, RevenueData
 from agents.earnings_v3_models import (
     CallInsights,
     ConclusionBlock,
-    EarningsTrend,
     FinancialHealth,
     GuidanceCapex,
     MarketContext,
+    EarningsTrend,
+    PriceReaction,
     Scorecard,
     SegmentRow,
     TranscriptStatus,
@@ -86,6 +87,7 @@ class EarningsReport(BaseModel):
     financial_health: FinancialHealth | None = None
     conclusion: ConclusionBlock | None = None
     trend: EarningsTrend | None = None
+    price_reaction: PriceReaction | None = None
 
 
 def _metric_value(metrics: list[EarningsFact], name: str) -> Optional[float]:

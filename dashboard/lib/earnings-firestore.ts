@@ -24,6 +24,18 @@ export interface ScorecardRow {
   headline_verdict?: string;
 }
 
+export interface PriceReactionRow {
+  earnings_date?: string | null;
+  session?: string;
+  ret_1d_pct?: number | null;
+  ret_5d_pct?: number | null;
+  excess_1d_pct?: number | null;
+  excess_5d_pct?: number | null;
+  bench_symbol?: string;
+  reaction_label?: string;
+  degraded?: boolean;
+}
+
 export interface EarningsReportRow {
   report_id: string;
   ticker: string;

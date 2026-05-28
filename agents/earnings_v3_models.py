@@ -73,6 +73,8 @@ class ConclusionBlock(BaseModel):
     watch_items_zh: list[str] = Field(default_factory=list)
 
 
+
+
 class QuarterPoint(BaseModel):
     fiscal_year: int
     fiscal_period: str
@@ -93,3 +95,21 @@ class MetricTrend(BaseModel):
 class EarningsTrend(BaseModel):
     trends: list[MetricTrend] = Field(default_factory=list)
     quarters_covered: int = 0
+
+
+class PriceReaction(BaseModel):
+    earnings_date: Optional[str] = None
+    session: str = "unknown"
+    ref_close: Optional[float] = None
+    ret_1d_pct: Optional[float] = None
+    ret_5d_pct: Optional[float] = None
+    bench_symbol: str = "SOXX"
+    bench_ret_1d_pct: Optional[float] = None
+    bench_ret_5d_pct: Optional[float] = None
+    excess_1d_pct: Optional[float] = None
+    excess_5d_pct: Optional[float] = None
+    reaction_label: Literal[
+        "確認上漲", "利多不漲", "利空出盡", "確認下跌", "中性", "資料不足"
+    ] = "資料不足"
+    degraded: bool = False
+    notes: list[str] = Field(default_factory=list)

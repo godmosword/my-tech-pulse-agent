@@ -50,6 +50,40 @@ class FinnhubProvider:
         data = self._get("/quote", {"symbol": symbol.upper()})
         return data if isinstance(data, dict) else None
 
+    def candle(
+        self,
+        symbol: str,
+        *,
+        resolution: str = "D",
+        days_back: int = 20,
+        around: str | None = None,
+    ) -> Optional[dict[str, Any]]:
+        """Daily OHLC from Finnhub /stock/candle, or None if unavailable."""
+        from datetime import datetime as _dt
+        from datetime import timedelta as _td
+        from datetime import timezone as _tz
+
+        if around:
+            center = _dt.fromisoformat(around[:10]).replace(tzinfo=_tz.utc)
+            frm = int((center - _td(days=10)).timestamp())
+            to = int((center + _td(days=12)).timestamp())
+        else:
+            now = _dt.now(_tz.utc)
+            frm = int((now - _td(days=days_back)).timestamp())
+            to = int(now.timestamp())
+        data = self._get(
+            "/stock/candle",
+            {
+                "symbol": symbol.upper(),
+                "resolution": resolution,
+                "from": frm,
+                "to": to,
+            },
+        )
+        if isinstance(data, dict) and data.get("s") == "ok" and data.get("c"):
+            return data
+        return None
+
     def earnings_calendar(
         self,
         symbol: str,

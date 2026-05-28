@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
+import { PriceReactionCard } from "@/components/PriceReactionCard";
 import { listEarningsPeers, listEarningsReports } from "@/lib/earnings-firestore";
 
 export const dynamic = "force-dynamic";

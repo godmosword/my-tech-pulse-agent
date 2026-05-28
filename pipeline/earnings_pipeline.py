@@ -6,6 +6,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from agents.earnings_analyzer import EarningsAnalyzer
 from agents.earnings_fact_guard import apply_fact_guard_v2
@@ -47,6 +48,31 @@ class EarningsRunStats:
     sec_api_calls: int = 0
     full_pipeline_count: int = 0
     broad_archive_count: int = 0
+
+
+
+def _try_attach_price_reaction(
+    report: EarningsReport,
+    finnhub: Any | None,
+) -> EarningsReport:
+    from agents.price_reaction_builder import build_price_reaction
+
+    try:
+        mc = report.market_context
+        if finnhub and mc and mc.earnings_date:
+            pr = build_price_reaction(
+                finnhub,
+                report.ticker,
+                earnings_date=mc.earnings_date,
+                session=mc.session or "unknown",
+                headline_verdict=(
+                    report.scorecard.headline_verdict if report.scorecard else None
+                ),
+            )
+            return report.model_copy(update={"price_reaction": pr})
+    except Exception:
+        logger.warning("price_reaction failed for %s", report.ticker, exc_info=True)
+    return report
 
 
 def _published_at_from_filing(filing: EarningsFiling, period_filed: datetime | None) -> datetime:
@@ -94,7 +120,7 @@ def build_report_from_filing(
     report_id = build_report_id(ticker, int(fy) if fy is not None else None, fp)
     confidence: str = "high" if headline else "low"
 
-    report = EarningsReport(
+    return EarningsReport(
         report_id=report_id,
         ticker=ticker.upper(),
         company=filing.company or ticker,
@@ -117,13 +143,6 @@ def build_report_from_filing(
         ],
         confidence=confidence,  # type: ignore[arg-type]
     )
-    from agents.trend_builder import build_earnings_trend
-
-    try:
-        report.trend = build_earnings_trend(xbrl, company_facts, max_quarters=8)
-    except Exception:
-        logger.warning("trend build failed for %s", ticker, exc_info=True)
-    return report
 
 
 class EarningsPipelineRunner:
@@ -220,6 +239,7 @@ class EarningsPipelineRunner:
                     vendor_estimates=vendor_result.estimates,
                     vendor_market=vendor_result.market_context,
                 )
+                report = _try_attach_price_reaction(report, self.vendor.finnhub)
                 report = enrich_earnings_v3(
                     report,
                     filing_text=filing.raw_text or "",

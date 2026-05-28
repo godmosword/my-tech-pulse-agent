@@ -49,6 +49,14 @@
 - [x] **Slice D**：`conclusion_agent`、完整六段 `rendered_markdown_zh`、Telegram v3 精簡 + chunk
 - [x] **Slice E**：`/earnings/report/[reportId]`、首頁「今日財報」、同 Tier 橫向比較、`GET /api/v1/earnings/ai-infra`、v2→v3 Firestore adapter
 
+## 財報 — Phase 3 價格反應（2026-05-28）
+
+- [x] **Finnhub `candle`** + `build_price_reaction`（SOXX 超額、四象限、degraded fallback）
+- [x] **`EarningsReport.price_reaction`** + pipeline `_try_attach_price_reaction`
+- [x] **ConclusionAgent** payload + 利多不漲／利空出盡規則
+- [x] **Dashboard** `PriceReactionCard` on `/earnings/[ticker]`
+- [x] **測試** `tests/test_price_reaction.py`（8 cases）
+
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）
@@ -66,7 +74,7 @@
 - [ ] **P6 Preflight**：SEC + Finnhub ping + `tech_pulse_earnings_reports` smoke
 - [ ] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture；transcript timeout 整合測試
 - [ ] **Vendor 維運**：`tech_pulse_vendor_api_usage` + cache TTL（降 Finnhub 配額消耗）
-- [ ] **Dashboard**：SiC 篩選（`tags: sic`）；TradingView 圖表（可選）— 持倉總覽見 `/portfolio`
+- [ ] **Dashboard**：SiC／持倉篩選（`tags: sic`）；TradingView 圖表（可選）
 - [ ] **Watchlist**：Tier 2–5 補滿至各 10 檔（不臆造 ticker）
 - [ ] **Async transcript worker**：`scripts/process_earnings_transcripts.py`（`EARNINGS_TRANSCRIPT_MODE=async_worker`）
 - [ ] **ETF**（SOXX / SMH）曝險參考 — Phase 2+
