@@ -1,4 +1,5 @@
 import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
+import { fetchQuotes } from "@/lib/quotes";
 import type { RenderableItem } from "@/lib/types";
 
 import { Hairline } from "./Hairline";
@@ -16,7 +17,8 @@ interface Props {
  * Editorial section: kicker + serif h2, then theme-grouped InstantCard entries.
  * News takeaway blocks sit below each card when present.
  */
-export function ThemeSection({ theme, items, authenticated }: Props) {
+export async function ThemeSection({ theme, items, authenticated }: Props) {
+  const quotes = await fetchQuotes(items.flatMap((item) => item.tickers ?? []));
   return (
     <section className="pt-10">
       <header className="mb-2 space-y-2">
@@ -39,6 +41,7 @@ export function ThemeSection({ theme, items, authenticated }: Props) {
                 authenticated={authenticated}
                 returnToPath={returnToPath}
                 variant="list"
+                quotes={quotes}
               />
               {item.takeaway && (
                 <div className="pb-4">

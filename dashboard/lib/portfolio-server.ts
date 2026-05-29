@@ -1,6 +1,7 @@
 import "server-only";
 
 import { holdingsTickerSet, loadPortfolio } from "./portfolio-data";
+import { fetchQuotes } from "./quotes";
 import {
   allocationDrift,
   attachPortfolioTier,
@@ -40,39 +41,13 @@ export interface PortfolioApiPayload {
   source: string;
 }
 
-async function fetchFinnhubQuotes(
-  tickers: string[],
-): Promise<Map<string, number | null>> {
-  const key = process.env.FINNHUB_API_KEY?.trim();
-  const out = new Map<string, number | null>();
-  if (!key || !tickers.length) return out;
-
-  await Promise.all(
-    tickers.map(async (ticker) => {
-      try {
-        const url = new URL("https://finnhub.io/api/v1/quote");
-        url.searchParams.set("symbol", ticker);
-        url.searchParams.set("token", key);
-        const res = await fetch(url.toString(), { next: { revalidate: 300 } });
-        if (!res.ok) {
-          out.set(ticker, null);
-          return;
-        }
-        const data = (await res.json()) as { c?: number };
-        const c = typeof data.c === "number" && data.c > 0 ? data.c : null;
-        out.set(ticker, c);
-      } catch {
-        out.set(ticker, null);
-      }
-    }),
-  );
-  return out;
-}
-
 export async function buildPortfolioPayload(): Promise<PortfolioApiPayload> {
   const { positions, target, asOf } = loadPortfolio();
   const tickers = positions.map((p) => p.ticker);
-  const quotes = await fetchFinnhubQuotes(tickers);
+  const quoteMap = await fetchQuotes(tickers);
+  const quotes = new Map<string, number | null>(
+    Array.from(quoteMap, ([ticker, quote]) => [ticker, quote.price]),
+  );
   const { rows: valued, priced } = valuePositions(
     positions.map((p) => ({
       ticker: p.ticker,

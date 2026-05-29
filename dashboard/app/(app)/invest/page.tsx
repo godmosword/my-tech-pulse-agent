@@ -9,7 +9,7 @@ import { RatingBadge } from "@/components/data/RatingBadge";
 import { SourceTag } from "@/components/data/SourceTag";
 import { StackedExposureBar } from "@/components/data/StackedExposureBar";
 import { StatCard } from "@/components/data/StatCard";
-import { loadBacktestSummary } from "@/lib/backtest-data";
+import { loadBacktestSummary, signalHitRateCaption } from "@/lib/backtest-data";
 import { listEarningsSince } from "@/lib/earnings-firestore";
 import { loadUpcomingEarnings } from "@/lib/earnings-portal";
 import { THEME_LABELS, loadMacroContextSnapshot } from "@/lib/macro-data";
@@ -221,29 +221,36 @@ async function SignalsSection() {
     },
   ];
 
+  const trustCaption = signalHitRateCaption();
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div>
-        <p className="mb-2 font-sans text-meta font-semibold uppercase tracking-wide text-ink-faint">
-          Top 買進
-        </p>
-        {buys.length ? (
-          <DataTable columns={columns} rows={buys} rowKey={(r) => r.report_id} />
-        ) : (
-          <Pending note="本期無 score ≥ 60" />
-        )}
+    <>
+      {trustCaption && (
+        <p className="mb-3 font-sans text-meta text-ink-faint">{trustCaption}</p>
+      )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 font-sans text-meta font-semibold uppercase tracking-wide text-ink-faint">
+            Top 買進
+          </p>
+          {buys.length ? (
+            <DataTable columns={columns} rows={buys} rowKey={(r) => r.report_id} />
+          ) : (
+            <Pending note="本期無 score ≥ 60" />
+          )}
+        </div>
+        <div>
+          <p className="mb-2 font-sans text-meta font-semibold uppercase tracking-wide text-ink-faint">
+            Top 迴避
+          </p>
+          {avoids.length ? (
+            <DataTable columns={columns} rows={avoids} rowKey={(r) => r.report_id} />
+          ) : (
+            <Pending note="本期無 score &lt; 45" />
+          )}
+        </div>
       </div>
-      <div>
-        <p className="mb-2 font-sans text-meta font-semibold uppercase tracking-wide text-ink-faint">
-          Top 迴避
-        </p>
-        {avoids.length ? (
-          <DataTable columns={columns} rows={avoids} rowKey={(r) => r.report_id} />
-        ) : (
-          <Pending note="本期無 score &lt; 45" />
-        )}
-      </div>
-    </div>
+    </>
   );
 }
 

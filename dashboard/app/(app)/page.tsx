@@ -4,6 +4,7 @@ import { listDigestSnapshotsSince, listLatestItems } from "@/lib/firestore";
 import { parseDigestSnapshot, resolveDigestView } from "@/lib/digest-snapshot";
 import { isPublicReadMode } from "@/lib/env-public-read";
 import { getReaderSession } from "@/lib/session";
+import { AttentionTriage } from "@/components/AttentionTriage";
 import { DigestHeader } from "@/components/DigestHeader";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
@@ -58,6 +59,8 @@ export default async function HomePage() {
         latestDeliveredIso={latestDelivered}
         totalShown={view.totalShown}
       />
+
+      <AttentionTriage />
 
       {todayEarnings.length > 0 && (
         <section className="pt-4">

@@ -63,3 +63,21 @@ export function loadLiveEvalSummary(): LiveEvalSummary | null {
 export function hasInsufficientSample(summary: BacktestSummary | null | undefined): boolean {
   return Boolean(summary?.sample_warnings && summary.sample_warnings.length > 0);
 }
+
+/**
+ * One-line trust qualifier for signal lists: near-term hit rate at the first
+ * available horizon. Returns null when no backtest summary or rate is present
+ * so callers can omit the caption entirely.
+ */
+export function signalHitRateCaption(): string | null {
+  const summary = loadBacktestSummary();
+  if (!summary) return null;
+  const horizons = summary.horizons?.length
+    ? summary.horizons
+    : Object.keys(summary.hit_rate ?? {}).map(Number);
+  const h = horizons[0];
+  if (h == null) return null;
+  const bucket = summary.hit_rate?.[String(h)];
+  if (bucket?.rate == null) return null;
+  return `近 ${h} 日訊號命中率 ${(bucket.rate * 100).toFixed(0)}%（n=${bucket.n ?? 0}）`;
+}

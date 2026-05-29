@@ -3,6 +3,7 @@ import { NewsTakeawayBlock } from "@/components/NewsTakeawayBlock";
 import { isPublicReadMode } from "@/lib/env-public-read";
 import { listLatestItems } from "@/lib/firestore";
 import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
+import { fetchQuotes } from "@/lib/quotes";
 import { getReaderSession } from "@/lib/session";
 
 const HOLDING_NEWS_LIMIT = 8;
@@ -30,6 +31,10 @@ export async function HoldingNewsSection() {
     );
   }
 
+  const quotes = await fetchQuotes(
+    holdingNews.flatMap((item) => item.tickers ?? []),
+  );
+
   return (
     <ul className="divide-y divide-rule">
       {holdingNews.map((item) => {
@@ -42,6 +47,7 @@ export async function HoldingNewsSection() {
               authenticated={authenticated}
               returnToPath={returnToPath}
               variant="list"
+              quotes={quotes}
             />
             {item.takeaway && (
               <div className="pb-3">

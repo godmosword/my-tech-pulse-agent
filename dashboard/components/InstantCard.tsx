@@ -5,6 +5,8 @@ import {
   formatRelativeDateline,
   shouldShowConfidenceBadge,
 } from "@/lib/digest";
+import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
+import type { Quote } from "@/lib/quotes";
 import { publicSummaryLine } from "@/lib/public-excerpt";
 import {
   authenticatedPrimaryBody,
@@ -20,6 +22,7 @@ import {
 } from "@/lib/types";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { Kicker, MetaDot } from "./Kicker";
+import { TickerQuote } from "./data/TickerQuote";
 
 interface InstantCardProps {
   item: RenderableItem;
@@ -28,6 +31,8 @@ interface InstantCardProps {
   returnToPath: string;
   /** list = homepage/theme rows; full = item detail depth. */
   variant?: "list" | "full";
+  /** Batched ticker quotes from the server parent; undefined → bare tickers. */
+  quotes?: Map<string, Quote>;
 }
 
 /**
@@ -46,6 +51,7 @@ export function InstantCard({
   authenticated,
   returnToPath,
   variant = "full",
+  quotes,
 }: InstantCardProps) {
   const headline = displayTitle(item);
   const meta = formatRelativeDateline(bestTimestamp(item));
@@ -123,8 +129,26 @@ export function InstantCard({
         </>
       )}
 
-      <CardFooter item={item} authenticated={authenticated} compact={isList} />
+      <CardFooter
+        item={item}
+        authenticated={authenticated}
+        compact={isList}
+        quotes={quotes}
+      />
     </article>
+  );
+}
+
+function RelevanceChip({ relevance }: { relevance: "holding" | "watchlist" }) {
+  const isHolding = relevance === "holding";
+  return (
+    <span
+      className={`rounded-sm px-1.5 py-0.5 font-sans text-kicker font-semibold uppercase tracking-[0.12em] ${
+        isHolding ? "bg-accent/10 text-accent" : "text-ink-soft"
+      }`}
+    >
+      {isHolding ? "持倉" : "觀察"}
+    </span>
   );
 }
 
@@ -132,14 +156,18 @@ function CardFooter({
   item,
   authenticated,
   compact,
+  quotes,
 }: {
   item: RenderableItem;
   authenticated: boolean;
   compact: boolean;
+  quotes?: Map<string, Quote>;
 }) {
   const level = priorityLevel(item.score);
   const showScore = item.score_status !== "fallback" && item.score > 0;
   const tickers = item.tickers ?? [];
+  const relevance = tagItemPortfolioRelevance(tickers).relevance;
+  const showRelevance = relevance !== "none";
   const wh = item.what_happened?.trim() ?? "";
   const why = item.why_it_matters?.trim() ?? "";
   const canExpand = !compact && authenticated && (Boolean(wh) || Boolean(why));
@@ -147,8 +175,13 @@ function CardFooter({
 
   return (
     <div className="space-y-2 pt-1">
-      {(showScore || showConfidence || tickers.length > 0 || (!compact && item.source_url)) && (
+      {(showScore ||
+        showConfidence ||
+        showRelevance ||
+        tickers.length > 0 ||
+        (!compact && item.source_url)) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
+          {showRelevance && <RelevanceChip relevance={relevance} />}
           {showScore && (
             <span className="flex items-center gap-1.5">
               <span
@@ -170,12 +203,7 @@ function CardFooter({
             >
               <span className="text-ink-faint">代號</span>
               {tickers.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-sm border border-rule px-1.5 py-0.5 font-mono text-kicker text-ink"
-                >
-                  {t}
-                </span>
+                <TickerQuote key={t} ticker={t} quote={quotes?.get(t)} />
               ))}
             </span>
           )}
