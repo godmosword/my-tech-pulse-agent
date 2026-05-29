@@ -122,6 +122,7 @@
 - [x] **News takeaway**：`NewsTakeawayAgent` + `NEWS_TAKEAWAY_MODE`；InstantCard／Invest 持倉相關新聞；`tests/test_news_takeaway.py`；production Flash JSON 截斷修復（2026-05-29）
 - [x] **Refactor-clean（SAFE）**：`crew.py` 移除未用 `IRScraper`／`_archive_delivered_earnings`；`ThemeSection` 接回 `InstantCard` + `ConfidenceBadge`（2026-05-29）
 - [x] **Dashboard UI/UX 設計審查（Slice A–E）**：InstantCard `list` variant、空狀態、`DESIGN.md`、`/health` 營運摘要、Mobile nav/a11y（2026-05-29）
+- [x] **Dashboard 今日 digest 多輪合併**：合併當日 digest snapshots + 未入 snapshot 的 delivery 文章（2026-05-29）
 - [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
 
 ## 進行中 / 下一步

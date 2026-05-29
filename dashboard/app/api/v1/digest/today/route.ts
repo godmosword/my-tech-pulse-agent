@@ -1,5 +1,5 @@
-import { listLatestItems } from "@/lib/firestore";
-import { buildDigest } from "@/lib/digest";
+import { listDigestSnapshotsSince, listLatestItems } from "@/lib/firestore";
+import { parseDigestSnapshot, resolveDigestView } from "@/lib/digest-snapshot";
 import { startOfTodayTaipeiUtc } from "@/lib/api-query";
 import { serializeDigest } from "@/lib/api-serialize";
 import { apiJson, withApiAuth } from "@/lib/api-route";
@@ -10,7 +10,11 @@ export const GET = withApiAuth(async (_request, { access }) => {
   if (items.length === 0) {
     items = await listLatestItems({ limit: 80 });
   }
-  const view = buildDigest(items);
+  const snapshotRows = await listDigestSnapshotsSince(todayStart);
+  const view = resolveDigestView(
+    items,
+    snapshotRows.map(parseDigestSnapshot),
+  );
   const latestDelivered = items
     .map((i) => i.delivered_at_iso)
     .filter((iso): iso is string => Boolean(iso))

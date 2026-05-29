@@ -133,3 +133,20 @@ export async function getLatestDigestSnapshot(): Promise<Record<
   const doc = snap.docs[0]!;
   return { ...(doc.data() as Record<string, unknown>), digest_id: doc.id };
 }
+
+/** All digest snapshots since a boundary (ascending — oldest run first). */
+export async function listDigestSnapshotsSince(
+  since: Date,
+  { limit = 24 }: { limit?: number } = {},
+): Promise<Record<string, unknown>[]> {
+  const snap = await db()
+    .collection(DIGEST_COLLECTION)
+    .where("delivered_at", ">=", since)
+    .orderBy("delivered_at", "asc")
+    .limit(limit)
+    .get();
+  return snap.docs.map((doc) => ({
+    ...(doc.data() as Record<string, unknown>),
+    digest_id: doc.id,
+  }));
+}

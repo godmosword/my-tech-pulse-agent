@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Changed
+- **Dashboard 今日 digest 多輪合併**：首頁與 `GET /api/v1/digest/today` 合併當日所有 `tech_pulse_digests` snapshot，並納入未進 snapshot 的已 delivery 文章（不再只顯示最新一輪精選）。
 - **Dashboard UI/UX 設計審查（Slice A–E）**：`InstantCard` 新增 `list` variant（Today 主題區／持倉新聞列表密度）；`ConfidenceBadge` 僅 warn/bad 顯示；移除 ticker emoji；繁中 kicker/CTA（深度洞見、主題、阅读原文）；Today/Invest/HoldingNews 空狀態人性化；`MobileMasthead` 兩行結構 + a11y 小修。
 - **Dashboard 今日主題區**：`ThemeSection` 改以 `InstantCard` 渲染（傳入 `authenticated`）；`InstantCard` footer 接回 `ConfidenceBadge`；保留 `NewsTakeawayBlock`。
 - **Portfolio dense UX**：Stat 數字防溢出；「配置漂移」改「目標配置偏差」表格 + 主題中文標籤。
