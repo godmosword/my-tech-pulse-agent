@@ -68,6 +68,15 @@ function toRenderable(id: string, raw: unknown): RenderableItem | null {
     tickers: item.tickers ?? [],
     what_happened: item.what_happened ?? "",
     why_it_matters: item.why_it_matters ?? "",
+    takeaway: item.takeaway?.takeaway_zh
+      ? {
+          item_id: item.takeaway.item_id ?? item.id,
+          takeaway_zh: item.takeaway.takeaway_zh ?? "",
+          angle: item.takeaway.angle ?? "其他",
+          tickers: item.takeaway.tickers ?? [],
+          confidence: item.takeaway.confidence ?? "medium",
+        }
+      : null,
     published_at_iso: toIsoString(item.published_at),
     delivered_at_iso: toIsoString(item.delivered_at),
     themes,

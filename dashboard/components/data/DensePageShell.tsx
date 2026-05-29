@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { BackLink } from "@/components/BackLink";
 import { Breadcrumb, type Crumb } from "@/components/Breadcrumb";
 import { Kicker } from "@/components/Kicker";
 import { SourceTag } from "./SourceTag";
@@ -13,6 +14,8 @@ type Props = {
   manual?: boolean;
   degraded?: boolean;
   breadcrumb?: Crumb[];
+  backHref?: string;
+  backLabel?: string;
   children: ReactNode;
 };
 
@@ -26,10 +29,13 @@ export function DensePageShell({
   manual,
   degraded,
   breadcrumb,
+  backHref,
+  backLabel,
   children,
 }: Props) {
   return (
     <div className="dense dense-grid">
+      {backHref && <BackLink href={backHref} label={backLabel ?? "返回"} />}
       {breadcrumb && breadcrumb.length > 0 && <Breadcrumb items={breadcrumb} />}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

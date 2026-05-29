@@ -87,6 +87,8 @@ export default async function SignalsPage({ searchParams }: Props) {
       title="投資訊號排行"
       description="近 30 日財報綜合訊號（0–100），僅讀既有 scorecard / trend / 市場反應 / 比率欄位。非投資建議。"
       source="Firestore earnings"
+      backHref="/invest"
+      backLabel="返回投資中樞"
       breadcrumb={[
         { label: "投資", href: "/invest" },
         { label: "訊號" },

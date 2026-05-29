@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Dashboard UX 五項修復**：`AgentCommentary`（文章頁 wh/why + 空狀態）；`BackLink` + dense 子頁／archive／invest／earnings 返回路徑；editorial 響應式 typography token（`text-editorial-*`）；`PortfolioEditorPrototype`（local 編輯 + 匯出 YAML）；`/earnings/[ticker]` `EarningsInsightPanel`（`loadEarningsInsight`）；Invest「與我持倉相關的新聞」區塊。
+- **News takeaway（additive）**：`NewsTakeawayAgent` + `NEWS_TAKEAWAY_MODE`；pipeline 寫入 Firestore `takeaway`；Dashboard `NewsTakeawayBlock` + `tagItemPortfolioRelevance`；`tests/test_news_takeaway.py`、`portfolio-relevance.test.ts`。
+- **Finnhub production 啟用指南**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md)、[`scripts/setup_finnhub_production.sh`](scripts/setup_finnhub_production.sh)（Cloud Run env 需 maintainer 批准後執行）。
 - **Dashboard Invest 中樞 + PWA + 麵包屑**：導航 7→3（Today / Archive / Invest）；`/invest` 五區塊摘要（持倉、訊號、財報、宏觀、校驗）；`app/manifest.ts` + `public/` 品牌 icon（`npm run gen-icons`）；`Breadcrumb` + `DensePageShell` optional prop；dense 頁與財報／文章詳情頂部返回路徑；`layout` `appleWebApp` / `themeColor`。
 - **自動關係層（additive，離線）**：`agents/relationship_models.py`、`relationship_extractor.py`（Gemini 10-K 關係 + `verify_quote_substring`）；`config/company_aliases.yaml`、`scripts/seed_company_aliases.py`、`scripts/extract_relationships.py` → `data/relationships/{ticker}.json`；`scoring/correlation_cluster.py`、`scripts/build_clusters.py` → `data/clusters.json`；`GET /api/v1/relationships`；財報 ticker 頁「關係」區塊 + 持倉頁「曝險穿透」卡；`tests/test_relationship_extractor.py`、`test_correlation_cluster.py`、`dashboard/lib/exposure-passthrough.test.ts`。
 - **Dashboard backfill 指引**：`BackfillHint` / `BackfillCode`；`/signals`、`/macro`、`/calibration` 空狀態附本機 backfill 指令與 Vercel 限制說明。
@@ -24,7 +27,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **Portfolio dense UX**：Stat 數字防溢出；「配置漂移」改「目標配置偏差」表格 + 主題中文標籤。
 - **`scripts/backfill_earnings.py`**：存檔前附加 `investment_signal`（與 production earnings pipeline 一致）。
-- **`.env.example`**：`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
+- **`.env.example`**：`NEWS_TAKEAWAY_MODE` / `NEWS_TAKEAWAY_*`；`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
 
 ### Fixed
 - **Phase 1 trend pipeline**：Phase 3 merge 遺失 `build_report_from_filing` 內 `build_earnings_trend` 掛載；已恢復（與 `fc10e03` 一致）。

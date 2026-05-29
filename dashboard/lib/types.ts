@@ -14,6 +14,25 @@ export const MemoryItemKindSchema = z.enum([
 ]);
 export type MemoryItemKind = z.infer<typeof MemoryItemKindSchema>;
 
+export const NewsTakeawaySchema = z.object({
+  item_id: z.string().optional(),
+  takeaway_zh: z.string().default(""),
+  angle: z
+    .enum([
+      "供應鏈",
+      "競爭格局",
+      "需求訊號",
+      "政策監管",
+      "技術突破",
+      "資本動向",
+      "其他",
+    ])
+    .default("其他"),
+  tickers: z.array(z.string()).default([]),
+  confidence: z.enum(["high", "medium", "low"]).default("medium"),
+});
+export type NewsTakeaway = z.infer<typeof NewsTakeawaySchema>;
+
 const TimestampLikeSchema = z
   .union([
     z.string(),
@@ -46,6 +65,7 @@ export const MemoryItemSchema = z.object({
   tickers: z.array(z.string()).default([]).optional(),
   what_happened: z.string().default("").optional(),
   why_it_matters: z.string().default("").optional(),
+  takeaway: NewsTakeawaySchema.nullish(),
   published_at: TimestampLikeSchema,
   delivered_at: TimestampLikeSchema,
 });
@@ -70,6 +90,7 @@ export interface RenderableItem {
   tickers: string[];
   what_happened: string;
   why_it_matters: string;
+  takeaway: NewsTakeaway | null;
   published_at_iso: string | null;
   delivered_at_iso: string | null;
   themes: string[];

@@ -37,6 +37,8 @@ export default async function MacroPage() {
       description="慢資料加快取；manual 來源會標示 as_of。僅供環境參考，非投資建議。"
       source={snapshot ? "macro_context_latest.json" : undefined}
       asOf={snapshot?.as_of?.slice(0, 10)}
+      backHref="/invest"
+      backLabel="返回投資中樞"
       breadcrumb={[
         { label: "投資", href: "/invest" },
         { label: "宏觀" },

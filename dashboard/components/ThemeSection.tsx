@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 import { displayTitle, listingZhSubline, type RenderableItem } from "@/lib/types";
+import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
 import { bestTimestamp, formatRelativeDateline } from "@/lib/digest";
 
 import { Hairline } from "./Hairline";
 import { Kicker, MetaDot } from "./Kicker";
+import { NewsTakeawayBlock } from "./NewsTakeawayBlock";
 
 interface Props {
   theme: string;
@@ -23,7 +25,7 @@ export function ThemeSection({ theme, items }: Props) {
     <section className="pt-10">
       <header className="mb-2 space-y-2">
         <Kicker>Section</Kicker>
-        <h2 className="font-serif text-[22px] leading-tight tracking-[-0.018em] text-ink sm:text-[26px]">
+        <h2 className="font-serif text-editorial-headline text-ink">
           {theme}
         </h2>
       </header>
@@ -31,6 +33,9 @@ export function ThemeSection({ theme, items }: Props) {
       <ul className="divide-y divide-rule">
         {items.map((item) => {
           const subline = listingZhSubline(item);
+          const relevance = item.takeaway
+            ? tagItemPortfolioRelevance(item.takeaway.tickers)
+            : tagItemPortfolioRelevance(item.tickers);
           return (
           <li key={item.id} className="py-4">
             <Link
@@ -48,13 +53,16 @@ export function ThemeSection({ theme, items }: Props) {
                   </>
                 )}
               </Kicker>
-              <h3 className="font-serif text-[19px] leading-snug tracking-[-0.015em] text-ink sm:text-[21px]">
+              <h3 className="font-serif text-editorial-headline text-ink">
                 {displayTitle(item)}
               </h3>
               {subline && (
-                <p className="font-sans text-[15px] leading-snug text-ink-soft">
+                <p className="font-sans text-editorial-body leading-snug text-ink-soft">
                   {subline}
                 </p>
+              )}
+              {item.takeaway && (
+                <NewsTakeawayBlock takeaway={item.takeaway} relevance={relevance} />
               )}
             </Link>
           </li>

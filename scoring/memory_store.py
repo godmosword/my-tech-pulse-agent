@@ -201,6 +201,7 @@ class FirestoreMemoryService:
                 "tickers": _clean_tickers(getattr(summary, "tickers", []) or []),
                 "what_happened": (getattr(summary, "what_happened", "") or "").strip(),
                 "why_it_matters": (getattr(summary, "why_it_matters", "") or "").strip(),
+                "takeaway": _takeaway_payload(summary),
                 "source_url": summary.source_url,
                 "source_name": summary.source_name,
                 "published_at": _parse_datetime(getattr(summary, "published_at", "")),
@@ -390,6 +391,20 @@ def make_memory_service() -> MemoryService:
     except Exception as exc:
         logger.warning("Firestore memory unavailable; continuing without memory: %s", exc)
         return DisabledMemoryService()
+
+
+def _takeaway_payload(summary: ArticleSummary) -> dict[str, Any] | None:
+    takeaway = getattr(summary, "takeaway", None)
+    if not takeaway:
+        return None
+    zh = (getattr(takeaway, "takeaway_zh", "") or "").strip()
+    if not zh:
+        return None
+    if hasattr(takeaway, "model_dump"):
+        return takeaway.model_dump()
+    if isinstance(takeaway, dict):
+        return takeaway
+    return None
 
 
 def _clean_tickers(raw: list) -> list[str]:

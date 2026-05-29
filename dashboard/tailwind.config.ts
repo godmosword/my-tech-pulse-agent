@@ -70,6 +70,18 @@ const config: Config = {
         dek: ["17px", { lineHeight: "1.55" }],
         headline: ["28px", { lineHeight: "1.18", letterSpacing: "-0.018em" }],
         hero: ["40px", { lineHeight: "1.1", letterSpacing: "-0.02em" }],
+        "editorial-body": [
+          "clamp(16px, 4vw, 18px)",
+          { lineHeight: "1.6" },
+        ],
+        "editorial-title": [
+          "clamp(28px, 6vw, 34px)",
+          { lineHeight: "1.12", letterSpacing: "-0.02em" },
+        ],
+        "editorial-headline": [
+          "clamp(22px, 5vw, 26px)",
+          { lineHeight: "1.25", letterSpacing: "-0.018em" },
+        ],
       },
       maxWidth: {
         column: "640px", // long-read text column

@@ -11,6 +11,8 @@ import { ExposurePassthroughCard } from "@/components/ExposurePassthroughCard";
 import { THEME_LABELS } from "@/lib/macro-data";
 import { exposurePassthrough } from "@/lib/exposure-passthrough";
 import { buildPortfolioPayload } from "@/lib/portfolio-server";
+import { PortfolioEditorPrototype } from "@/components/PortfolioEditorPrototype";
+import { loadPortfolio } from "@/lib/portfolio-data";
 import {
   loadClustersSnapshot,
   loadCompanyRelationships,
@@ -60,6 +62,7 @@ type DriftRow = Awaited<ReturnType<typeof buildPortfolioPayload>>["allocation_dr
 
 export default async function PortfolioPage() {
   const data = await buildPortfolioPayload();
+  const yamlSource = loadPortfolio();
   const topTheme = data.theme_exposure[0];
 
   const heldTickers = data.positions
@@ -164,6 +167,8 @@ export default async function PortfolioPage() {
       source={data.source}
       asOf={data.as_of || undefined}
       degraded={!data.priced}
+      backHref="/invest"
+      backLabel="返回投資中樞"
       breadcrumb={[
         { label: "投資", href: "/invest" },
         { label: "持倉" },
@@ -248,6 +253,16 @@ export default async function PortfolioPage() {
           />
         </div>
       </section>
+
+      <PortfolioEditorPrototype
+        initialPositions={yamlSource.positions.map((p) => ({
+          ticker: p.ticker,
+          shares: p.shares,
+          avg_cost: p.avgCost,
+        }))}
+        asOf={yamlSource.asOf}
+        baseCurrency={yamlSource.baseCurrency}
+      />
     </DensePageShell>
   );
 }

@@ -61,7 +61,7 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
         )}
       </Kicker>
 
-      <h3 className="font-serif text-[22px] leading-snug tracking-[-0.018em] text-ink sm:text-[26px]">
+      <h3 className="font-serif text-editorial-headline text-ink">
         <Link href={`/item/${encodeURIComponent(item.id)}`} className="hover:underline">
           {headline}
         </Link>
@@ -73,7 +73,7 @@ export function InstantCard({ item, authenticated, returnToPath }: InstantCardPr
             <p className="font-sans text-dek text-ink">{item.zh_summary}</p>
           )}
           {authenticatedPrimaryBody(item) && (
-            <p className="whitespace-pre-line font-serif text-[17px] leading-[1.65] text-ink">
+            <p className="whitespace-pre-line font-serif text-editorial-body text-ink">
               {authenticatedPrimaryBody(item)}
             </p>
           )}

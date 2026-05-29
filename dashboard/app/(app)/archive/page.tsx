@@ -12,6 +12,7 @@ import {
   monthLabel,
   parseFilterState,
 } from "@/lib/archive-filters";
+import { BackLink } from "@/components/BackLink";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 import { displayTitle, listingZhSubline } from "@/lib/types";
@@ -46,9 +47,10 @@ export default async function ArchivePage({
 
   return (
     <div className="pt-2">
-      <header className="space-y-4">
+      <BackLink href="/" label="返回 Today" />
+      <header className="mt-4 space-y-4">
         <Kicker>Archive · Last {ARCHIVE_WINDOW_DAYS} days</Kicker>
-        <h1 className="font-serif text-[34px] leading-[1.1] tracking-[-0.02em] text-ink sm:text-hero">
+        <h1 className="font-serif text-editorial-title text-ink">
           Today’s Paper, day by day.
         </h1>
         <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-faint">

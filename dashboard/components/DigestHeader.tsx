@@ -17,7 +17,7 @@ export function DigestHeader({ latestDeliveredIso, totalShown }: Props) {
   return (
     <section className="space-y-6 pb-8">
       <Kicker>{dateLabel ? `Today’s Pulse · ${dateLabel}` : "Today’s Pulse"}</Kicker>
-      <h1 className="font-serif text-[34px] leading-[1.1] tracking-[-0.02em] text-ink sm:text-hero">
+      <h1 className="font-serif text-editorial-title text-ink sm:text-hero">
         The week in technology, capital and silicon.
       </h1>
       <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-faint">

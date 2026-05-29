@@ -18,6 +18,8 @@ from agents.earnings_analyzer import EarningsAnalyzer
 from agents.earnings_models import EarningsReport, report_to_legacy_output
 from agents.earnings_narrative_extractor import EarningsNarrativeExtractor
 from agents.extractor_agent import ArticleSummary, ExtractorAgent
+from agents.news_takeaway_agent import NewsTakeawayAgent, news_takeaway_enabled
+from agents.relationship_extractor import _load_aliases
 from agents.reviewer_agent import ReviewerAgent
 from agents.translation_agent import TranslationAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
@@ -129,6 +131,7 @@ class TechPulseCrew:
         self.extractor = ExtractorAgent()
         self.reviewer = ReviewerAgent()
         self.translation_agent = TranslationAgent()
+        self.news_takeaway_agent = NewsTakeawayAgent()
         self.synthesizer = SynthesizerAgent()
         self.telegram = TelegramBot()
         self.memory = make_memory_service()
@@ -284,6 +287,8 @@ class TechPulseCrew:
                 except Exception as exc:
                     logger.error("Translation agent failed: %s", exc, exc_info=True)
                     critical_errors.append("llm:translation")
+            if summaries:
+                summaries = self._apply_news_takeaways(summaries)
             if summaries:
                 summaries = self._apply_memory_context(summaries)
             if summaries:
@@ -749,6 +754,24 @@ class TechPulseCrew:
             len(fallback_summaries),
         )
         return summaries + fallback_summaries
+
+    def _apply_news_takeaways(self, summaries: list[ArticleSummary]) -> list[ArticleSummary]:
+        if not news_takeaway_enabled():
+            return summaries
+        aliases = _load_aliases()
+        enriched: list[ArticleSummary] = []
+        for summary in summaries:
+            if not self._is_formal_scored_summary(summary):
+                enriched.append(summary)
+                continue
+            try:
+                summary.takeaway = self.news_takeaway_agent.generate_takeaway(
+                    summary, aliases=aliases
+                )
+            except Exception as exc:
+                logger.warning("News takeaway skipped for %s: %s", summary.title[:80], exc)
+            enriched.append(summary)
+        return enriched
 
     def _apply_memory_context(self, summaries: list[ArticleSummary]) -> list[ArticleSummary]:
         """Attach retrieval-memory context and optionally drop semantic duplicates."""

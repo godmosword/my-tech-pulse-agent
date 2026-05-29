@@ -13,7 +13,11 @@ import { getReaderSession } from "@/lib/session";
 import { chineseAbstract, hasGatedLongContent } from "@/lib/zh-content";
 import { displayTitle } from "@/lib/types";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
+import { AgentCommentary } from "@/components/AgentCommentary";
+import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { NewsTakeawayBlock } from "@/components/NewsTakeawayBlock";
+import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
@@ -69,6 +73,7 @@ export default async function ItemPage({
   if (item.kind === "deep_brief") {
     return (
       <article className="space-y-10 pt-2">
+        <BackLink href="/" label="返回 Today" />
         <Breadcrumb items={[{ label: "Today", href: "/" }, { label: "文章" }]} />
         <DeepInsightCard
           item={item}
@@ -92,6 +97,7 @@ export default async function ItemPage({
 
   return (
     <article className="space-y-7 pt-2">
+      <BackLink href="/" label="返回 Today" />
       <Breadcrumb items={[{ label: "Today", href: "/" }, { label: "文章" }]} />
       <header className="space-y-5">
         <Kicker as="div" className="flex flex-wrap items-center">
@@ -111,7 +117,7 @@ export default async function ItemPage({
         </Kicker>
         <div className="space-y-2">
           <Kicker>中文標題</Kicker>
-          <h1 className="font-serif text-[34px] leading-[1.12] tracking-[-0.02em] text-ink sm:text-hero">
+          <h1 className="font-serif text-editorial-title text-ink sm:text-hero">
             {zhTitle}
           </h1>
         </div>
@@ -121,13 +127,26 @@ export default async function ItemPage({
       {zhAbstract ? (
         <div className="space-y-2">
           <Kicker>中文摘要</Kicker>
-          <p className="whitespace-pre-line font-sans text-[18px] leading-[1.6] text-ink">
+          <p className="whitespace-pre-line font-sans text-editorial-body text-ink">
             {zhAbstract}
           </p>
         </div>
       ) : authenticated ? (
         <p className="font-sans text-meta text-ink-soft">尚無中文摘要。</p>
       ) : null}
+
+      <AgentCommentary
+        whatHappened={item.what_happened}
+        whyItMatters={item.why_it_matters}
+        authenticated={authenticated}
+      />
+
+      {item.takeaway && authenticated && (
+        <NewsTakeawayBlock
+          takeaway={item.takeaway}
+          relevance={tagItemPortfolioRelevance(item.takeaway.tickers)}
+        />
+      )}
 
       {!authenticated && hasGatedLongContent(item) && (
         <p className="font-sans text-meta text-ink-soft">
@@ -143,7 +162,7 @@ export default async function ItemPage({
       {englishSummary && (
         <div className="space-y-2 border-t border-rule pt-6">
           <Kicker>英文摘要</Kicker>
-          <p className="whitespace-pre-line font-sans text-[16px] leading-[1.65] text-ink-soft">
+          <p className="whitespace-pre-line font-sans text-body leading-[1.65] text-ink-soft">
             {authenticated ? englishSummary : englishExcerpt(englishSummary)}
           </p>
         </div>

@@ -3,12 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
+import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { EarningsInsightPanel } from "@/components/EarningsInsightPanel";
 import { FundamentalsCard } from "@/components/FundamentalsCard";
 import { InvestmentSignalCard } from "@/components/InvestmentSignalCard";
 import { PriceReactionCard } from "@/components/PriceReactionCard";
 import { RelationshipsSection } from "@/components/RelationshipsSection";
 import { listEarningsPeers, listEarningsReports } from "@/lib/earnings-firestore";
+import { loadEarningsInsight } from "@/lib/earnings-portal";
 import {
   loadClustersSnapshot,
   loadCompanyRelationships,
@@ -40,9 +43,11 @@ export default async function EarningsTickerPage({ params }: Props) {
   const business = loadCompanyRelationships(symbol);
   const clusters = loadClustersSnapshot();
   const market = marketContextForTicker(symbol, clusters);
+  const insight = await loadEarningsInsight(symbol);
 
   return (
     <div>
+      <BackLink href="/earnings" label="返回財報列表" />
       <Breadcrumb
         items={[
           { label: "投資", href: "/invest" },
@@ -55,6 +60,15 @@ export default async function EarningsTickerPage({ params }: Props) {
         {rows[0]?.company}
       </p>
       <Hairline className="mt-6" />
+
+      <EarningsInsightPanel
+        symbol={symbol}
+        enabled={insight.enabled}
+        reason={insight.reason}
+        hint={insight.hint}
+        report={insight.report}
+        reportUrlPath={insight.report_url_path}
+      />
 
       {latest?.price_reaction && (
         <PriceReactionCard reaction={latest.price_reaction} />

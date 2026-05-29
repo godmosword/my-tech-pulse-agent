@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
+import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { Kicker } from "@/components/Kicker";
 import { getEarningsReport } from "@/lib/earnings-firestore";
@@ -51,6 +52,10 @@ export default async function EarningsReportPage({ params }: Props) {
 
   return (
     <div>
+      <BackLink
+        href={`/earnings/${encodeURIComponent(row.ticker)}`}
+        label={`返回 ${row.ticker} 財報`}
+      />
       <Breadcrumb
         items={[
           { label: "投資", href: "/invest" },

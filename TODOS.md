@@ -118,6 +118,9 @@
 - [x] **Backfill 空狀態**：`/signals`、`/macro`、`/calibration` 操作指引（`BackfillHint`）
 - [x] **Backfill signal**：`backfill_earnings.py` 寫入 `investment_signal`
 - [x] **Invest 中樞 + PWA + 麵包屑**：Nav 7→3（Today / Archive / Invest）；`/invest` 摘要；`manifest.ts` + icon；`Breadcrumb` 掛 dense／詳情頁
+- [x] **Dashboard UX 五項**：Agent 評論（item 頁）、BackLink 全路由、editorial typography、持倉編輯原型、earnings insight panel
+- [x] **News takeaway**：`NewsTakeawayAgent` + `NEWS_TAKEAWAY_MODE`；InstantCard／Invest 持倉相關新聞；`tests/test_news_takeaway.py`
+- [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
 
 ## 進行中 / 下一步
 
@@ -143,7 +146,7 @@
 
 程式已合併（Finnhub provider、price_reaction、transcript、vendor enrich、**FMP fundamental enrich**）；**production 暫不申請／不設定付費或配額型 API key**。未設 key 時 pipeline 仍以 SEC XBRL 為主，`price_reaction` / transcript / 共識 estimate / FMP 比率可能為 `degraded` 或略過。評估與 env 對照見 [`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md)。
 
-- [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY`；`EARNINGS_VENDOR_MODE=free`（或 `paid`）；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`
+- [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY`；`EARNINGS_VENDOR_MODE=free`（或 `paid`）；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`（見 [`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md)）
 - [ ] **Production env（FMP）**：`FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`；驗證 report 含 `ratios` / `surprise_history`
 - [x] **FMP 程式**：`fmp_provider` / `fundamental_provider` / normalize + pipeline hook（`off` = 純 SEC）
 - [ ] **P2 Vendor 實作**：Finnhub HTTP 完整接線；`tech_pulse_vendor_api_usage` + cache TTL（降配額消耗）

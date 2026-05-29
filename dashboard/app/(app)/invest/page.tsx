@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { DensePageShell } from "@/components/data/DensePageShell";
+import { HoldingNewsSection } from "@/components/HoldingNewsSection";
 import { DataTable, type DataColumn } from "@/components/data/DataTable";
 import { RatingBadge } from "@/components/data/RatingBadge";
 import { SourceTag } from "@/components/data/SourceTag";
@@ -402,9 +403,15 @@ export default function InvestPage() {
       kicker="Invest Hub"
       title="投資中樞"
       description="持倉、訊號、財報、宏觀與校驗的一頁摘要。各區塊連至完整細節頁。非投資建議。"
+      backHref="/"
+      backLabel="返回 Today"
     >
       <SectionBand title="我的持倉概況" moreHref="/portfolio" moreLabel="查看持倉 →">
         <PortfolioSection />
+      </SectionBand>
+
+      <SectionBand title="與我持倉相關的新聞" moreHref="/" moreLabel="Today 全文 →">
+        <HoldingNewsSection />
       </SectionBand>
 
       <SectionBand title="本期訊號" moreHref="/signals" moreLabel="完整排行 →">

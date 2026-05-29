@@ -8,6 +8,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from agents.news_takeaway_models import NewsTakeaway
+
 from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
 from llm.localization import (
     derive_zh_title,
@@ -142,6 +144,7 @@ class ArticleSummary(BaseModel):
     hook: str = ""  # ≤24 字繁中 reader hook（formatter 會回退到 zh_summary 第一句）
     tickers: list[str] = Field(default_factory=list)  # public stock tickers explicitly named in article
     allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
+    takeaway: Optional[NewsTakeaway] = None  # optional one-line investment takeaway (NEWS_TAKEAWAY_MODE)
 
 
 class ExtractorAgent:
