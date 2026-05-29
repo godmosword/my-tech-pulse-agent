@@ -161,6 +161,13 @@
 - [ ] **Dashboard**：全文搜尋、RSS/Atom 對外訂閱（earnings 專欄基礎頁已完成）
 - [ ] **DIGEST_FORMAT v2**：維持 experimental；production 仍鎖 `v1`
 
+## 自動關係層（2026-05-28）
+
+- [x] 10-K 關係抽取（Gemini + quote 驗證）與 `data/relationships/` 離線腳本
+- [x] 價格相關性聚類 + `data/clusters.json` 離線腳本
+- [x] Dashboard `GET /api/v1/relationships`、財報 ticker 關係區塊、持倉曝險穿透卡
+- [ ] 定期 Cron：`extract_relationships.py`（年更）、`build_clusters.py`（週更）；production 填入 `GEMINI_API_KEY` / `FINNHUB_API_KEY` 後重跑
+
 ## 維運檢查清單（每次 deploy 後）
 
 完整環境變數與驗證指令見 [`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md)。

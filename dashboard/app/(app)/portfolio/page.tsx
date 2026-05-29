@@ -7,8 +7,15 @@ import { DensePageShell } from "@/components/data/DensePageShell";
 import { SourceTag } from "@/components/data/SourceTag";
 import { StackedExposureBar } from "@/components/data/StackedExposureBar";
 import { StatCard } from "@/components/data/StatCard";
+import { ExposurePassthroughCard } from "@/components/ExposurePassthroughCard";
 import { THEME_LABELS } from "@/lib/macro-data";
+import { exposurePassthrough } from "@/lib/exposure-passthrough";
 import { buildPortfolioPayload } from "@/lib/portfolio-server";
+import {
+  loadClustersSnapshot,
+  loadCompanyRelationships,
+} from "@/lib/relationship-data";
+import { watchlistTickerSet } from "@/lib/pillar-map";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
@@ -54,6 +61,21 @@ type DriftRow = Awaited<ReturnType<typeof buildPortfolioPayload>>["allocation_dr
 export default async function PortfolioPage() {
   const data = await buildPortfolioPayload();
   const topTheme = data.theme_exposure[0];
+
+  const heldTickers = data.positions
+    .filter((p) => p.tier === "holding")
+    .map((p) => p.ticker);
+  const relMap: Record<string, ReturnType<typeof loadCompanyRelationships>> = {};
+  for (const t of heldTickers) {
+    relMap[t] = loadCompanyRelationships(t);
+  }
+  const clustersSnap = loadClustersSnapshot();
+  const indirectExposures = exposurePassthrough(
+    heldTickers.map((ticker) => ({ ticker })),
+    relMap,
+    clustersSnap?.clusters ?? null,
+    watchlistTickerSet(),
+  );
 
   const driftColumns: DataColumn<DriftRow>[] = [
     {
@@ -163,6 +185,8 @@ export default async function PortfolioPage() {
         )}
         <StatCard kicker="持倉檔數" value={data.positions.length} unit="檔" />
       </div>
+
+      <ExposurePassthroughCard exposures={indirectExposures} />
 
       <section className="section-band mt-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">

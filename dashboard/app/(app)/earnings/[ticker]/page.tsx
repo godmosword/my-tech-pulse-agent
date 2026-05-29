@@ -6,7 +6,13 @@ import { Hairline } from "@/components/Hairline";
 import { FundamentalsCard } from "@/components/FundamentalsCard";
 import { InvestmentSignalCard } from "@/components/InvestmentSignalCard";
 import { PriceReactionCard } from "@/components/PriceReactionCard";
+import { RelationshipsSection } from "@/components/RelationshipsSection";
 import { listEarningsPeers, listEarningsReports } from "@/lib/earnings-firestore";
+import {
+  loadClustersSnapshot,
+  loadCompanyRelationships,
+  marketContextForTicker,
+} from "@/lib/relationship-data";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +36,9 @@ export default async function EarningsTickerPage({ params }: Props) {
   const latest = rows[0];
   const peers =
     tier != null ? await listEarningsPeers(tier, symbol, 6) : [];
+  const business = loadCompanyRelationships(symbol);
+  const clusters = loadClustersSnapshot();
+  const market = marketContextForTicker(symbol, clusters);
 
   return (
     <div>
@@ -57,6 +66,13 @@ export default async function EarningsTickerPage({ params }: Props) {
 
       {latest?.investment_signal && (
         <InvestmentSignalCard signal={latest.investment_signal} />
+      )}
+
+      {business && (business.edges.length > 0 || market.correlated.length > 0) && (
+        <RelationshipsSection
+          business={business}
+          correlated={market.correlated}
+        />
       )}
 
       <ul className="mt-6 divide-y divide-rule">
