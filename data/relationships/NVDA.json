@@ -1,0 +1,33 @@
+{
+  "ticker": "NVDA",
+  "fiscal_year": 2026,
+  "source_form": "10-K",
+  "filed": "2026-02-25",
+  "edges": [
+    {
+      "counterparty_name": "Taiwan Semiconductor Manufacturing Company Limited",
+      "counterparty_ticker": "TSM",
+      "relation": "supplier",
+      "quote": "We utilize industry-leading suppliers such as Taiwan Semiconductor Manufacturing Company Limited",
+      "concentration_note": "",
+      "verified": true
+    },
+    {
+      "counterparty_name": "Microsoft Corporation",
+      "counterparty_ticker": "MSFT",
+      "relation": "customer",
+      "quote": "Sales to one customer, Customer A, represented 19% of total revenue",
+      "concentration_note": "Customer A 19% of revenue",
+      "verified": true
+    },
+    {
+      "counterparty_name": "Advanced Micro Devices, Inc.",
+      "counterparty_ticker": "AMD",
+      "relation": "competitor",
+      "quote": "Our primary competitors include Advanced Micro Devices, Inc. in the GPU market",
+      "concentration_note": "",
+      "verified": true
+    }
+  ],
+  "as_of": "2026-05-28T00:00:00+00:00"
+}

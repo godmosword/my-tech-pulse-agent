@@ -1,0 +1,27 @@
+{
+  "as_of": "2026-05-28T00:00:00+00:00",
+  "window": 120,
+  "threshold": 0.7,
+  "tickers": ["NVDA", "AMD", "TSM", "AVGO", "MU"],
+  "skipped": [],
+  "clusters": [
+    {
+      "cluster_id": 0,
+      "members": ["NVDA", "AMD", "AVGO"],
+      "avg_intra_corr": 0.82
+    },
+    {
+      "cluster_id": 1,
+      "members": ["TSM", "MU"],
+      "avg_intra_corr": 0.75
+    }
+  ],
+  "correlations": {
+    "NVDA": [
+      { "ticker": "AMD", "corr": 0.86 },
+      { "ticker": "AVGO", "corr": 0.81 },
+      { "ticker": "TSM", "corr": 0.72 },
+      { "ticker": "MU", "corr": 0.65 }
+    ]
+  }
+}

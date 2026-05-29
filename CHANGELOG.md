@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **自動關係層（additive，離線）**：`agents/relationship_models.py`、`relationship_extractor.py`（Gemini 10-K 關係 + `verify_quote_substring`）；`config/company_aliases.yaml`、`scripts/seed_company_aliases.py`、`scripts/extract_relationships.py` → `data/relationships/{ticker}.json`；`scoring/correlation_cluster.py`、`scripts/build_clusters.py` → `data/clusters.json`；`GET /api/v1/relationships`；財報 ticker 頁「關係」區塊 + 持倉頁「曝險穿透」卡；`tests/test_relationship_extractor.py`、`test_correlation_cluster.py`、`dashboard/lib/exposure-passthrough.test.ts`。
 - **Dashboard backfill 指引**：`BackfillHint` / `BackfillCode`；`/signals`、`/macro`、`/calibration` 空狀態附本機 backfill 指令與 Vercel 限制說明。
 - **Dashboard dense 模式 + 美股語意色**：`globals.css` 新增 `pos/neg/warn/info` token（深淺色）；Tailwind 映射；`components/data/`（`StatCard`、`Delta`、`RatingBadge`、`StackedExposureBar`、`DataTable`、`SourceTag`、`DensePageShell`、`SignalsTable`）；`/portfolio`、`/signals`、`/macro`、`/calibration` 改用 dense 排版；校驗頁引入 `recharts` 分位/校準圖（語意色）。Editorial 頁（digest/文章/財報敘述）不變。
 - **Phase 6 — 宏觀與供應鏈對照（additive）**：`sources/macro_fred.py`（FRED，無 key graceful）、`sources/supply_chain.py`（TSM 月營收 + SIA/ASML manual yaml）、`sources/_cache.py`（檔案 TTL 快取）；`agents/macro_context_builder.py`（`theme_bias` 順逆風）；digest synthesizer 末段「宏觀與供應鏈對照」；`pipeline/crew.py` 寫 `output/macro_context_latest.json`；Dashboard `/macro` + `portfolioEnvironment()`；`tests/test_macro_context.py`（7 cases）。

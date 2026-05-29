@@ -1,0 +1,33 @@
+# Counterparty display names → US ticker (null = known non-US / no ticker).
+aliases:
+  Taiwan Semiconductor: TSM
+  TSMC: TSM
+  "Taiwan Semiconductor Manufacturing": TSM
+  Advanced Micro Devices: AMD
+  AMD: AMD
+  NVIDIA: NVDA
+  NVIDIA Corporation: NVDA
+  Microsoft: MSFT
+  Microsoft Corporation: MSFT
+  Intel: INTC
+  Intel Corporation: INTC
+  Broadcom: AVGO
+  Broadcom Inc.: AVGO
+  SK Hynix: null
+  Samsung: null
+  Samsung Electronics: null
+  Amazon: AMZN
+  Amazon.com: AMZN
+  Alphabet: GOOGL
+  Google: GOOGL
+  Meta: META
+  Meta Platforms: META
+  Apple: AAPL
+  Apple Inc.: AAPL
+  Applied Materials: AMAT
+  Lam Research: LRCX
+  KLA: KLAC
+  ASML: ASML
+  Marvell: MRVL
+  Micron: MU
+  Qualcomm: QCOM
