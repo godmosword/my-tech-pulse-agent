@@ -9,6 +9,7 @@ renders three views:
   sections (mirrors the v1 Telegram formatter after PR1).
 - `/archive` — last 14 days grouped by delivery day.
 - `/item/[id]` — single-doc detail (full deep brief or expanded instant card).
+- `/invest` — investment hub (portfolio, signals, earnings, macro, calibration summaries).
 - `/earnings` — earnings radar list (`tech_pulse_earnings_reports`).
 - `/earnings/[ticker]` — per-ticker filings + same-tier comparison.
 - `/earnings/report/[reportId]` — v3 six-section deep report (Markdown).
@@ -47,6 +48,16 @@ cp .env.example .env.local
 #   gcloud auth application-default login
 pnpm install        # or npm install / yarn install
 pnpm dev
+```
+
+### PWA icons
+
+Brand icons live in `public/` and are referenced by `app/manifest.ts`. Regenerate from the SVG wordmark:
+
+```bash
+cd dashboard
+npm install          # includes devDependency sharp
+npm run gen-icons    # writes icon-192/512, maskable-512, apple-touch-icon
 ```
 
 Open <http://localhost:3000>. With `DASHBOARD_BASIC_AUTH_USER` /

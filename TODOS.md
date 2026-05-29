@@ -117,6 +117,7 @@
 - [x] **Portfolio UX**：Stat 防溢出、目標配置偏差表、主題中文標籤
 - [x] **Backfill 空狀態**：`/signals`、`/macro`、`/calibration` 操作指引（`BackfillHint`）
 - [x] **Backfill signal**：`backfill_earnings.py` 寫入 `investment_signal`
+- [x] **Invest 中樞 + PWA + 麵包屑**：Nav 7→3（Today / Archive / Invest）；`/invest` 摘要；`manifest.ts` + icon；`Breadcrumb` 掛 dense／詳情頁
 
 ## 進行中 / 下一步
 

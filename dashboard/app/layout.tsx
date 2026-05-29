@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_TC, Noto_Serif_TC, Source_Serif_4 } from "next/font/google";
 
 import { siteOrigin } from "@/lib/site-url";
@@ -43,6 +43,21 @@ export const metadata: Metadata = {
   },
   description:
     "Daily editorial digest of technology, capital and silicon — deep insights, curated headlines.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "科技脈搏",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf7f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#16120e" },
+  ],
 };
 
 // Runs synchronously in <head> before the first paint so the manual theme

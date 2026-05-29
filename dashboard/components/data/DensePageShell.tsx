@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Breadcrumb, type Crumb } from "@/components/Breadcrumb";
 import { Kicker } from "@/components/Kicker";
 import { SourceTag } from "./SourceTag";
 
@@ -11,6 +12,7 @@ type Props = {
   asOf?: string;
   manual?: boolean;
   degraded?: boolean;
+  breadcrumb?: Crumb[];
   children: ReactNode;
 };
 
@@ -23,10 +25,12 @@ export function DensePageShell({
   asOf,
   manual,
   degraded,
+  breadcrumb,
   children,
 }: Props) {
   return (
     <div className="dense dense-grid">
+      {breadcrumb && breadcrumb.length > 0 && <Breadcrumb items={breadcrumb} />}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Kicker tone="accent">{kicker}</Kicker>

@@ -21,6 +21,10 @@ export default function CalibrationPage() {
       title="訊號校驗"
       description="讀取離線回測 backtest/results/summary.json 與（若存在）live 前向評估。回測排除 market_confirmation，非投資建議。"
       source="backtest/results"
+      breadcrumb={[
+        { label: "投資", href: "/invest" },
+        { label: "校驗" },
+      ]}
     >
       {warn && (
         <p className="section-band border-warn/40 font-sans text-body font-semibold text-warn">

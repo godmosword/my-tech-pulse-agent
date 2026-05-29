@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import { FundamentalsCard } from "@/components/FundamentalsCard";
 import { InvestmentSignalCard } from "@/components/InvestmentSignalCard";
 import { PriceReactionCard } from "@/components/PriceReactionCard";
@@ -42,12 +43,13 @@ export default async function EarningsTickerPage({ params }: Props) {
 
   return (
     <div>
-      <Link
-        href="/earnings"
-        className="font-sans text-meta uppercase tracking-widest text-ink-faint hover:text-accent"
-      >
-        ← 財報雷達
-      </Link>
+      <Breadcrumb
+        items={[
+          { label: "投資", href: "/invest" },
+          { label: "財報", href: "/earnings" },
+          { label: symbol },
+        ]}
+      />
       <h1 className="mt-4 font-serif text-3xl font-semibold text-ink">{symbol}</h1>
       <p className="mt-2 font-sans text-body text-ink-soft">
         {rows[0]?.company}

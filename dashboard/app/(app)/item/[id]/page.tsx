@@ -13,6 +13,7 @@ import { getReaderSession } from "@/lib/session";
 import { chineseAbstract, hasGatedLongContent } from "@/lib/zh-content";
 import { displayTitle } from "@/lib/types";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
@@ -68,6 +69,7 @@ export default async function ItemPage({
   if (item.kind === "deep_brief") {
     return (
       <article className="space-y-10 pt-2">
+        <Breadcrumb items={[{ label: "Today", href: "/" }, { label: "文章" }]} />
         <DeepInsightCard
           item={item}
           authenticated={authenticated}
@@ -90,6 +92,7 @@ export default async function ItemPage({
 
   return (
     <article className="space-y-7 pt-2">
+      <Breadcrumb items={[{ label: "Today", href: "/" }, { label: "文章" }]} />
       <header className="space-y-5">
         <Kicker as="div" className="flex flex-wrap items-center">
           <span>{cat}</span>

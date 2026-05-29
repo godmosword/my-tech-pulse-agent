@@ -164,6 +164,10 @@ export default async function PortfolioPage() {
       source={data.source}
       asOf={data.as_of || undefined}
       degraded={!data.priced}
+      breadcrumb={[
+        { label: "投資", href: "/invest" },
+        { label: "持倉" },
+      ]}
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard

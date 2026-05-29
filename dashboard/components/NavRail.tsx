@@ -3,6 +3,23 @@ import Link from "next/link";
 import { AuthNav } from "./AuthNav";
 import { ThemeToggle } from "./ThemeToggle";
 
+const readingLinks = (
+  <>
+    <Link href="/" className="hover:text-accent">
+      Today
+    </Link>
+    <Link href="/archive" className="hover:text-accent">
+      Archive
+    </Link>
+  </>
+);
+
+const investLink = (
+  <Link href="/invest" className="hover:text-accent">
+    投資 <span className="normal-case tracking-normal">Invest</span>
+  </Link>
+);
+
 /**
  * Left rail for laptop (>= lg) layout. Sticky to top of viewport so the masthead
  * and nav stay reachable as the main column scrolls. Hidden on mobile / tablet —
@@ -24,27 +41,9 @@ export function NavRail() {
         aria-label="Primary"
         className="flex flex-col gap-3 font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft"
       >
-        <Link href="/" className="hover:text-accent">
-          Today
-        </Link>
-        <Link href="/archive" className="hover:text-accent">
-          Archive
-        </Link>
-        <Link href="/earnings" className="hover:text-accent">
-          財報
-        </Link>
-        <Link href="/signals" className="hover:text-accent">
-          訊號
-        </Link>
-        <Link href="/calibration" className="hover:text-accent">
-          校驗
-        </Link>
-        <Link href="/macro" className="hover:text-accent">
-          宏觀
-        </Link>
-        <Link href="/portfolio" className="hover:text-accent">
-          持倉
-        </Link>
+        {readingLinks}
+        <div className="my-1 border-t border-rule" aria-hidden />
+        {investLink}
         <AuthNav />
       </nav>
 
@@ -74,27 +73,9 @@ export function MobileMasthead() {
         </span>
       </Link>
       <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
-        <Link href="/" className="hover:text-accent">
-          Today
-        </Link>
-        <Link href="/archive" className="hover:text-accent">
-          Archive
-        </Link>
-        <Link href="/earnings" className="hover:text-accent">
-          財報
-        </Link>
-        <Link href="/signals" className="hover:text-accent">
-          訊號
-        </Link>
-        <Link href="/calibration" className="hover:text-accent">
-          校驗
-        </Link>
-        <Link href="/macro" className="hover:text-accent">
-          宏觀
-        </Link>
-        <Link href="/portfolio" className="hover:text-accent">
-          持倉
-        </Link>
+        {readingLinks}
+        <span aria-hidden className="hidden h-3 w-px bg-rule sm:inline-block" />
+        {investLink}
         <AuthNav />
         <span className="flex items-center gap-2">
           <span aria-hidden="true" className="font-sans text-meta text-ink-faint">

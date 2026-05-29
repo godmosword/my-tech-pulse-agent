@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import { Kicker } from "@/components/Kicker";
 import { getEarningsReport } from "@/lib/earnings-firestore";
 
@@ -51,12 +51,13 @@ export default async function EarningsReportPage({ params }: Props) {
 
   return (
     <div>
-      <Link
-        href="/earnings"
-        className="font-sans text-meta uppercase tracking-widest text-ink-faint hover:text-accent"
-      >
-        ← 財報雷達
-      </Link>
+      <Breadcrumb
+        items={[
+          { label: "投資", href: "/invest" },
+          { label: "財報", href: "/earnings" },
+          { label: "報告" },
+        ]}
+      />
       <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
         <h1 className="font-serif text-3xl font-semibold text-ink">
           {row.ticker} {row.quarter_label}
