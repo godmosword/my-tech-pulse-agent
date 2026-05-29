@@ -240,6 +240,12 @@ export function confidenceBadge(item: RenderableItem): {
   return { label: "Medium confidence", tone: "neutral" };
 }
 
+/** Show confidence badge only when editorial attention is warranted. */
+export function shouldShowConfidenceBadge(item: RenderableItem): boolean {
+  const { tone } = confidenceBadge(item);
+  return tone === "warn" || tone === "bad";
+}
+
 export function formatScore(score: number): string {
   return score.toFixed(1);
 }

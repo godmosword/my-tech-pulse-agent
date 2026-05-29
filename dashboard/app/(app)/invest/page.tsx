@@ -65,8 +65,28 @@ function SectionBand({
   );
 }
 
-function Pending({ note = "資料準備中" }: { note?: string }) {
-  return <p className="font-sans text-body text-ink-faint">{note}</p>;
+function Pending({
+  note = "資料準備中",
+  actionHref,
+  actionLabel,
+}: {
+  note?: string;
+  actionHref?: string;
+  actionLabel?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="font-sans text-body text-ink-soft">{note}</p>
+      {actionHref && actionLabel && (
+        <Link
+          href={actionHref}
+          className="inline-block font-sans text-meta font-semibold uppercase tracking-[0.1em] text-accent hover:underline"
+        >
+          {actionLabel}
+        </Link>
+      )}
+    </div>
+  );
 }
 
 async function PortfolioSection() {
@@ -105,7 +125,13 @@ async function PortfolioSection() {
       </>
     );
   } catch {
-    return <Pending />;
+    return (
+      <Pending
+        note="暫時無法載入持倉資料。"
+        actionHref="/portfolio"
+        actionLabel="前往持倉頁 →"
+      />
+    );
   }
 }
 
@@ -145,7 +171,15 @@ async function loadSignalItems(): Promise<SignalRow[] | null> {
 
 async function SignalsSection() {
   const items = await loadSignalItems();
-  if (!items) return <Pending />;
+  if (!items) {
+    return (
+      <Pending
+        note="暫時無法載入訊號資料。"
+        actionHref="/signals"
+        actionLabel="前往訊號排行 →"
+      />
+    );
+  }
 
   const buys = items.filter((i) => i.score >= 60).slice(0, 3);
   const avoids = [...items]
@@ -154,7 +188,13 @@ async function SignalsSection() {
     .slice(0, 3);
 
   if (!buys.length && !avoids.length) {
-    return <Pending note="尚無含 investment_signal 的近期財報" />;
+    return (
+      <Pending
+        note="近期財報尚無 investment_signal 評分。"
+        actionHref="/signals"
+        actionLabel="查看訊號頁 →"
+      />
+    );
   }
 
   const columns: DataColumn<SignalRow>[] = [
@@ -295,7 +335,13 @@ async function EarningsSection() {
       </div>
     );
   } catch {
-    return <Pending />;
+    return (
+      <Pending
+        note="暫時無法載入財報行事曆。"
+        actionHref="/earnings"
+        actionLabel="前往財報全覽 →"
+      />
+    );
   }
 }
 
@@ -347,7 +393,13 @@ async function MacroSection() {
       </>
     );
   } catch {
-    return <Pending />;
+    return (
+      <Pending
+        note="暫時無法載入宏觀資料。"
+        actionHref="/macro"
+        actionLabel="前往宏觀詳情 →"
+      />
+    );
   }
 }
 
@@ -393,7 +445,13 @@ function CalibrationSection() {
       </div>
     );
   } catch {
-    return <Pending />;
+    return (
+      <Pending
+        note="暫時無法載入校驗摘要。"
+        actionHref="/calibration"
+        actionLabel="前往校驗詳情 →"
+      />
+    );
   }
 }
 

@@ -11,6 +11,9 @@ const readingLinks = (
     <Link href="/archive" className="hover:text-accent">
       Archive
     </Link>
+    <Link href="/health" className="hover:text-accent">
+      營運摘要
+    </Link>
   </>
 );
 
@@ -63,26 +66,29 @@ export function NavRail() {
  */
 export function MobileMasthead() {
   return (
-    <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-3 pb-6 lg:hidden">
-      <Link href="/" className="block">
-        <span className="font-serif text-[28px] font-semibold tracking-[-0.02em] text-ink sm:text-[32px]">
-          Tech Pulse
-        </span>
-        <span className="ml-3 font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
-          科技脈搏
-        </span>
-      </Link>
-      <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
+    <header className="space-y-4 pb-6 lg:hidden">
+      <div className="flex items-start justify-between gap-3">
+        <Link href="/" className="block min-w-0">
+          <span className="font-serif text-[28px] font-semibold tracking-[-0.02em] text-ink sm:text-[32px]">
+            Tech Pulse
+          </span>
+          <span className="mt-1 block font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
+            科技脈搏
+          </span>
+        </Link>
+        <div className="flex shrink-0 items-center gap-2 pt-1">
+          <span className="sr-only">顯示模式</span>
+          <ThemeToggle />
+        </div>
+      </div>
+      <nav
+        aria-label="Primary"
+        className="flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft"
+      >
         {readingLinks}
         <span aria-hidden className="hidden h-3 w-px bg-rule sm:inline-block" />
         {investLink}
         <AuthNav />
-        <span className="flex items-center gap-2">
-          <span aria-hidden="true" className="font-sans text-meta text-ink-faint">
-            顯示模式
-          </span>
-          <ThemeToggle />
-        </span>
       </nav>
     </header>
   );

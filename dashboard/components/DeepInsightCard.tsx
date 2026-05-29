@@ -36,7 +36,7 @@ export function DeepInsightCard({
     <article className="border-l-2 border-accent pl-6 py-6 space-y-5 border-b border-rule">
       <header className="max-w-column space-y-3">
         <Kicker tone="accent">
-          <span className="leading-[1.1]">Deep Insight</span>
+          <span className="leading-[1.1]">深度洞見</span>
           {item.category && (
             <>
               <span aria-hidden className="mx-2 text-ink-faint">
@@ -113,7 +113,7 @@ export function DeepInsightCard({
             rel="noreferrer"
             className="inline-flex items-center font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-accent underline-offset-4 hover:underline"
           >
-            Read original
+            阅读原文
           </a>
         )}
         <span

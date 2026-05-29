@@ -5,9 +5,12 @@ Next.js 15 web reader for the `tech-pulse` digest. Reads
 [`../docs/PORTAL_CONTRACT.md`](../docs/PORTAL_CONTRACT.md) for the schema) and
 renders three views:
 
+Design tokens and UI rules: [`DESIGN.md`](./DESIGN.md).
+
 - `/` — latest digest, with 🧠 deep insights de-duped from the instant theme
   sections (mirrors the v1 Telegram formatter after PR1).
 - `/archive` — last 14 days grouped by delivery day.
+- `/health` — ops summary of delivered content counts and score distribution.
 - `/item/[id]` — single-doc detail (full deep brief or expanded instant card).
 - `/invest` — investment hub (portfolio, signals, earnings, macro, calibration summaries).
 - `/earnings` — earnings radar list (`tech_pulse_earnings_reports`).

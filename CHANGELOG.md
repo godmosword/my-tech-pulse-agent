@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Dashboard 營運摘要 `/health`**：`summarizeHealth()` + vitest；指標卡（最近上線、24h/7d、類型／品質分佈）+ 近期列表連 `/item/[id]`；Nav「營運摘要」；規格 [`docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md`](docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md)。
+- **Dashboard 設計文件**：[`dashboard/DESIGN.md`](dashboard/DESIGN.md)（editorial vs dense token、InstantCard variants、禁止項）。
 - **Dashboard UX 五項修復**：`AgentCommentary`（文章頁 wh/why + 空狀態）；`BackLink` + dense 子頁／archive／invest／earnings 返回路徑；editorial 響應式 typography token（`text-editorial-*`）；`PortfolioEditorPrototype`（local 編輯 + 匯出 YAML）；`/earnings/[ticker]` `EarningsInsightPanel`（`loadEarningsInsight`）；Invest「與我持倉相關的新聞」區塊。
 - **News takeaway（additive）**：`NewsTakeawayAgent` + `NEWS_TAKEAWAY_MODE`；pipeline 寫入 Firestore `takeaway`；Dashboard `NewsTakeawayBlock` + `tagItemPortfolioRelevance`；`tests/test_news_takeaway.py`、`portfolio-relevance.test.ts`。
 - **Finnhub production 啟用指南**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md)、[`scripts/setup_finnhub_production.sh`](scripts/setup_finnhub_production.sh)（Cloud Run env 需 maintainer 批准後執行）。
@@ -25,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Changed
+- **Dashboard UI/UX 設計審查（Slice A–E）**：`InstantCard` 新增 `list` variant（Today 主題區／持倉新聞列表密度）；`ConfidenceBadge` 僅 warn/bad 顯示；移除 ticker emoji；繁中 kicker/CTA（深度洞見、主題、阅读原文）；Today/Invest/HoldingNews 空狀態人性化；`MobileMasthead` 兩行結構 + a11y 小修。
 - **Dashboard 今日主題區**：`ThemeSection` 改以 `InstantCard` 渲染（傳入 `authenticated`）；`InstantCard` footer 接回 `ConfidenceBadge`；保留 `NewsTakeawayBlock`。
 - **Portfolio dense UX**：Stat 數字防溢出；「配置漂移」改「目標配置偏差」表格 + 主題中文標籤。
 - **`scripts/backfill_earnings.py`**：存檔前附加 `investment_signal`（與 production earnings pipeline 一致）。

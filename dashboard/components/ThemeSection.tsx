@@ -20,7 +20,7 @@ export function ThemeSection({ theme, items, authenticated }: Props) {
   return (
     <section className="pt-10">
       <header className="mb-2 space-y-2">
-        <Kicker>Section</Kicker>
+        <Kicker>主題</Kicker>
         <h2 className="font-serif text-editorial-headline text-ink">
           {theme}
         </h2>
@@ -38,6 +38,7 @@ export function ThemeSection({ theme, items, authenticated }: Props) {
                 item={item}
                 authenticated={authenticated}
                 returnToPath={returnToPath}
+                variant="list"
               />
               {item.takeaway && (
                 <div className="pb-4">

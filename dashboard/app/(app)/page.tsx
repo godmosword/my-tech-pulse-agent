@@ -88,7 +88,7 @@ export default async function HomePage() {
 
       {view.deepInsights.length > 0 && (
         <section className="pt-2">
-          <Kicker tone="accent">Deep Insights</Kicker>
+          <Kicker tone="accent">深度洞見</Kicker>
           <Hairline className="mt-3" />
           <div className="divide-y divide-rule">
             {view.deepInsights.map((item) => (
@@ -129,10 +129,13 @@ function startOfTodayTaipeiUtc(): Date {
 function EmptyState() {
   return (
     <div className="border-y border-rule py-16 text-center">
-      <p className="font-serif text-[22px] text-ink">尚無資料</p>
-      <p className="mt-3 font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
-        Firestore tech_pulse_memory_items is empty —
-        confirm the pipeline has archived recent items.
+      <p className="font-serif text-[22px] text-ink">今日尚無上線內容</p>
+      <p className="mt-3 font-sans text-body text-ink-soft">
+        每日 pipeline 完成後，新稿會自動出現在此。您也可以先瀏覽{" "}
+        <Link href="/archive" className="text-accent underline-offset-4 hover:underline">
+          歸檔
+        </Link>
+        查看近期內容。
       </p>
     </div>
   );

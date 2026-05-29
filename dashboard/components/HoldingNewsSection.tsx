@@ -1,14 +1,16 @@
-import Link from "next/link";
-
+import { InstantCard } from "@/components/InstantCard";
 import { NewsTakeawayBlock } from "@/components/NewsTakeawayBlock";
+import { isPublicReadMode } from "@/lib/env-public-read";
 import { listLatestItems } from "@/lib/firestore";
 import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
-import { displayTitle } from "@/lib/types";
+import { getReaderSession } from "@/lib/session";
 
 const HOLDING_NEWS_LIMIT = 8;
 const LOOKBACK_DAYS = 14;
 
 export async function HoldingNewsSection() {
+  const authenticated =
+    !isPublicReadMode() || (await getReaderSession()) !== null;
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const items = await listLatestItems({ limit: 120, since });
 
@@ -23,8 +25,7 @@ export async function HoldingNewsSection() {
   if (holdingNews.length === 0) {
     return (
       <p className="font-sans text-body text-ink-soft">
-        近期尚無與持倉相關的投資短評（需 pipeline 開啟{" "}
-        <code className="text-meta">NEWS_TAKEAWAY_MODE=on</code> 且新聞含 takeaway）。
+        近兩週尚無與您持倉相關的投資短評。新內容會在每日 pipeline 完成後自動出現。
       </p>
     );
   }
@@ -32,20 +33,21 @@ export async function HoldingNewsSection() {
   return (
     <ul className="divide-y divide-rule">
       {holdingNews.map((item) => {
+        const returnToPath = `/item/${encodeURIComponent(item.id)}`;
         const relevance = tagItemPortfolioRelevance(item.takeaway?.tickers);
         return (
-          <li key={item.id} className="py-3 first:pt-0">
-            <Link
-              href={`/item/${encodeURIComponent(item.id)}`}
-              className="block space-y-1 hover:[&_h3]:underline"
-            >
-              <h3 className="font-serif text-editorial-body font-medium text-ink">
-                {displayTitle(item)}
-              </h3>
-              {item.takeaway && (
+          <li key={item.id}>
+            <InstantCard
+              item={item}
+              authenticated={authenticated}
+              returnToPath={returnToPath}
+              variant="list"
+            />
+            {item.takeaway && (
+              <div className="pb-3">
                 <NewsTakeawayBlock takeaway={item.takeaway} relevance={relevance} />
-              )}
-            </Link>
+              </div>
+            )}
           </li>
         );
       })}
