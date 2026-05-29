@@ -127,18 +127,17 @@ def generate_json(
         "response_mime_type": "application/json",
         "response_schema": response_schema,
     }
-    # Thinking + JSON can steal output budget on Flash; disable by default for flash models.
+    # Thinking steals JSON output budget on Flash; disable explicitly (omit ≠ off on Gemini 3).
     _no_thinking = (
         os.getenv("GEMINI_DISABLE_THINKING_FOR_FLASH", "1") == "1" and "flash" in model.lower()
     )
-    if (
-        not _no_thinking
-        and hasattr(types, "ThinkingConfig")
-        and hasattr(types, "ThinkingLevel")
-    ):
-        config_kwargs["thinking_config"] = types.ThinkingConfig(
-            thinking_level=types.ThinkingLevel.LOW
-        )
+    if hasattr(types, "ThinkingConfig"):
+        if _no_thinking:
+            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+        elif hasattr(types, "ThinkingLevel"):
+            config_kwargs["thinking_config"] = types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.LOW
+            )
 
     last_exc: Exception | None = None
     for attempt, delay in enumerate([0.0] + _RETRY_DELAYS):

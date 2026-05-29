@@ -9,7 +9,12 @@ from typing import TYPE_CHECKING
 
 from agents.news_takeaway_models import NewsTakeaway, TakeawayLLMOutput
 from agents.relationship_extractor import resolve_counterparty_ticker
-from llm.gemini_client import GEMINI_FLASH_MODEL, generate_json, make_client
+from llm.gemini_client import (
+    GEMINI_FLASH_MODEL,
+    GeminiJsonParseError,
+    generate_json,
+    make_client,
+)
 
 if TYPE_CHECKING:
     from agents.extractor_agent import ArticleSummary
@@ -26,7 +31,7 @@ RULES:
 - Base ONLY on the article content. Do NOT invent causation or predict stock prices.
 - Do NOT restate the headline. Add the investment angle the headline doesn't say.
 - No phrases like "這篇文章" or "報導指出". Start with the substance.
-- Identify which companies are materially involved (for ticker tagging).
+- Identify which companies are materially involved (for ticker tagging; at most 3 names).
 - Output JSON: {takeaway_zh, angle, involved_companies, confidence}.
 - angle must be one of: 供應鏈, 競爭格局, 需求訊號, 政策監管, 技術突破, 資本動向, 其他.
 """
@@ -74,6 +79,40 @@ def _resolve_tickers(companies: list[str], aliases: dict[str, str | None]) -> li
     return out
 
 
+def _takeaway_max_tokens() -> int:
+    return max(256, int(os.getenv("NEWS_TAKEAWAY_MAX_OUTPUT_TOKENS", "1024")))
+
+
+def _generate_takeaway_data(client, *, model: str, prompt: str) -> dict:
+    """Call Gemini with parse retries and a higher token budget on failure."""
+    base_tokens = _takeaway_max_tokens()
+    last_exc: Exception | None = None
+    for attempt, token_mult in enumerate((1, 2)):
+        max_tokens = base_tokens * token_mult
+        try:
+            data, _raw = generate_json(
+                client,
+                model=model,
+                system_instruction=SYSTEM,
+                prompt=prompt,
+                max_output_tokens=max_tokens,
+                response_schema=TakeawayLLMOutput,
+                log_parse_errors=attempt == 1,
+            )
+            return data
+        except GeminiJsonParseError as exc:
+            last_exc = exc
+            if attempt == 0:
+                logger.info(
+                    "News takeaway JSON parse retry (model=%s, max_tokens=%d)",
+                    model,
+                    max_tokens * 2,
+                )
+                continue
+            raise
+    raise last_exc  # type: ignore[misc]
+
+
 class NewsTakeawayAgent:
     def __init__(self) -> None:
         self._client = None
@@ -102,27 +141,16 @@ class NewsTakeawayAgent:
                 f"Article content:\n{body}"
             )
             model = os.getenv("NEWS_TAKEAWAY_MODEL", GEMINI_FLASH_MODEL)
-            max_tokens = int(os.getenv("NEWS_TAKEAWAY_MAX_OUTPUT_TOKENS", "512"))
 
-            data, _raw = generate_json(
-                self.client,
-                model=model,
-                system_instruction=SYSTEM,
-                prompt=prompt,
-                max_output_tokens=max_tokens,
-                response_schema=TakeawayLLMOutput,
-            )
+            data = _generate_takeaway_data(self.client, model=model, prompt=prompt)
             parsed = TakeawayLLMOutput.model_validate(data)
             takeaway_zh = (parsed.takeaway_zh or "").strip()
 
             if _zh_char_len(takeaway_zh) > MAX_TAKEAWAY_CHARS:
-                data2, _ = generate_json(
+                data2 = _generate_takeaway_data(
                     self.client,
                     model=model,
-                    system_instruction=SYSTEM,
                     prompt=prompt + _RETRY_PROMPT_SUFFIX,
-                    max_output_tokens=max_tokens,
-                    response_schema=TakeawayLLMOutput,
                 )
                 parsed = TakeawayLLMOutput.model_validate(data2)
                 takeaway_zh = (parsed.takeaway_zh or "").strip()

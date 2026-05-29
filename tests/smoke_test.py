@@ -143,6 +143,31 @@ def test_deep_scraper_requires_apify_key(monkeypatch):
     assert result.status == "missing_apify_key"
 
 
+def test_deep_scraper_actor_path_uses_tilde():
+    from sources.deep_scraper import DeepScraper, _api_actor_path
+
+    assert _api_actor_path("apify/website-content-crawler") == "apify~website-content-crawler"
+
+    with patch("httpx.Client") as client_cls:
+        client = client_cls.return_value.__enter__.return_value
+        post_response = MagicMock()
+        post_response.json.return_value = {"data": {"id": "run-1"}}
+        post_response.raise_for_status.return_value = None
+        status_response = MagicMock()
+        status_response.json.return_value = {"data": {"status": "SUCCEEDED"}}
+        status_response.raise_for_status.return_value = None
+        dataset_response = MagicMock()
+        dataset_response.json.return_value = [{"text": "word " * 20}]
+        dataset_response.raise_for_status.return_value = None
+        client.post.return_value = post_response
+        client.get.side_effect = [status_response, dataset_response]
+
+        DeepScraper(min_words=10, apify_key="key").fetch("https://example.com/post")
+
+    post_url = client.post.call_args.args[0]
+    assert "/acts/apify~website-content-crawler/runs" in post_url
+
+
 def test_deep_scraper_fetches_text_from_apify_dataset():
     run_response = MagicMock()
     run_response.json.return_value = {"data": {"id": "run-1"}}

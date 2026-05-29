@@ -53,6 +53,36 @@ def test_generate_takeaway_normal(mock_gen_json, _mock_client):
 
 @patch("agents.news_takeaway_agent.make_client")
 @patch("agents.news_takeaway_agent.generate_json")
+def test_generate_takeaway_json_parse_retries(mock_gen_json, _mock_client):
+    import json as json_mod
+
+    from llm.gemini_client import GeminiJsonParseError
+
+    mock_gen_json.side_effect = [
+        GeminiJsonParseError(
+            json_mod.JSONDecodeError("trunc", '{"takeaway_zh":', 0),
+            '{"takeaway_zh":"',
+        ),
+        (
+            {
+                "takeaway_zh": "Blackwell 強化 AI 加速器護城河",
+                "angle": "技術突破",
+                "involved_companies": ["Nvidia"],
+                "confidence": "high",
+            },
+            "{}",
+        ),
+    ]
+    agent = NewsTakeawayAgent()
+    agent._client = MagicMock()
+    out = agent.generate_takeaway(_summary(), aliases={"nvidia": "NVDA"})
+
+    assert out.takeaway_zh
+    assert mock_gen_json.call_count == 2
+
+
+@patch("agents.news_takeaway_agent.make_client")
+@patch("agents.news_takeaway_agent.generate_json")
 def test_unknown_company_skipped(mock_gen_json, _mock_client):
     mock_gen_json.return_value = (
         {

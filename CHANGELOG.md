@@ -30,6 +30,8 @@ All notable changes to this project will be documented in this file.
 - **`.env.example`**：`NEWS_TAKEAWAY_MODE` / `NEWS_TAKEAWAY_*`；`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
 
 ### Fixed
+- **News takeaway production**：Gemini Flash 明確 `thinking_budget=0`，避免 JSON 被 thinking 截斷；解析失敗重試 + 預設 `NEWS_TAKEAWAY_MAX_OUTPUT_TOKENS=1024`。
+- **Apify deep scrape**：REST actor 路徑 `owner/name` → `owner~name`；`APIFY_API_KEY` `.strip()` 避免 Secret 尾端換行 401。
 - **Phase 1 trend pipeline**：Phase 3 merge 遺失 `build_report_from_filing` 內 `build_earnings_trend` 掛載；已恢復（與 `fc10e03` 一致）。
 
 ### Docs

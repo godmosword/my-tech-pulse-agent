@@ -24,6 +24,11 @@ ACTOR_POLL_INTERVAL = 3
 ACTOR_TIMEOUT = 120
 
 
+def _api_actor_path(actor_id: str) -> str:
+    """Apify REST paths use owner~name, not owner/name."""
+    return actor_id.strip().replace("/", "~")
+
+
 @dataclass(frozen=True)
 class DeepScrapeResult:
     url: str
@@ -53,7 +58,7 @@ class DeepScraper:
         self.min_words = min_words
         self.timeout_seconds = timeout_seconds
         self.actor_id = actor_id or os.getenv("APIFY_ARTICLE_ACTOR", DEFAULT_ARTICLE_ACTOR)
-        self._apify_key = apify_key if apify_key is not None else os.getenv("APIFY_API_KEY", "")
+        self._apify_key = (apify_key if apify_key is not None else os.getenv("APIFY_API_KEY", "")).strip()
 
     def fetch(self, url: str, min_words: int | None = None) -> DeepScrapeResult:
         min_words = min_words if min_words is not None else self.min_words
@@ -94,8 +99,9 @@ class DeepScraper:
         return DeepScrapeResult(url=url, text=text, word_count=words, status=status)
 
     def _start_actor_run(self, client: httpx.Client, url: str) -> Optional[str]:
+        actor_path = _api_actor_path(self.actor_id)
         response = client.post(
-            f"{APIFY_BASE_URL}/acts/{self.actor_id}/runs",
+            f"{APIFY_BASE_URL}/acts/{actor_path}/runs",
             params={"token": self._apify_key},
             json=self._actor_payload(url),
         )

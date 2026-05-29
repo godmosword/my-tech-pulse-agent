@@ -33,7 +33,7 @@ class SocialTracker:
     """
 
     def __init__(self):
-        self._apify_key = os.getenv("APIFY_API_KEY", "")
+        self._apify_key = os.getenv("APIFY_API_KEY", "").strip()
 
     def fetch_trending(self, limit: int = 20) -> list[TrendingTopic]:
         topics: list[TrendingTopic] = []
