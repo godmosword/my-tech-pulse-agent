@@ -1,11 +1,9 @@
-import Link from "next/link";
-
-import { displayTitle, listingZhSubline, type RenderableItem } from "@/lib/types";
 import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
-import { bestTimestamp, formatRelativeDateline } from "@/lib/digest";
+import type { RenderableItem } from "@/lib/types";
 
 import { Hairline } from "./Hairline";
-import { Kicker, MetaDot } from "./Kicker";
+import { InstantCard } from "./InstantCard";
+import { Kicker } from "./Kicker";
 import { NewsTakeawayBlock } from "./NewsTakeawayBlock";
 
 interface Props {
@@ -15,12 +13,10 @@ interface Props {
 }
 
 /**
- * Editorial section: kicker + serif h2, then a bilingual title list.
- * Each row shows source/date kicker, a Chinese headline, and (when present)
- * the remainder of zh_summary underneath. Tapping the
- * headline goes to the item detail page for the full read.
+ * Editorial section: kicker + serif h2, then theme-grouped InstantCard entries.
+ * News takeaway blocks sit below each card when present.
  */
-export function ThemeSection({ theme, items }: Props) {
+export function ThemeSection({ theme, items, authenticated }: Props) {
   return (
     <section className="pt-10">
       <header className="mb-2 space-y-2">
@@ -32,40 +28,26 @@ export function ThemeSection({ theme, items }: Props) {
       <Hairline />
       <ul className="divide-y divide-rule">
         {items.map((item) => {
-          const subline = listingZhSubline(item);
+          const returnToPath = `/item/${encodeURIComponent(item.id)}`;
           const relevance = item.takeaway
             ? tagItemPortfolioRelevance(item.takeaway.tickers)
             : tagItemPortfolioRelevance(item.tickers);
           return (
-          <li key={item.id} className="py-4">
-            <Link
-              href={`/item/${encodeURIComponent(item.id)}`}
-              className="block space-y-2 hover:[&_h3]:underline"
-            >
-              <Kicker as="div" className="flex flex-wrap items-center">
-                {item.source_name && <span>{item.source_name}</span>}
-                {formatRelativeDateline(bestTimestamp(item)) && (
-                  <>
-                    {item.source_name && <MetaDot />}
-                    <span className="tabular-nums">
-                      {formatRelativeDateline(bestTimestamp(item))}
-                    </span>
-                  </>
-                )}
-              </Kicker>
-              <h3 className="font-serif text-editorial-headline text-ink">
-                {displayTitle(item)}
-              </h3>
-              {subline && (
-                <p className="font-sans text-editorial-body leading-snug text-ink-soft">
-                  {subline}
-                </p>
-              )}
+            <li key={item.id}>
+              <InstantCard
+                item={item}
+                authenticated={authenticated}
+                returnToPath={returnToPath}
+              />
               {item.takeaway && (
-                <NewsTakeawayBlock takeaway={item.takeaway} relevance={relevance} />
+                <div className="pb-4">
+                  <NewsTakeawayBlock
+                    takeaway={item.takeaway}
+                    relevance={relevance}
+                  />
+                </div>
               )}
-            </Link>
-          </li>
+            </li>
           );
         })}
       </ul>

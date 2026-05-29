@@ -16,6 +16,7 @@ import {
   priorityLevel,
   type RenderableItem,
 } from "@/lib/types";
+import { ConfidenceBadge } from "./ConfidenceBadge";
 import { Kicker, MetaDot } from "./Kicker";
 
 interface InstantCardProps {
@@ -138,6 +139,7 @@ function CardFooter({
             <span className="text-ink">{PRIORITY_LABEL[level]}</span>
           </span>
         )}
+        <ConfidenceBadge item={item} />
         {tickers.length > 0 && (
           <span
             aria-label="Related tickers"

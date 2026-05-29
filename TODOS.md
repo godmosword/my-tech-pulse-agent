@@ -120,6 +120,7 @@
 - [x] **Invest 中樞 + PWA + 麵包屑**：Nav 7→3（Today / Archive / Invest）；`/invest` 摘要；`manifest.ts` + icon；`Breadcrumb` 掛 dense／詳情頁
 - [x] **Dashboard UX 五項**：Agent 評論（item 頁）、BackLink 全路由、editorial typography、持倉編輯原型、earnings insight panel
 - [x] **News takeaway**：`NewsTakeawayAgent` + `NEWS_TAKEAWAY_MODE`；InstantCard／Invest 持倉相關新聞；`tests/test_news_takeaway.py`；production Flash JSON 截斷修復（2026-05-29）
+- [x] **Refactor-clean（SAFE）**：`crew.py` 移除未用 `IRScraper`／`_archive_delivered_earnings`；`ThemeSection` 接回 `InstantCard` + `ConfidenceBadge`（2026-05-29）
 - [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
 
 ## 進行中 / 下一步

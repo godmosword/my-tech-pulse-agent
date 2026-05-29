@@ -25,11 +25,13 @@ All notable changes to this project will be documented in this file.
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Changed
+- **Dashboard 今日主題區**：`ThemeSection` 改以 `InstantCard` 渲染（傳入 `authenticated`）；`InstantCard` footer 接回 `ConfidenceBadge`；保留 `NewsTakeawayBlock`。
 - **Portfolio dense UX**：Stat 數字防溢出；「配置漂移」改「目標配置偏差」表格 + 主題中文標籤。
 - **`scripts/backfill_earnings.py`**：存檔前附加 `investment_signal`（與 production earnings pipeline 一致）。
 - **`.env.example`**：`NEWS_TAKEAWAY_MODE` / `NEWS_TAKEAWAY_*`；`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
 
 ### Fixed
+- **Pipeline dead code**：移除 `crew.py` 未使用的 `IRScraper` 與 `_archive_delivered_earnings`。
 - **News takeaway production**：Gemini Flash 明確 `thinking_budget=0`，避免 JSON 被 thinking 截斷；解析失敗重試 + 預設 `NEWS_TAKEAWAY_MAX_OUTPUT_TOKENS=1024`。
 - **Apify deep scrape**：REST actor 路徑 `owner/name` → `owner~name`；`APIFY_API_KEY` `.strip()` 避免 Secret 尾端換行 401。
 - **Phase 1 trend pipeline**：Phase 3 merge 遺失 `build_report_from_filing` 內 `build_earnings_trend` 掛載；已恢復（與 `fc10e03` 一致）。

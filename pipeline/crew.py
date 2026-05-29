@@ -46,7 +46,6 @@ from sources.ticker_cik_map import TickerCikMap
 from sources.watchlist import EarningsWatchlist
 from sources.deep_scraper import DeepScraper
 from sources.earnings_fetcher import EarningsFetcher
-from sources.ir_scraper import IRScraper
 from sources.rss_fetcher import Article, clean_feed_text
 from sources.newsapi_fetcher import NewsApiFetcher
 from sources.rss_fetcher import RSSFetcher
@@ -119,7 +118,6 @@ class TechPulseCrew:
             cik_map=self._ticker_cik_map,
         )
         self._last_earnings_stats = None
-        self.ir_scraper = IRScraper()
         self.deduplicator = Deduplicator()
         self.scorer = Scorer()
         self.deep_scraper = DeepScraper(min_words=MIN_DEEP_WORDS)
@@ -1009,12 +1007,6 @@ class TechPulseCrew:
             self.memory.archive_deep_brief(brief)
         except Exception as exc:
             logger.warning("Memory archive skipped for delivered deep brief: %s", exc)
-
-    def _archive_delivered_earnings(self, earnings: EarningsOutput) -> None:
-        try:
-            self.memory.archive_earnings(earnings)
-        except Exception as exc:
-            logger.warning("Memory archive skipped for delivered earnings: %s", exc)
 
     def _handle_deadline(self, signum, frame):
         raise PipelineDeadlineExceeded(
