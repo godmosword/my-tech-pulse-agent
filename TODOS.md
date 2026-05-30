@@ -123,11 +123,17 @@
 - [x] **Refactor-clean（SAFE）**：`crew.py` 移除未用 `IRScraper`／`_archive_delivered_earnings`；`ThemeSection` 接回 `InstantCard` + `ConfidenceBadge`（2026-05-29）
 - [x] **Dashboard UI/UX 設計審查（Slice A–E）**：InstantCard `list` variant、空狀態、`DESIGN.md`、`/health` 營運摘要、Mobile nav/a11y（2026-05-29）
 - [x] **Dashboard 今日 digest 多輪合併**：合併當日 digest snapshots + 未入 snapshot 的 delivery 文章（2026-05-29）
+- [x] **死碼清理（階段 2）**：`ir_scraper`、dashboard 未用 export；補 `server-only`（2026-05-29）
+- [x] **Digest 重構（階段 3）**：共用 helper 收斂至 `digest.ts`（2026-05-29）
+- [x] **Today fallback 修正（階段 4）**：`loadTodayDigestData()`、stale 提示、Firestore 降級（2026-05-29）
+- [x] **CI dashboard job**：typecheck + vitest + production build（2026-05-29）
 - [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
 
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）
+- [ ] **Dashboard ESLint 設定檔**：`npm run lint` 需非互動式 ESLint config（目前 CI 以 `npm run build` 內建 lint 代替）
+- [ ] **EarningsAgent 類別**：`agents/earnings_agent.py` 僅 smoke test 引用 — 刪除或保留待決
 - [x] **Slice 1 Portal News API**：`/api/v1/news/*` + [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md)
 - [x] **Slice 2 Earnings API**：`/api/v1/earnings/upcoming`、`/{symbol}/insight`、`/watchlist`；watchlist 併 Q-Silicon mega-cap
 - [ ] **主 repo 瘦身**：依 [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md) §主 repo 作業清單

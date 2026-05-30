@@ -34,7 +34,7 @@ export function createReaderSessionToken(username: string): string | null {
   return `${payload}.${sig}`;
 }
 
-export function verifyReaderSessionToken(token: string): string | null {
+function verifyReaderSessionToken(token: string): string | null {
   const secret = sessionSecret();
   if (!secret) return null;
   const i = token.lastIndexOf(".");

@@ -31,7 +31,12 @@ export function getApp(): App {
     const decoded = raw.trim().startsWith("{")
       ? raw
       : Buffer.from(raw, "base64").toString("utf-8");
-    const credentials = JSON.parse(decoded);
+    let credentials: Record<string, unknown>;
+    try {
+      credentials = JSON.parse(decoded) as Record<string, unknown>;
+    } catch {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON");
+    }
     cachedApp = initializeApp({ credential: cert(credentials) });
   } else {
     // Falls back to Application Default Credentials — works locally with
@@ -113,25 +118,6 @@ export async function getItemById(
 
 export function collectionName(): string {
   return COLLECTION;
-}
-
-export function digestCollectionName(): string {
-  return DIGEST_COLLECTION;
-}
-
-/** Latest pipeline digest snapshot (`tech_pulse_digests`), if any. */
-export async function getLatestDigestSnapshot(): Promise<Record<
-  string,
-  unknown
-> | null> {
-  const snap = await db()
-    .collection(DIGEST_COLLECTION)
-    .orderBy("delivered_at", "desc")
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0]!;
-  return { ...(doc.data() as Record<string, unknown>), digest_id: doc.id };
 }
 
 /** All digest snapshots since a boundary (ascending — oldest run first). */

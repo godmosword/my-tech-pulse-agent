@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listDigestSnapshotsSince, listLatestItems } from "@/lib/firestore";
-import { parseDigestSnapshot, resolveDigestView } from "@/lib/digest-snapshot";
+import { resolveDigestView } from "@/lib/digest-snapshot";
 import { isPublicReadMode } from "@/lib/env-public-read";
 import { getReaderSession } from "@/lib/session";
+import {
+  latestDeliveredIso,
+  loadTodayDigestData,
+} from "@/lib/today-digest";
 import { AttentionTriage } from "@/components/AttentionTriage";
 import { DigestHeader } from "@/components/DigestHeader";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
@@ -29,28 +32,41 @@ export default async function HomePage() {
   const authenticated =
     !isPublicReadMode() || (await getReaderSession()) !== null;
 
-  // 1) Try "today" in Asia/Taipei first so the homepage reflects the latest
-  //    Telegram dispatch. 2) Fall back to the most recent batch when today
-  //    is empty (e.g. early morning before the pipeline runs) so the page
-  //    is never blank.
-  const todayStart = startOfTodayTaipeiUtc();
-  let items = await listLatestItems({ limit: 80, since: todayStart });
-  if (items.length === 0) {
-    items = await listLatestItems({ limit: 80 });
-  }
-  const todayEarnings = await listEarningsSince(todayStart, { limit: 6 });
-  const snapshotRows = await listDigestSnapshotsSince(todayStart);
-  const snapshots = snapshotRows.map(parseDigestSnapshot);
+  const { items, snapshots, usingStaleFallback, todayStart } =
+    await loadTodayDigestData();
+  const todayEarnings = await listEarningsSince(todayStart, { limit: 6 }).catch(
+    () => [],
+  );
   const view = resolveDigestView(items, snapshots);
-
-  const latestDelivered = items
-    .map((i) => i.delivered_at_iso)
-    .filter((iso): iso is string => Boolean(iso))
-    .sort()
-    .reverse()[0] ?? null;
+  const latestDelivered = latestDeliveredIso(items);
 
   if (!items.length) {
     return <EmptyState />;
+  }
+
+  if (view.totalShown === 0) {
+    return (
+      <div>
+        <DigestHeader
+          latestDeliveredIso={latestDelivered}
+          totalShown={0}
+          usingStaleFallback={usingStaleFallback}
+        />
+        <div className="border-y border-rule py-12 text-center">
+          <p className="font-serif text-[22px] text-ink">尚無可顯示的精選內容</p>
+          <p className="mt-3 font-sans text-body text-ink-soft">
+            已 delivery 的項目可能分數過低或未通過品質閾值。可先瀏覽{" "}
+            <Link
+              href="/archive"
+              className="text-accent underline-offset-4 hover:underline"
+            >
+              歸檔
+            </Link>
+            。
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -58,6 +74,7 @@ export default async function HomePage() {
       <DigestHeader
         latestDeliveredIso={latestDelivered}
         totalShown={view.totalShown}
+        usingStaleFallback={usingStaleFallback}
       />
 
       <AttentionTriage />
@@ -113,17 +130,6 @@ export default async function HomePage() {
       ))}
     </div>
   );
-}
-
-/** Returns the UTC instant that corresponds to 00:00 today in Asia/Taipei. */
-function startOfTodayTaipeiUtc(): Date {
-  // Asia/Taipei is a fixed UTC+8 offset (no DST), so we can derive the wall
-  // date with toLocaleDateString and rebuild the boundary in UTC directly.
-  const todayTpe = new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Taipei",
-  }); // "YYYY-MM-DD"
-  // 00:00 Asia/Taipei == 16:00 UTC the previous day.
-  return new Date(`${todayTpe}T00:00:00+08:00`);
 }
 
 function EmptyState() {

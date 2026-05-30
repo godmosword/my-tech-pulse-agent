@@ -18,7 +18,7 @@ function readBearerToken(request: NextRequest): string {
   return (match?.[1] ?? "").trim();
 }
 
-function tokensEqual(a: string, b: string): boolean {
+export function tokensEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a, "utf8");
   const bb = Buffer.from(b, "utf8");
   if (ab.length !== bb.length) return false;

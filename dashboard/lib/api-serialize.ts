@@ -2,7 +2,7 @@ import type { RenderableItem } from "./types";
 import { displayTitle } from "./types";
 import { englishExcerpt, publicSummaryLine } from "./public-excerpt";
 import type { ApiAccess } from "./api-auth";
-import { buildDigest, type DigestView } from "./digest";
+import type { DigestView } from "./digest";
 
 export interface ApiItem {
   id: string;

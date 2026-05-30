@@ -10,6 +10,7 @@ import { Kicker } from "./Kicker";
 
 interface Props {
   items: RenderableItem[];
+  usingStaleFallback?: boolean;
 }
 
 const CATEGORY_DOT: Record<string, string> = {
@@ -27,13 +28,14 @@ const EMPTY_FILTER = { category: null, month: null, ticker: null };
 /** Right-rail dashboard for the homepage. Aggregates today's items into two
  *  glanceable groups: category counts and top mentioned tickers.
  *  Category rows link to /archive with the corresponding filter. */
-export function TodayRail({ items }: Props) {
+export function TodayRail({ items, usingStaleFallback = false }: Props) {
   const categoryRows = aggregateCategories(items);
   const tickerRows = aggregateTickers(items);
+  const prefix = usingStaleFallback ? "最新" : "今日";
 
   return (
     <aside className="space-y-8 font-sans text-meta">
-      <Section kicker="今日分類">
+      <Section kicker={`${prefix}分類`}>
         {categoryRows.length === 0 ? (
           <EmptyLine label="尚無分類資料" />
         ) : (
@@ -63,9 +65,9 @@ export function TodayRail({ items }: Props) {
         )}
       </Section>
 
-      <Section kicker="今日熱門代號">
+      <Section kicker={`${prefix}熱門代號`}>
         {tickerRows.length === 0 ? (
-          <EmptyLine label="今日未提及任何上市代號" />
+          <EmptyLine label={`${prefix}未提及任何上市代號`} />
         ) : (
           <ul className="flex flex-wrap gap-2">
             {tickerRows.map((row) => (

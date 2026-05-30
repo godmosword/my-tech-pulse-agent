@@ -27,6 +27,8 @@ All notable changes to this project will be documented in this file.
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Changed
+- **Digest 共用邏輯 Consolidation（階段 3）**：deep dedupe、orphan 分組等 helper 收斂至 `digest.ts`；`digest-snapshot.ts` 精簡為 snapshot 合併 + 組裝。
+- **死碼清理（階段 2）**：移除 `sources/ir_scraper.py`、dashboard 未用 digest/earnings 函式與 re-export；補列 `server-only` 依賴。
 - **Dashboard 今日 digest 多輪合併**：首頁與 `GET /api/v1/digest/today` 合併當日所有 `tech_pulse_digests` snapshot，並納入未進 snapshot 的已 delivery 文章（不再只顯示最新一輪精選）。
 - **Dashboard UI/UX 設計審查（Slice A–E）**：`InstantCard` 新增 `list` variant（Today 主題區／持倉新聞列表密度）；`ConfidenceBadge` 僅 warn/bad 顯示；移除 ticker emoji；繁中 kicker/CTA（深度洞見、主題、阅读原文）；Today/Invest/HoldingNews 空狀態人性化；`MobileMasthead` 兩行結構 + a11y 小修。
 - **Dashboard 今日主題區**：`ThemeSection` 改以 `InstantCard` 渲染（傳入 `authenticated`）；`InstantCard` footer 接回 `ConfidenceBadge`；保留 `NewsTakeawayBlock`。
@@ -35,6 +37,8 @@ All notable changes to this project will be documented in this file.
 - **`.env.example`**：`NEWS_TAKEAWAY_MODE` / `NEWS_TAKEAWAY_*`；`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
 
 ### Fixed
+- **Dashboard Today fallback（階段 4）**：共用 `loadTodayDigestData()`；stale 時跳過今日 snapshot、顯示「Latest Pulse」與繁中提示；Firestore 失敗降級；首頁 `totalShown === 0` 邊界；`/api/revalidate` timing-safe token；`FIREBASE_SERVICE_ACCOUNT_JSON` 無效 JSON 明確錯誤；今日 items/snapshot 上限 100/48。
+- **CI**：新增 `dashboard` job（typecheck、vitest、production build）。
 - **Pipeline dead code**：移除 `crew.py` 未使用的 `IRScraper` 與 `_archive_delivered_earnings`。
 - **News takeaway production**：Gemini Flash 明確 `thinking_budget=0`，避免 JSON 被 thinking 截斷；解析失敗重試 + 預設 `NEWS_TAKEAWAY_MAX_OUTPUT_TOKENS=1024`。
 - **Apify deep scrape**：REST actor 路徑 `owner/name` → `owner~name`；`APIFY_API_KEY` `.strip()` 避免 Secret 尾端換行 401。

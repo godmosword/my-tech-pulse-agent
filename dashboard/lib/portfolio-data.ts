@@ -39,10 +39,6 @@ export function loadPortfolio(): {
   };
 }
 
-export function portfolioTickers(): string[] {
-  return loadPortfolio().positions.map((p) => p.ticker);
-}
-
 export function holdingsTickerSet(): Set<string> {
-  return new Set(portfolioTickers());
+  return new Set(loadPortfolio().positions.map((p) => p.ticker));
 }

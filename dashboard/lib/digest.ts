@@ -78,20 +78,6 @@ const CATEGORY_FALLBACK: Record<string, string> = {
   research: "技術研發",
 };
 
-export const THEME_EMOJI: Record<string, string> = {
-  "AI 基礎設施": "🧠",
-  技術研發: "🔬",
-  財報焦點: "💰",
-  "雲端與企業軟體": "☁️",
-  消費電子: "📱",
-  "電動車供應鏈": "⚡",
-  "資本與投資": "💵",
-  "產品與策略": "🚀",
-  "政策與監管": "⚖️",
-  "併購與整併": "🤝",
-  其他焦點: "📡",
-};
-
 function containsKeyword(corpus: string, keyword: string): boolean {
   const k = keyword.toLowerCase();
   const hasCJK = /[一-鿿]/.test(k);
@@ -125,92 +111,77 @@ export interface DigestView {
   averageScore: number;
 }
 
-export interface BuildOptions {
-  maxThemes?: number;
-  maxPerTheme?: number;
-  maxTotal?: number;
+export function isInstantKind(item: RenderableItem): boolean {
+  return item.kind === "instant_summary" || item.kind === "earnings";
 }
 
-/**
- * Build the single-screen digest view from a freshly loaded snapshot.
- *
- * Mirrors Python's `_format_items_digest_v1` after PR1's dedupe: deep_brief
- * cards are surfaced separately and removed from the instant theme groups so
- * the same headline doesn't appear twice.
- */
-export function buildDigest(
-  items: RenderableItem[],
-  { maxThemes = 4, maxPerTheme = 3, maxTotal = 6 }: BuildOptions = {}
-): DigestView {
-  const deepInsights = items
-    .filter((i) => i.kind === "deep_brief")
-    .sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)))
-    .slice(0, 3);
-
-  const deepKeys = new Set<string>();
+/** URL/title keys used to hide instant rows that duplicate a deep brief. */
+export function deepDedupeKeys(deepInsights: RenderableItem[]): Set<string> {
+  const keys = new Set<string>();
   for (const d of deepInsights) {
-    if (d.source_url) deepKeys.add(d.source_url.trim());
-    if (d.title) deepKeys.add(d.title.trim().toLowerCase());
+    if (d.source_url) keys.add(d.source_url.trim());
+    if (d.title) keys.add(d.title.trim().toLowerCase());
   }
+  return keys;
+}
 
-  const instant = items
-    .filter((i) => i.kind === "instant_summary" || i.kind === "earnings")
-    .filter((i) => i.score > 0)
-    .filter(
-      (i) =>
-        !deepKeys.has((i.source_url || "").trim()) &&
-        !deepKeys.has((i.title || "").trim().toLowerCase())
-    )
-    // Time-first: sort by the same timestamp the UI displays
-    // (published_at preferred, delivered_at fallback) so reader-visible time
-    // is monotonic and never contradicts the running order.
-    .sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)));
+export function isHiddenByDeepDedupe(
+  item: RenderableItem,
+  deepKeys: Set<string>,
+): boolean {
+  return (
+    deepKeys.has((item.source_url || "").trim()) ||
+    deepKeys.has((item.title || "").trim().toLowerCase())
+  );
+}
 
-  const grouped = new Map<string, RenderableItem[]>();
-  for (const item of instant) {
+export function isDigestInstantCandidate(
+  item: RenderableItem | undefined,
+  deepKeys: Set<string>,
+): item is RenderableItem {
+  if (!item) return false;
+  if (!isInstantKind(item)) return false;
+  if (item.score <= 0) return false;
+  return !isHiddenByDeepDedupe(item, deepKeys);
+}
+
+export function averageItemScore(items: RenderableItem[]): number {
+  if (!items.length) return 0;
+  return items.reduce((acc, x) => acc + x.score, 0) / items.length;
+}
+
+/** Attach orphan instant items to snapshot theme groups (mutates `themes`). */
+export function mergeOrphanThemes(
+  themes: ThemeGroup[],
+  orphans: RenderableItem[],
+): void {
+  const orphanByTheme = new Map<string, RenderableItem[]>();
+  for (const item of orphans) {
     const key = themeKey(item);
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(item);
+    if (!orphanByTheme.has(key)) orphanByTheme.set(key, []);
+    orphanByTheme.get(key)!.push(item);
   }
 
-  const ranked = [...grouped.entries()]
+  const existingThemes = new Set(themes.map((t) => t.theme));
+  const orphanThemes = [...orphanByTheme.entries()]
     .map(([theme, list]) => ({
       theme,
-      // Items already in DESC delivered_at order from the parent sort.
       items: list,
-      // Use the freshest visible timestamp as the theme's sort key so the most
-      // recently updated section surfaces first.
       latestIso: list.reduce((acc, x) => {
         const ts = bestTimestamp(x);
         return ts && ts > acc ? ts : acc;
       }, ""),
     }))
-    .sort((a, b) => b.latestIso.localeCompare(a.latestIso))
-    .slice(0, maxThemes);
+    .sort((a, b) => b.latestIso.localeCompare(a.latestIso));
 
-  const themes: ThemeGroup[] = [];
-  let total = 0;
-  for (const { theme, items: list } of ranked) {
-    const allowance = Math.min(maxPerTheme, list.length, maxTotal - total);
-    if (allowance <= 0) break;
-    themes.push({ theme, items: list.slice(0, allowance) });
-    total += allowance;
-    if (total >= maxTotal) break;
+  for (const { theme, items: list } of orphanThemes) {
+    if (existingThemes.has(theme)) {
+      themes.find((t) => t.theme === theme)?.items.push(...list);
+    } else {
+      themes.push({ theme, items: list });
+    }
   }
-
-  const shown = themes.flatMap((t) => t.items);
-  const avg = shown.length
-    ? shown.reduce((acc, x) => acc + x.score, 0) / shown.length
-    : 0;
-
-  return {
-    deepInsights,
-    themes,
-    totalShown: shown.length + deepInsights.length,
-    averageScore: avg,
-  };
 }
-
 
 export function confidenceBadge(item: RenderableItem): {
   /** Editorial label, used by ConfidenceBadge component (text-only). */
@@ -244,10 +215,6 @@ export function confidenceBadge(item: RenderableItem): {
 export function shouldShowConfidenceBadge(item: RenderableItem): boolean {
   const { tone } = confidenceBadge(item);
   return tone === "warn" || tone === "bad";
-}
-
-export function formatScore(score: number): string {
-  return score.toFixed(1);
 }
 
 const TIMEZONE = process.env.DIGEST_HEADER_TIMEZONE || "Asia/Taipei";
@@ -341,23 +308,6 @@ export function formatMetaDate(iso: string | null): string {
       minute: "2-digit",
     });
     return `${day} · ${time}`;
-  } catch {
-    return iso;
-  }
-}
-
-/** Legacy zh-TW format — kept available but no longer used in editorial UI. */
-export function formatRelativeDate(iso: string | null): string {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleString("zh-TW", {
-      timeZone: TIMEZONE,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   } catch {
     return iso;
   }

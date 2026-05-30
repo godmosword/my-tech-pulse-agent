@@ -112,7 +112,7 @@ break Portal contract v1) and have both consumers read it.
 | `GET /api/v1/health` | 服務與最新 `delivered_at` |
 | `GET /api/v1/items` | 列表；`limit`, `since`, `category`, `month`, `ticker`, `kind` |
 | `GET /api/v1/items/{id}` | 單篇 |
-| `GET /api/v1/digest/today` | 今日編排（同首頁 `buildDigest`） |
+| `GET /api/v1/digest/today` | 今日編排（同首頁 snapshot 合併邏輯） |
 | `GET /api/v1/tickers` | 熱門代號；`scope=today\|archive` |
 | `GET /api/v1/archive/facets` | 歸檔 facet 計數 |
 | `GET /api/v1/earnings` | 財報列表；`limit`, `ticker`, `max_tier` |

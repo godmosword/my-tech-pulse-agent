@@ -6,13 +6,11 @@ import {
   type EarningsReportRow,
 } from "./earnings-firestore";
 import {
-  PILLAR_BY_TICKER,
   pillarFor,
   watchlistTickerSet,
   type WatchlistEntryRow,
 } from "./pillar-map";
 
-export { PILLAR_BY_TICKER, pillarFor };
 export type { WatchlistEntryRow };
 
 const WATCHLIST: WatchlistEntryRow[] = (
@@ -27,10 +25,6 @@ const WATCHLIST_SET = watchlistTickerSet();
 
 export function watchlistEntries(): WatchlistEntryRow[] {
   return WATCHLIST;
-}
-
-export function watchlistTickers(): string[] {
-  return WATCHLIST.map((e) => e.ticker);
 }
 
 function anchorDateUtc(): Date {

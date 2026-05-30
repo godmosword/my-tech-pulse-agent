@@ -164,13 +164,6 @@ function toIso(value: unknown): string | null {
   return null;
 }
 
-export function normalizeEarningsReport(
-  id: string,
-  raw: Record<string, unknown>
-): EarningsReportRow | null {
-  return toRow(id, raw);
-}
-
 function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | null {
   const ticker = String(raw.ticker || "");
   if (!ticker) return null;
@@ -308,26 +301,4 @@ export async function listEarningsPeers(
   return rows
     .filter((r) => r.tier === tier && r.ticker !== excludeTicker?.toUpperCase())
     .slice(0, limit);
-}
-
-export async function listEarningsCalendar(
-  horizonDays = 30
-): Promise<
-  Array<{
-    ticker: string;
-    company: string;
-    tier: number | null;
-    event_date_iso: string | null;
-    note: string;
-  }>
-> {
-  void horizonDays;
-  const rows = await listEarningsReports({ limit: 50, maxTier: 5 });
-  return rows.map((r) => ({
-    ticker: r.ticker,
-    company: r.company,
-    tier: r.tier,
-    event_date_iso: r.published_at_iso,
-    note: "recent_filing",
-  }));
 }

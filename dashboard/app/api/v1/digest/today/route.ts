@@ -1,29 +1,20 @@
-import { listDigestSnapshotsSince, listLatestItems } from "@/lib/firestore";
-import { parseDigestSnapshot, resolveDigestView } from "@/lib/digest-snapshot";
-import { startOfTodayTaipeiUtc } from "@/lib/api-query";
 import { serializeDigest } from "@/lib/api-serialize";
+import { resolveDigestView } from "@/lib/digest-snapshot";
+import {
+  latestDeliveredIso,
+  loadTodayDigestData,
+} from "@/lib/today-digest";
 import { apiJson, withApiAuth } from "@/lib/api-route";
 
 export const GET = withApiAuth(async (_request, { access }) => {
-  const todayStart = startOfTodayTaipeiUtc();
-  let items = await listLatestItems({ limit: 80, since: todayStart });
-  if (items.length === 0) {
-    items = await listLatestItems({ limit: 80 });
-  }
-  const snapshotRows = await listDigestSnapshotsSince(todayStart);
-  const view = resolveDigestView(
-    items,
-    snapshotRows.map(parseDigestSnapshot),
-  );
-  const latestDelivered = items
-    .map((i) => i.delivered_at_iso)
-    .filter((iso): iso is string => Boolean(iso))
-    .sort()
-    .reverse()[0] ?? null;
+  const { items, snapshots, usingStaleFallback } = await loadTodayDigestData();
+  const view = resolveDigestView(items, snapshots);
+  const latestDelivered = latestDeliveredIso(items);
 
   return apiJson({
     timezone: "Asia/Taipei",
     latest_delivered_at: latestDelivered,
+    stale_fallback: usingStaleFallback,
     digest: serializeDigest(view, access),
   });
 });

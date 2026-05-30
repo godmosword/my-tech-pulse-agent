@@ -37,7 +37,7 @@ export function parseFilterState(
 }
 
 /** "2026-05-18T..." → "2026-05"; empty/invalid → "". */
-export function monthKey(iso: string | null | undefined): string {
+function monthKey(iso: string | null | undefined): string {
   if (!iso || iso.length < 7) return "";
   return iso.slice(0, 7);
 }

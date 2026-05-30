@@ -1,6 +1,11 @@
 import {
+  averageItemScore,
   bestTimestamp,
-  themeKey,
+  deepDedupeKeys,
+  isDigestInstantCandidate,
+  isHiddenByDeepDedupe,
+  isInstantKind,
+  mergeOrphanThemes,
   type DigestView,
   type ThemeGroup,
 } from "./digest";
@@ -56,6 +61,7 @@ export function mergeDigestSnapshots(
   if (!snapshots.length) return null;
 
   const themeOrder: string[] = [];
+  const seenThemes = new Set<string>();
   const themeItems = new Map<string, string[]>();
   const seenInstant = new Set<string>();
   const deepBriefIds: string[] = [];
@@ -69,7 +75,10 @@ export function mergeDigestSnapshots(
       }
     }
     for (const group of snap.theme_groups ?? []) {
-      if (!themeOrder.includes(group.theme)) themeOrder.push(group.theme);
+      if (!seenThemes.has(group.theme)) {
+        seenThemes.add(group.theme);
+        themeOrder.push(group.theme);
+      }
       const list = themeItems.get(group.theme) ?? [];
       for (const id of group.item_ids) {
         if (seenInstant.has(id)) continue;
@@ -93,24 +102,6 @@ export function mergeDigestSnapshots(
   };
 }
 
-function deepDedupeKeys(deepInsights: RenderableItem[]): Set<string> {
-  const keys = new Set<string>();
-  for (const d of deepInsights) {
-    if (d.source_url) keys.add(d.source_url.trim());
-    if (d.title) keys.add(d.title.trim().toLowerCase());
-  }
-  return keys;
-}
-
-function isInstantKind(item: RenderableItem): boolean {
-  return item.kind === "instant_summary" || item.kind === "earnings";
-}
-
-function averageScore(items: RenderableItem[]): number {
-  if (!items.length) return 0;
-  return items.reduce((acc, x) => acc + x.score, 0) / items.length;
-}
-
 /**
  * Today's digest: all delivered items in the pool, with snapshot theme hints
  * merged across runs. Items not referenced by any snapshot still appear
@@ -128,69 +119,31 @@ export function buildDigestViewForToday(
     .sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)));
 
   const deepKeys = deepDedupeKeys(deepInsights);
-  const assigned = new Set<string>();
-  for (const d of deepInsights) assigned.add(d.id);
+  const assigned = new Set(deepInsights.map((d) => d.id));
 
   const themes: ThemeGroup[] = [];
 
   for (const group of merged?.theme_groups ?? []) {
     const themeItems = group.item_ids
       .map((id) => byId.get(id))
-      .filter((item): item is RenderableItem => {
-        if (!item) return false;
-        if (!isInstantKind(item)) return false;
-        if (item.score <= 0) return false;
-        if (deepKeys.has((item.source_url || "").trim())) return false;
-        if (deepKeys.has((item.title || "").trim().toLowerCase())) return false;
-        return true;
-      });
+      .filter((item) => isDigestInstantCandidate(item, deepKeys));
     for (const item of themeItems) assigned.add(item.id);
     if (themeItems.length) themes.push({ theme: group.theme, items: themeItems });
   }
 
   const orphans = items
     .filter((i) => isInstantKind(i) && i.score > 0 && !assigned.has(i.id))
-    .filter(
-      (i) =>
-        !deepKeys.has((i.source_url || "").trim()) &&
-        !deepKeys.has((i.title || "").trim().toLowerCase()),
-    )
+    .filter((i) => !isHiddenByDeepDedupe(i, deepKeys))
     .sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)));
 
-  const orphanByTheme = new Map<string, RenderableItem[]>();
-  for (const item of orphans) {
-    const key = themeKey(item);
-    if (!orphanByTheme.has(key)) orphanByTheme.set(key, []);
-    orphanByTheme.get(key)!.push(item);
-  }
-
-  const existingThemes = new Set(themes.map((t) => t.theme));
-  const orphanThemes = [...orphanByTheme.entries()]
-    .map(([theme, list]) => ({
-      theme,
-      items: list,
-      latestIso: list.reduce((acc, x) => {
-        const ts = bestTimestamp(x);
-        return ts && ts > acc ? ts : acc;
-      }, ""),
-    }))
-    .sort((a, b) => b.latestIso.localeCompare(a.latestIso));
-
-  for (const { theme, items: list } of orphanThemes) {
-    if (existingThemes.has(theme)) {
-      const group = themes.find((t) => t.theme === theme);
-      if (group) group.items.push(...list);
-    } else {
-      themes.push({ theme, items: list });
-    }
-  }
+  mergeOrphanThemes(themes, orphans);
 
   const shownInstant = themes.flatMap((t) => t.items);
   return {
     deepInsights,
     themes,
     totalShown: shownInstant.length + deepInsights.length,
-    averageScore: averageScore(shownInstant),
+    averageScore: averageItemScore(shownInstant),
   };
 }
 

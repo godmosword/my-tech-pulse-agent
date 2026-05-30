@@ -1,6 +1,8 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
+import { tokensEqual } from "@/lib/api-auth";
+
 /**
  * POST /api/revalidate?path=/  → forces ISR to rebuild the given route.
  *
@@ -20,7 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const provided = request.headers.get("x-revalidate-token") ?? "";
-  if (provided !== token) {
+  if (!tokensEqual(provided, token)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

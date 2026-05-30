@@ -16,7 +16,7 @@ const TAG_TO_ALLOCATION_THEME: Record<string, string> = {
   cloud_software: "cloud_software",
 };
 
-export function normalizeTheme(raw: string): string {
+function normalizeTheme(raw: string): string {
   const key = raw.trim().toLowerCase();
   return TAG_TO_ALLOCATION_THEME[key] ?? key;
 }

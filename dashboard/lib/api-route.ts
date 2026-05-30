@@ -5,8 +5,6 @@ import { NextResponse } from "next/server";
 
 import { authorizeApiRequest, apiJson } from "./api-auth";
 
-export const dynamic = "force-dynamic";
-
 type ApiHandler = (
   request: NextRequest,
   ctx: { access: { full: boolean } },

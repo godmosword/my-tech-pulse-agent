@@ -36,11 +36,42 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+  dashboard:
+    name: dashboard (lint, typecheck, test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
+
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: test
+    needs: [test, dashboard]
     concurrency:
       group: deploy-cloudrun
       cancel-in-progress: false
