@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
@@ -23,7 +24,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
     try:
-        import numpy as np  # noqa: PLC0415
+        np = importlib.import_module("numpy")
         va, vb = np.array(a, dtype=np.float32), np.array(b, dtype=np.float32)
         denom = float(np.linalg.norm(va) * np.linalg.norm(vb))
         return float(np.dot(va, vb) / denom) if denom > 0 else 0.0

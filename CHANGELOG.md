@@ -41,6 +41,7 @@ All notable changes to this project will be documented in this file.
 - **`.env.example`**：`NEWS_TAKEAWAY_MODE` / `NEWS_TAKEAWAY_*`；`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
 
 ### Fixed
+- **Pyright CI**：`state_store._cosine_similarity` 改以 `importlib` 載入可選 `numpy`，避免 CI 未安裝 numpy 時 `reportMissingImports` 失敗。
 - **SEC XBRL accession strict（D1）**：`SecXbrlFetcher` 在 accession 無匹配 XBRL 列時回傳 `None`，不再 fallback 最新季（backfill / live 一致）。
 - **SEC submissions archive（D2）**：`list_filings_in_range` 依 `filings.files[]` 拉 archive 分頁，支援超出 `recent` 窗口的 backfill。
 - **`backfill_earnings.py`**：`--since` 晚於 `--until` 拒絕；skip 原因分類計數（no_xbrl / date / duplicate）。
