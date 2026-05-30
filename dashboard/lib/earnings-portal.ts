@@ -142,27 +142,10 @@ export async function loadUpcomingEarnings(days: number): Promise<{
     });
   }
 
-  let calendarSource = finnhubRows.length ? "finnhub" : "none";
-
-  if (!items.length) {
-    const reports = await listEarningsReports({ limit: 80, maxTier: 5 });
-    for (const r of reports) {
-      if (!WATCHLIST_SET.has(r.ticker) || seen.has(r.ticker)) continue;
-      const ed = (r.published_at_iso || "").slice(0, 10);
-      if (!ed) continue;
-      seen.add(r.ticker);
-      items.push({
-        symbol: r.ticker,
-        pillar: pillarFor(r.ticker),
-        next_earnings_date: ed,
-        days_until: 0,
-        status: "unknown",
-        tier: r.tier,
-        source: "recent_filing",
-      });
-    }
-    calendarSource = "firestore_recent_filing";
-  }
+  // No fallback to recently *published* reports: those are past filings, and
+  // surfacing them under a "next N days" header (with a bogus days_until: 0)
+  // is misleading. Recent filings already have their own "剛公布" surfaces.
+  const calendarSource = finnhubRows.length ? "finnhub" : "none";
 
   items.sort((a, b) => a.days_until - b.days_until || a.symbol.localeCompare(b.symbol));
 

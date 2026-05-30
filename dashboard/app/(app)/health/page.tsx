@@ -92,12 +92,12 @@ export default async function HealthPage() {
           footnote={`近 7 天 ${summary.countLast7d} 則`}
         />
         <StatCard
-          kicker="類型分佈"
+          kicker="類型分佈 · 近 7 天"
           value={`快訊 ${summary.kindCounts.instant_summary}`}
           footnote={`深度 ${summary.kindCounts.deep_brief} · 財報 ${summary.kindCounts.earnings}`}
         />
         <StatCard
-          kicker="品質分佈"
+          kicker="品質分佈 · 近 7 天"
           value={`偏高 ${summary.priorityCounts.high}`}
           footnote={`中等 ${summary.priorityCounts.med} · 偏低 ${summary.priorityCounts.low}`}
         />

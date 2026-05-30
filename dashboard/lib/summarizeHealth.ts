@@ -70,11 +70,14 @@ export function summarizeHealth(
   let countLast24h = 0;
   let countLast7d = 0;
 
+  // Distributions describe the same 7-day window as countLast7d, so all of the
+  // summary cards read against one consistent recent period.
   for (const item of delivered) {
     const ms = parseDeliveredMs(item.delivered_at_iso)!;
     const ageMs = nowMs - ms;
     if (ageMs <= dayMs) countLast24h += 1;
-    if (ageMs <= 7 * dayMs) countLast7d += 1;
+    if (ageMs > 7 * dayMs) continue;
+    countLast7d += 1;
     kindCounts[item.kind] += 1;
     priorityCounts[priorityLevel(item.score)] += 1;
   }
