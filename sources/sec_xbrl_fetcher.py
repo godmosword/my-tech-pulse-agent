@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 import re
 from typing import Any
 
-from sources.earnings_fetcher import EarningsFiling
 from sources.sec_client import SEC_BASE, SecClient
 from sources.sec_concept_map import HEADLINE_CONCEPTS, QUARTERLY_FP, ConceptSpec
 from sources.ticker_cik_map import format_cik

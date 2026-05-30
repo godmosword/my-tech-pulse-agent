@@ -8,7 +8,7 @@ import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 try:
     from google.cloud.firestore_v1.base_query import FieldFilter
@@ -316,7 +316,7 @@ class FirestoreStateStore:
 
     def has_seen(self, url_hash: str, content_hash: str, cutoff_iso: str) -> bool:
         cutoff = datetime.fromisoformat(cutoff_iso)
-        doc = self._collection("seen_items").document(url_hash).get()
+        doc = cast(Any, self._collection("seen_items").document(url_hash).get())
         if doc.exists:
             data = doc.to_dict() or {}
             seen_at = data.get("seen_at")
@@ -358,7 +358,7 @@ class FirestoreStateStore:
 
         @self._transactional
         def _claim(txn) -> bool:
-            doc = doc_ref.get(transaction=txn)
+            doc = cast(Any, doc_ref.get(transaction=txn))
             if doc.exists:
                 data = doc.to_dict() or {}
                 existing_seen_at = data.get("seen_at")
@@ -400,7 +400,7 @@ class FirestoreStateStore:
 
         @self._transactional
         def _claim(txn) -> bool:
-            doc = doc_ref.get(transaction=txn)
+            doc = cast(Any, doc_ref.get(transaction=txn))
             if doc.exists:
                 return True
             txn.set(

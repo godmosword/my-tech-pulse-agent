@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 from agents.extractor_agent import ArticleSummary
 from delivery.message_formatter import (
-    DigestMessage,
     _fire_badge,
     build_items_digest_messages,
 )

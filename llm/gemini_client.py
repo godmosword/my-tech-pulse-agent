@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from google import genai as _genai
+    pass
 
 logger = logging.getLogger(__name__)
 

@@ -305,7 +305,7 @@ export function themeCounts(
   return [...counts.entries()]
     .sort((a, b) => b[1].count - a[1].count)
     .slice(0, limit)
-    .map(([key, { label, count }]) => ({
+    .map(([, { label, count }]) => ({
       id: label.replace(/[^0-9A-Za-z\u4e00-\u9fff]+/g, "-").replace(/^-|-$/g, ""),
       label,
       count,

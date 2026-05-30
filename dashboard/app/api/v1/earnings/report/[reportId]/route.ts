@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 
 import { authorizeApiRequest, apiJson } from "@/lib/api-auth";
 import { getEarningsReport } from "@/lib/earnings-firestore";
-import { withPortfolioTierOnReports } from "@/lib/portfolio-server";
 
 export const dynamic = "force-dynamic";
 

@@ -1,4 +1,3 @@
-import os
 
 from pipeline.runtime_config import (
     is_staging,

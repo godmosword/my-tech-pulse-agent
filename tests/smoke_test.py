@@ -1,10 +1,9 @@
 """Smoke tests: validate pipeline stages without hitting live APIs."""
 
 import json
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,7 +15,7 @@ from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.message_formatter import format_insight_brief
 from delivery.telegram_bot import TelegramBot
 from scoring.deduplicator import Deduplicator
-from scoring.scorer import ScoreResult, Scorer
+from scoring.scorer import Scorer
 from sources.deep_scraper import DeepScraper
 from sources.rss_fetcher import Article, RSSFetcher, clean_feed_text
 from scripts.preflight import _failures as preflight_failures

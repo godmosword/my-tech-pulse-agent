@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { Hairline } from "@/components/Hairline";
 import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
-import { Kicker } from "@/components/Kicker";
 import { getEarningsReport } from "@/lib/earnings-firestore";
 
 export const dynamic = "force-dynamic";

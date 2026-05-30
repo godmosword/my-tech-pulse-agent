@@ -165,6 +165,11 @@ class FirestoreMemoryService:
         self._vector_cls = vector_cls
         self._distance_measure = distance_measure
         self._failed_precondition_error = failed_precondition_error
+        assert self._vector_cls is not None and self._distance_measure is not None
+
+    def _make_vector(self, embedding: list[float]) -> Any:
+        assert self._vector_cls is not None
+        return self._vector_cls(embedding)
 
     def archive_summaries(self, summaries: list[ArticleSummary], *, delivered_at: datetime | None = None) -> None:
         delivered_at = delivered_at or datetime.now(timezone.utc)
@@ -211,7 +216,7 @@ class FirestoreMemoryService:
                 "score": float(summary.score or 0.0),
                 "score_status": summary.score_status,
                 "kind": "instant_summary",
-                "embedding": self._vector_cls(embedding),
+                "embedding": self._make_vector(embedding),
                 "expires_at": delivered_at + self._ttl,
             }
             self._write_payload(item_id, payload)
@@ -240,7 +245,7 @@ class FirestoreMemoryService:
             "score": 0.0,
             "score_status": brief.confidence,
             "kind": "deep_brief",
-            "embedding": self._vector_cls(embedding),
+            "embedding": self._make_vector(embedding),
             "expires_at": delivered_at + self._ttl,
         }
         self._write_payload(item_id, payload)
@@ -273,7 +278,7 @@ class FirestoreMemoryService:
             "score": 0.0,
             "score_status": report.confidence,
             "kind": "earnings",
-            "embedding": self._vector_cls(embedding),
+            "embedding": self._make_vector(embedding),
             "expires_at": delivered_at + self._ttl,
             "report_id": report.report_id,
             "tier": report.tier,
@@ -305,7 +310,7 @@ class FirestoreMemoryService:
             "score": 0.0,
             "score_status": earnings.confidence,
             "kind": "earnings",
-            "embedding": self._vector_cls(embedding),
+            "embedding": self._make_vector(embedding),
             "expires_at": delivered_at + self._ttl,
         }
         self._write_payload(item_id, payload)
@@ -326,7 +331,7 @@ class FirestoreMemoryService:
         try:
             vector_query = self._collection().find_nearest(
                 vector_field="embedding",
-                query_vector=self._vector_cls(embedding),
+                query_vector=self._make_vector(embedding),
                 distance_measure=self._distance_measure,
                 limit=max(1, top_k),
                 distance_result_field=VECTOR_DISTANCE_FIELD,

@@ -49,7 +49,6 @@ def rebuild_signal_for_quarter(
     ef = EarningsFiling(
         company=company_name or symbol,
         ticker=symbol.upper(),
-        cik=cik,
         form_type=str(filing.get("form") or ""),
         accession=str(filing.get("accession") or ""),
         filed_at=filed_dt,

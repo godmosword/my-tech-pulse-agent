@@ -5,7 +5,6 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import yaml
 
 from sources.portfolio import Portfolio, theme_for
 from sources.watchlist import EarningsWatchlist
@@ -27,7 +26,7 @@ def test_theme_for_uses_first_watchlist_tag():
 
 
 def test_ibkr_flex_parse_aggregates_shares_and_cost():
-    from scripts.import_ibkr_portfolio import build_yaml_payload, parse_open_positions
+    from scripts.import_ibkr_portfolio import parse_open_positions
 
     xml_text = FIXTURE_FLEX.read_text(encoding="utf-8")
     positions = parse_open_positions(xml_text)

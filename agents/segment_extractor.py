@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from agents.earnings_v3_models import SegmentRow
 

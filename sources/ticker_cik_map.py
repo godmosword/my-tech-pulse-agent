@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 
-from sources.sec_client import SEC_TICKERS_URL, SecClient, sec_headers
+from sources.sec_client import SEC_TICKERS_URL, SecClient
 from sources.watchlist import EarningsWatchlist
 
 logger = logging.getLogger(__name__)

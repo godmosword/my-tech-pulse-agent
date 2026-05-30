@@ -1,6 +1,6 @@
 import type { RenderableItem } from "./types";
 
-import { englishExcerpt, publicSummaryLine } from "./public-excerpt";
+import { englishExcerpt } from "./public-excerpt";
 
 /** 內文頁「中文摘要」：導讀 +（若有）完整繁中正文，去重後合併。 */
 export function chineseAbstract(item: RenderableItem): string {

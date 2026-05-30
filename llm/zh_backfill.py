@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from llm.gemini_client import GEMINI_FLASH_MODEL, generate_json, make_client
 from llm.localization import derive_zh_title, has_cjk, strip_weak_summary_openers, to_traditional_zh_tw

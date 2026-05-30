@@ -36,7 +36,7 @@ def test_reviewer_retries_when_what_happened_too_short(monkeypatch, long_source:
 
     agent = ReviewerAgent()
     monkeypatch.setattr(agent._extractor, "extract", fake_extract)
-    monkeypatch.setattr(ReviewerAgent, "_call_reviewer", lambda self, s, st: ReviewResult())
+    monkeypatch.setattr(ReviewerAgent, "_call_reviewer", lambda self, s, _st: ReviewResult())
 
     summary = ArticleSummary(
         entity="Acme",

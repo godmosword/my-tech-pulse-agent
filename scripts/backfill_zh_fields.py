@@ -29,7 +29,6 @@ load_dotenv()
 
 from llm.localization import has_cjk  # noqa: E402
 from llm.zh_backfill import ZhBackfillResult, extract_zh_backfill  # noqa: E402
-from scoring.memory_store import _item_id  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

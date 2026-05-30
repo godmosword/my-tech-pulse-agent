@@ -127,13 +127,14 @@
 - [x] **Digest 重構（階段 3）**：共用 helper 收斂至 `digest.ts`（2026-05-29）
 - [x] **Today fallback 修正（階段 4）**：`loadTodayDigestData()`、stale 提示、Firestore 降級（2026-05-29）
 - [x] **CI dashboard job**：typecheck + vitest + production build（2026-05-29）
+- [x] **CI 品質閘（DoD）**：ruff / pyright / vulture / pytest coverage ≥62% / Dashboard ESLint + `api-routes` vitest（2026-05-30）
 - [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
 
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）
-- [ ] **Dashboard ESLint 設定檔**：`npm run lint` 需非互動式 ESLint config（目前 CI 以 `npm run build` 內建 lint 代替）
 - [ ] **EarningsAgent 類別**：`agents/earnings_agent.py` 僅 smoke test 引用 — 刪除或保留待決
+- [ ] **API route 測試延伸**：其餘 `/api/v1/news/*`、`items/[id]`、`archive/facets` 等 handler vitest
 - [x] **Slice 1 Portal News API**：`/api/v1/news/*` + [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md)
 - [x] **Slice 2 Earnings API**：`/api/v1/earnings/upcoming`、`/{symbol}/insight`、`/watchlist`；watchlist 併 Q-Silicon mega-cap
 - [ ] **主 repo 瘦身**：依 [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md) §主 repo 作業清單

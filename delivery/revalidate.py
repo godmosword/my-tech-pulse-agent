@@ -8,7 +8,6 @@ is the common case for local dev and CI smoke runs.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import urllib.error

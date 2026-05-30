@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **CI 品質閘（DoD 工具鏈）**：Python `ruff` / `pyright`（`sources`+`scoring`，basic）/ `vulture` + 白名單；pytest `--cov-fail-under=62`（核心套件）；Dashboard 獨立 `eslint.config.mjs` + `npm run lint`；`dashboard/lib/api-routes.test.ts` 覆蓋 9 個 `/api/v1` handler（health、portfolio、earnings、items、relationships、tickers、digest/today、auth 401/503）。
 - **Fiscal boundary fixtures（MSFT / GOOGL / TSM）**：[`docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md`](docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md) + 離線 `companyfacts` JSON；`tests/test_fiscal_boundary_fixtures.py`、`tests/test_sec_xbrl_accession_strict.py`；SEC submissions archive 分頁 fixture。
 - **Dashboard 營運摘要 `/health`**：`summarizeHealth()` + vitest；指標卡（最近上線、24h/7d、類型／品質分佈）+ 近期列表連 `/item/[id]`；Nav「營運摘要」；規格 [`docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md`](docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md)。
 - **Dashboard 設計文件**：[`dashboard/DESIGN.md`](dashboard/DESIGN.md)（editorial vs dense token、InstantCard variants、禁止項）。
@@ -28,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Changed
+- **Pyright**：`pyrightconfig.json` 限定 `sources`+`scoring`；`typeCheckingMode: basic`（strict 在現有 codebase 有 700+ 誤報）；`memory_store._make_vector()` 解決 optional call。
 - **Digest 共用邏輯 Consolidation（階段 3）**：deep dedupe、orphan 分組等 helper 收斂至 `digest.ts`；`digest-snapshot.ts` 精簡為 snapshot 合併 + 組裝。
 - **死碼清理（階段 2）**：移除 `sources/ir_scraper.py`、dashboard 未用 digest/earnings 函式與 re-export；補列 `server-only` 依賴。
 - **Dashboard 今日 digest 多輪合併**：首頁與 `GET /api/v1/digest/today` 合併當日所有 `tech_pulse_digests` snapshot，並納入未進 snapshot 的已 delivery 文章（不再只顯示最新一輪精選）。

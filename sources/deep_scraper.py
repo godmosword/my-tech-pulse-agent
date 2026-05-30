@@ -71,13 +71,13 @@ class DeepScraper:
                 run_id = self._start_actor_run(client, url)
                 if not run_id:
                     return DeepScrapeResult(url=url, text="", word_count=0, status="fetch_failed")
-                status = self._wait_for_run(client, run_id)
-                if status != "SUCCEEDED":
+                run_status = self._wait_for_run(client, run_id)
+                if run_status != "SUCCEEDED":
                     return DeepScrapeResult(
                         url=url,
                         text="",
                         word_count=0,
-                        status="timed_out" if status == "TIMED-OUT" else "fetch_failed",
+                        status="timed_out" if run_status == "TIMED-OUT" else "fetch_failed",
                     )
                 items = self._fetch_run_items(client, run_id)
         except httpx.HTTPStatusError as exc:

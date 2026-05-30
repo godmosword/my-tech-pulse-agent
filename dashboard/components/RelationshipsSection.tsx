@@ -7,13 +7,6 @@ type Props = {
   correlated: Array<{ ticker: string; corr: number }>;
 };
 
-const RELATION_LABELS: Record<string, string> = {
-  customer: "客戶",
-  supplier: "供應商",
-  competitor: "競爭者",
-  partner: "夥伴",
-};
-
 function RelationColumn({
   title,
   edges,

@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from agents.earnings_agent import EarningsOutput
 from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
-from agents.synthesizer_agent import DigestOutput, StoryInsight
+from agents.synthesizer_agent import StoryInsight
 
 # Canonical Telegram digest: 📡 header, 🗞️ headline, 🧭 / 📈 / 🧠, themed ⭐ blocks, footer counts.
 CANONICAL_DIGEST_FORMAT = "v1"

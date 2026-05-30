@@ -177,7 +177,6 @@ class SecSubmissionsClient:
         return EarningsFiling(
             company=sub.company,
             ticker=sub.ticker,
-            cik=sub.cik,
             form_type=sub.form_type,
             accession=sub.accession,
             filed_at=sub.filed_at,
