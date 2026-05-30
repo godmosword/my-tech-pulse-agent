@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Agent 工作規範**：根目錄 [`CLAUDE.md`](CLAUDE.md)（繁中 DoD、驗證指令對齊 CI）；[`.cursorignore`](.cursorignore) 排除 build 產物與 lock 檔以降低 token 消耗。
 - **CI 品質閘（DoD 工具鏈）**：Python `ruff` / `pyright`（`sources`+`scoring`，basic）/ `vulture` + 白名單；pytest `--cov-fail-under=62`（核心套件）；Dashboard 獨立 `eslint.config.mjs` + `npm run lint`；`dashboard/lib/api-routes.test.ts` 覆蓋 9 個 `/api/v1` handler（health、portfolio、earnings、items、relationships、tickers、digest/today、auth 401/503）。
 - **Fiscal boundary fixtures（MSFT / GOOGL / TSM）**：[`docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md`](docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md) + 離線 `companyfacts` JSON；`tests/test_fiscal_boundary_fixtures.py`、`tests/test_sec_xbrl_accession_strict.py`；SEC submissions archive 分頁 fixture。
 - **Dashboard 營運摘要 `/health`**：`summarizeHealth()` + vitest；指標卡（最近上線、24h/7d、類型／品質分佈）+ 近期列表連 `/item/[id]`；Nav「營運摘要」；規格 [`docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md`](docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md)。

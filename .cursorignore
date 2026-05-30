@@ -1,0 +1,64 @@
+# 相依套件
+node_modules/
+dashboard/node_modules/
+.pnp/
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+
+# Build 與輸出產物
+dist/
+build/
+out/
+dashboard/.next/
+output/
+.coverage
+coverage/
+*.tsbuildinfo
+
+# 鎖定檔（內容龐大、agent 很少需要）
+package-lock.json
+dashboard/package-lock.json
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+
+# 環境與機敏
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+dashboard-sa.json
+dashboard-sa.json.b64
+
+# 快取與暫存
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+tmp/
+temp/
+
+# 大型資料與媒體（保留 repo 內小型 JSON/YAML 設定與 fixture 路徑可讀）
+*.csv
+*.parquet
+*.sqlite
+*.db
+*.zip
+*.tar.gz
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.pdf
+
+# 系統檔
+.DS_Store
+Thumbs.db
+
+# 版控
+.git/

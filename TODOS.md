@@ -128,6 +128,7 @@
 - [x] **Today fallback 修正（階段 4）**：`loadTodayDigestData()`、stale 提示、Firestore 降級（2026-05-29）
 - [x] **CI dashboard job**：typecheck + vitest + production build（2026-05-29）
 - [x] **CI 品質閘（DoD）**：ruff / pyright / vulture / pytest coverage ≥62% / Dashboard ESLint + `api-routes` vitest（2026-05-30）
+- [x] **Agent 規範**：[`CLAUDE.md`](CLAUDE.md) + [`.cursorignore`](.cursorignore)（2026-05-30）
 - [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
 
 ## 進行中 / 下一步
