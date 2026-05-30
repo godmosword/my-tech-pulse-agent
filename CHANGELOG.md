@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Fiscal boundary fixtures（MSFT / GOOGL / TSM）**：[`docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md`](docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md) + 離線 `companyfacts` JSON；`tests/test_fiscal_boundary_fixtures.py`、`tests/test_sec_xbrl_accession_strict.py`；SEC submissions archive 分頁 fixture。
 - **Dashboard 營運摘要 `/health`**：`summarizeHealth()` + vitest；指標卡（最近上線、24h/7d、類型／品質分佈）+ 近期列表連 `/item/[id]`；Nav「營運摘要」；規格 [`docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md`](docs/superpowers/specs/2026-05-18-pulse-health-dashboard-design.md)。
 - **Dashboard 設計文件**：[`dashboard/DESIGN.md`](dashboard/DESIGN.md)（editorial vs dense token、InstantCard variants、禁止項）。
 - **Dashboard UX 五項修復**：`AgentCommentary`（文章頁 wh/why + 空狀態）；`BackLink` + dense 子頁／archive／invest／earnings 返回路徑；editorial 響應式 typography token（`text-editorial-*`）；`PortfolioEditorPrototype`（local 編輯 + 匯出 YAML）；`/earnings/[ticker]` `EarningsInsightPanel`（`loadEarningsInsight`）；Invest「與我持倉相關的新聞」區塊。
@@ -37,6 +38,9 @@ All notable changes to this project will be documented in this file.
 - **`.env.example`**：`NEWS_TAKEAWAY_MODE` / `NEWS_TAKEAWAY_*`；`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
 
 ### Fixed
+- **SEC XBRL accession strict（D1）**：`SecXbrlFetcher` 在 accession 無匹配 XBRL 列時回傳 `None`，不再 fallback 最新季（backfill / live 一致）。
+- **SEC submissions archive（D2）**：`list_filings_in_range` 依 `filings.files[]` 拉 archive 分頁，支援超出 `recent` 窗口的 backfill。
+- **`backfill_earnings.py`**：`--since` 晚於 `--until` 拒絕；skip 原因分類計數（no_xbrl / date / duplicate）。
 - **Dashboard Today fallback（階段 4）**：共用 `loadTodayDigestData()`；stale 時跳過今日 snapshot、顯示「Latest Pulse」與繁中提示；Firestore 失敗降級；首頁 `totalShown === 0` 邊界；`/api/revalidate` timing-safe token；`FIREBASE_SERVICE_ACCOUNT_JSON` 無效 JSON 明確錯誤；今日 items/snapshot 上限 100/48。
 - **CI**：新增 `dashboard` job（typecheck、vitest、production build）。
 - **Pipeline dead code**：移除 `crew.py` 未使用的 `IRScraper` 與 `_archive_delivered_earnings`。

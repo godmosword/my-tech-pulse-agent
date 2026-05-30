@@ -145,7 +145,7 @@
 - [ ] **Backfill v3**：`scripts/backfill_earnings.py` 支援 `--deep-report` 回填歷史 `rendered_markdown_zh`（可選；SEC/XBRL + LLM，不依賴 Vendor key）
 - [ ] **P4 Telegram**：長文 chunking 正式測試矩陣（雙擊/雙殺/Mixed EPS/缺 transcript）
 - [ ] **P6 Preflight**：SEC 連線 + `tech_pulse_earnings_reports` smoke（Finnhub ping 見下方「付費 Vendor API」）
-- [ ] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture
+- [x] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture（[`docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md`](docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md)）
 - [ ] **Dashboard**：SiC／持倉篩選（`tags: sic`）；TradingView 圖表（可選）
 - [ ] **Watchlist**：Tier 2–5 補滿至各 10 檔（不臆造 ticker）
 - [ ] **ETF**（SOXX / SMH）曝險參考 — Phase 2+

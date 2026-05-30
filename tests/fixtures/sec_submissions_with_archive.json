@@ -1,0 +1,20 @@
+{
+  "name": "NVIDIA CORP",
+  "filings": {
+    "recent": {
+      "form": ["8-K", "10-Q"],
+      "accessionNumber": ["0001045810-26-000001", "0001045810-26-000002"],
+      "filingDate": ["2026-05-15", "2026-04-20"],
+      "reportDate": ["2026-05-14", "2026-04-19"],
+      "primaryDocument": ["d8k.htm", "q10.htm"]
+    },
+    "files": [
+      {
+        "name": "CIK0001045810-submissions-001.json",
+        "filingCount": 2,
+        "filingFrom": "2024-01-01",
+        "filingTo": "2024-12-31"
+      }
+    ]
+  }
+}

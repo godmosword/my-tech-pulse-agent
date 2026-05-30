@@ -34,7 +34,11 @@ def _accession_digits(accession: str | None) -> str:
 
 
 def _pick_quarterly_for_accession(entries: list[dict], accession: str | None) -> dict | None:
-    """Pick quarterly row matching SEC accession when possible."""
+    """Pick quarterly row matching SEC accession when possible.
+
+    When accession is set but no XBRL row matches, return None (strict).
+    Live RSS and backfill both pass filing accession — no fallback to latest quarter.
+    """
     key = _accession_digits(accession)
     if not key:
         return _pick_latest_quarterly(entries)
@@ -46,7 +50,7 @@ def _pick_quarterly_for_accession(entries: list[dict], accession: str | None) ->
     ]
     if candidates:
         return max(candidates, key=lambda e: (str(e.get("filed") or ""), str(e.get("end") or "")))
-    return _pick_latest_quarterly(entries)
+    return None
 
 
 def _pick_latest_quarterly(entries: list[dict]) -> dict | None:

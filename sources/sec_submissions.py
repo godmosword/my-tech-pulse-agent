@@ -72,7 +72,10 @@ class SecSubmissionsClient:
 
     def iter_recent_filings(self, submissions: dict) -> Iterable[dict]:
         recent = submissions.get("filings", {}).get("recent") or {}
-        forms = recent.get("form") or []
+        yield from self._iter_columnar_filings(recent)
+
+    def _iter_columnar_filings(self, block: dict) -> Iterable[dict]:
+        forms = block.get("form") or []
         n = len(forms)
         keys = (
             "accessionNumber",
@@ -81,11 +84,52 @@ class SecSubmissionsClient:
             "primaryDocument",
             "primaryDocDescription",
         )
-        columns = {k: recent.get(k) or [] for k in keys}
+        columns = {k: block.get(k) or [] for k in keys}
         for i in range(n):
             row = {k: (columns[k][i] if i < len(columns[k]) else None) for k in keys}
             row["form"] = forms[i] if i < len(forms) else None
             yield row
+
+    @staticmethod
+    def _archive_overlaps_range(meta: dict, since: date, until: date) -> bool:
+        filing_from = str(meta.get("filingFrom") or "")[:10]
+        filing_to = str(meta.get("filingTo") or "")[:10]
+        if not filing_from or not filing_to:
+            return True
+        return filing_to >= since.isoformat() and filing_from <= until.isoformat()
+
+    def iter_filing_rows(
+        self,
+        submissions: dict,
+        *,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> Iterable[dict]:
+        """Yield filing rows from recent plus archive pages when the range needs them."""
+        yield from self._iter_columnar_filings(submissions.get("filings", {}).get("recent") or {})
+
+        if since is None or until is None:
+            return
+
+        for meta in submissions.get("filings", {}).get("files") or []:
+            if not isinstance(meta, dict):
+                continue
+            if not self._archive_overlaps_range(meta, since, until):
+                continue
+            name = str(meta.get("name") or "").strip()
+            if not name:
+                continue
+            url = f"{SEC_BASE}/submissions/{name}"
+            try:
+                page = self._client.get_json(url)
+            except Exception as exc:
+                logger.warning("SEC archive submissions fetch failed %s: %s", name, exc)
+                continue
+            if not isinstance(page, dict):
+                continue
+            block = page.get("filings", {}).get("recent") if "filings" in page else page
+            if isinstance(block, dict):
+                yield from self._iter_columnar_filings(block)
 
     def list_filings_in_range(
         self,
@@ -99,7 +143,7 @@ class SecSubmissionsClient:
     ) -> list[SubmissionFiling]:
         submissions = self.get_submissions(cik)
         out: list[SubmissionFiling] = []
-        for row in self.iter_recent_filings(submissions):
+        for row in self.iter_filing_rows(submissions, since=since, until=until):
             form = str(row.get("form") or "").strip().upper()
             if not _is_earnings_form(form, forms):
                 continue

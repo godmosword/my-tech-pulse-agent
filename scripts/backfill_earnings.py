@@ -78,6 +78,9 @@ def main() -> int:
     parser.add_argument("--max-filings", type=int, default=0, help="Cap total filings (0=no cap)")
     args = parser.parse_args()
 
+    if args.since > args.until:
+        parser.error(f"--since ({args.since}) must be on or before --until ({args.until})")
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     watchlist = EarningsWatchlist.load()
@@ -105,6 +108,9 @@ def main() -> int:
     seen_reports: set[str] = set()
     saved = 0
     skipped = 0
+    skipped_no_xbrl = 0
+    skipped_date = 0
+    skipped_duplicate = 0
     filings_seen = 0
 
     for ticker in tickers:
@@ -160,14 +166,18 @@ def main() -> int:
             )
             if not report:
                 skipped += 1
+                skipped_no_xbrl += 1
                 logger.warning("%s %s: no XBRL report built", ticker, filing.accession)
                 continue
 
             if not _in_range(report.published_at, args.since, args.until):
                 skipped += 1
+                skipped_date += 1
                 continue
 
             if report.report_id in seen_reports:
+                skipped += 1
+                skipped_duplicate += 1
                 logger.debug("Skip duplicate report_id %s", report.report_id)
                 continue
             seen_reports.add(report.report_id)
@@ -194,7 +204,10 @@ def main() -> int:
         print(f"\nDry-run: {filings_seen} filing(s) across {len(tickers)} ticker(s)")
         return 0
 
-    print(f"\nDone: saved={saved} skipped={skipped} filings_seen={filings_seen}")
+    print(
+        f"\nDone: saved={saved} skipped={skipped} filings_seen={filings_seen} "
+        f"(no_xbrl={skipped_no_xbrl} date={skipped_date} duplicate={skipped_duplicate})"
+    )
     return 0
 
 
