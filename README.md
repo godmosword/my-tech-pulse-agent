@@ -149,6 +149,14 @@ Provision a read-only Firestore SA: `PROJECT_ID=<gcp-project> ./scripts/setup_da
 
 Portal / third-party readers: [`docs/PORTAL_CONTRACT.md`](docs/PORTAL_CONTRACT.md)
 
+Local verification (matches CI dashboard job):
+
+```bash
+cd dashboard && npm run lint && npm run typecheck && npm run test && npm run build
+```
+
+Shared UI helpers live under `dashboard/lib/format-numbers.ts`, `login-path.ts`, and `dashboard/components/BrandMark.tsx` / `InstantCardNewsList.tsx` — see [`dashboard/README.md`](dashboard/README.md).
+
 ## Deployment
 
 **Vercel + GCP 設定清單**（env、驗證、backfill）：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md).

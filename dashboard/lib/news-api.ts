@@ -4,7 +4,7 @@ import { displayTitle, hasCjk, type RenderableItem } from "./types";
 import { collectionName, getItemById, listLatestItems } from "./firestore";
 
 /** Aligned with investment-ai-agent `api_routers/news.py` PILLAR_ALIASES. */
-export const PILLAR_ALIASES: Record<string, string[]> = {
+const PILLAR_ALIASES: Record<string, string[]> = {
   ai: [
     "ai",
     "人工智慧",
@@ -134,7 +134,7 @@ function textHasAlias(haystack: string, alias: string): boolean {
   return haystack.includes(needle);
 }
 
-export function estimateReadingMinutes(text: string): number {
+function estimateReadingMinutes(text: string): number {
   const t = text.trim();
   if (!t) return 0;
   const wordCount = (t.match(/[A-Za-z0-9]+/g) || []).length;
@@ -143,7 +143,7 @@ export function estimateReadingMinutes(text: string): number {
   return Math.max(1, Math.ceil(minutes));
 }
 
-export function inferPillarKey(opts: {
+function inferPillarKey(opts: {
   pillar?: string;
   theme?: string;
   tags?: string[];
@@ -205,7 +205,7 @@ function commentaryZh(item: RenderableItem, take: string): string {
 }
 
 /** Map Firestore memory item → Q-Silicon Portal news contract. */
-export function normalizeNewsItem(
+function normalizeNewsItem(
   item: RenderableItem,
   options: { includeDeep?: boolean; raw?: Record<string, unknown> } = {},
 ): NewsDigestItem | NewsDeepItem | null {

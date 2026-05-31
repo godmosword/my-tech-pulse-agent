@@ -1,11 +1,9 @@
-import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
 import { fetchQuotes } from "@/lib/quotes";
 import type { RenderableItem } from "@/lib/types";
 
 import { Hairline } from "./Hairline";
-import { InstantCard } from "./InstantCard";
+import { InstantCardNewsList } from "./InstantCardNewsList";
 import { Kicker } from "./Kicker";
-import { NewsTakeawayBlock } from "./NewsTakeawayBlock";
 
 interface Props {
   theme: string;
@@ -28,33 +26,12 @@ export async function ThemeSection({ theme, items, authenticated }: Props) {
         </h2>
       </header>
       <Hairline />
-      <ul className="divide-y divide-rule">
-        {items.map((item) => {
-          const returnToPath = `/item/${encodeURIComponent(item.id)}`;
-          const relevance = item.takeaway
-            ? tagItemPortfolioRelevance(item.takeaway.tickers)
-            : tagItemPortfolioRelevance(item.tickers);
-          return (
-            <li key={item.id}>
-              <InstantCard
-                item={item}
-                authenticated={authenticated}
-                returnToPath={returnToPath}
-                variant="list"
-                quotes={quotes}
-              />
-              {item.takeaway && (
-                <div className="pb-4">
-                  <NewsTakeawayBlock
-                    takeaway={item.takeaway}
-                    relevance={relevance}
-                  />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      <InstantCardNewsList
+        items={items}
+        authenticated={authenticated}
+        quotes={quotes}
+        takeawayWrapClassName="pb-4"
+      />
     </section>
   );
 }

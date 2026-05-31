@@ -87,10 +87,22 @@ dashboard/
 ├─ lib/
 │  ├─ firestore.ts      # Admin SDK init + readers (server-only)
 │  ├─ types.ts          # Zod schema for MemoryItem + ISO coercion
-│  └─ digest.ts         # theme grouping / dedupe / badge logic
+│  ├─ digest.ts         # theme grouping / dedupe / badge logic
+│  ├─ format-numbers.ts # fmtNum / fmtPctPlain / fmtPctSigned (dense cards)
+│  └─ login-path.ts     # loginReturnHref() for reader cookie flows
 ├─ components/          # presentation, no Firestore imports
+│  ├─ BrandMark.tsx     # Nav rail wordmark
+│  └─ InstantCardNewsList.tsx  # shared list for ThemeSection / HoldingNewsSection
 └─ middleware.ts        # Basic Auth gate (Edge); skipped when public read on
 ```
+
+### Quality gate
+
+```bash
+npm run lint && npm run typecheck && npm run test && npm run build
+```
+
+Recent a11y fixes: global `:focus-visible`, login error `role="alert"`, Relationships 10-K via `<details>`, calibration charts with `role="img"` + `aria-label`.
 
 The `lib/digest.ts` module is a TypeScript port of
 `delivery/message_formatter.py`. Both must agree on:

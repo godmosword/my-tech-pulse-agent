@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AuthNav } from "./AuthNav";
+import { BrandMark } from "./BrandMark";
 import { ThemeToggle } from "./ThemeToggle";
 
 const readingLinks = (
@@ -31,14 +32,7 @@ const investLink = (
 export function NavRail() {
   return (
     <aside className="hidden lg:sticky lg:top-10 lg:block lg:self-start lg:pr-4">
-      <Link href="/" className="block pb-8">
-        <span className="block font-serif text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">
-          Tech Pulse
-        </span>
-        <span className="mt-2 block font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
-          科技脈搏
-        </span>
-      </Link>
+      <BrandMark variant="rail" className="pb-8 min-w-0" />
 
       <nav
         aria-label="Primary"
@@ -68,14 +62,7 @@ export function MobileMasthead() {
   return (
     <header className="space-y-4 pb-6 lg:hidden">
       <div className="flex items-start justify-between gap-3">
-        <Link href="/" className="block min-w-0">
-          <span className="font-serif text-[28px] font-semibold tracking-[-0.02em] text-ink sm:text-[32px]">
-            Tech Pulse
-          </span>
-          <span className="mt-1 block font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
-            科技脈搏
-          </span>
-        </Link>
+        <BrandMark variant="mobile" className="min-w-0" />
         <div className="flex shrink-0 items-center gap-2 pt-1">
           <span className="sr-only">顯示模式</span>
           <ThemeToggle />

@@ -7,10 +7,10 @@ import { listDigestSnapshotsSince, listLatestItems } from "./firestore";
 import type { RenderableItem } from "./types";
 
 /** Max memory items loaded for the homepage / digest API (single Taipei day). */
-export const TODAY_ITEMS_LIMIT = 100;
+const TODAY_ITEMS_LIMIT = 100;
 
 /** Max pipeline digest snapshots merged per day. */
-export const TODAY_SNAPSHOT_LIMIT = 48;
+const TODAY_SNAPSHOT_LIMIT = 48;
 
 export interface TodayDigestLoadResult {
   items: RenderableItem[];

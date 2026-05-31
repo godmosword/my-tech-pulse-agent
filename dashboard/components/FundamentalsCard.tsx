@@ -1,4 +1,6 @@
-export interface ValuationRatiosView {
+import { fmtNum, fmtPctPlain } from "@/lib/format-numbers";
+
+interface ValuationRatiosView {
   gross_margin?: number | null;
   operating_margin?: number | null;
   net_margin?: number | null;
@@ -10,14 +12,14 @@ export interface ValuationRatiosView {
   period_matched?: string;
 }
 
-export interface SurprisePointView {
+interface SurprisePointView {
   period: string;
   eps_actual?: number | null;
   eps_estimate?: number | null;
   surprise_pct?: number | null;
 }
 
-export interface FinancialHealthView {
+interface FinancialHealthView {
   fcf?: number | null;
   fcf_conversion_pct?: number | null;
   roic_trend?: string;
@@ -30,16 +32,6 @@ type Props = {
   surpriseHistory?: SurprisePointView[];
   financialHealth?: FinancialHealthView | null;
 };
-
-function fmtPct(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return "—";
-  return `${v.toFixed(1)}%`;
-}
-
-function fmtNum(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return "—";
-  return v.toFixed(2);
-}
 
 export function FundamentalsCard({ ratios, surpriseHistory, financialHealth }: Props) {
   if (!ratios && !(surpriseHistory?.length) && !financialHealth?.source_conflicts?.length) {
@@ -66,23 +58,23 @@ export function FundamentalsCard({ ratios, surpriseHistory, financialHealth }: P
           <dl className="mt-4 grid gap-3 font-mono text-meta text-ink-soft sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <dt className="text-ink-faint">毛利率</dt>
-              <dd>{fmtPct(ratios.gross_margin)}</dd>
+              <dd>{fmtPctPlain(ratios.gross_margin)}</dd>
             </div>
             <div>
               <dt className="text-ink-faint">營益率</dt>
-              <dd>{fmtPct(ratios.operating_margin)}</dd>
+              <dd>{fmtPctPlain(ratios.operating_margin)}</dd>
             </div>
             <div>
               <dt className="text-ink-faint">淨利率</dt>
-              <dd>{fmtPct(ratios.net_margin)}</dd>
+              <dd>{fmtPctPlain(ratios.net_margin)}</dd>
             </div>
             <div>
               <dt className="text-ink-faint">ROE</dt>
-              <dd>{fmtPct(ratios.roe)}</dd>
+              <dd>{fmtPctPlain(ratios.roe)}</dd>
             </div>
             <div>
               <dt className="text-ink-faint">ROIC</dt>
-              <dd>{fmtPct(ratios.roic)}</dd>
+              <dd>{fmtPctPlain(ratios.roic)}</dd>
             </div>
             <div>
               <dt className="text-ink-faint">負債比</dt>
@@ -90,7 +82,7 @@ export function FundamentalsCard({ ratios, surpriseHistory, financialHealth }: P
             </div>
             <div>
               <dt className="text-ink-faint">FCF margin</dt>
-              <dd>{fmtPct(ratios.fcf_margin)}</dd>
+              <dd>{fmtPctPlain(ratios.fcf_margin)}</dd>
             </div>
           </dl>
         </section>
@@ -117,7 +109,7 @@ export function FundamentalsCard({ ratios, surpriseHistory, financialHealth }: P
                     <td className="py-2 pr-4">{row.period}</td>
                     <td className="py-2 pr-4">{fmtNum(row.eps_actual)}</td>
                     <td className="py-2 pr-4">{fmtNum(row.eps_estimate)}</td>
-                    <td className="py-2">{fmtPct(row.surprise_pct)}</td>
+                    <td className="py-2">{fmtPctPlain(row.surprise_pct)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -130,6 +130,7 @@
 - [x] **CI 品質閘（DoD）**：ruff / pyright / vulture / pytest coverage ≥62% / Dashboard ESLint + `api-routes` vitest（2026-05-30）
 - [x] **Agent 規範**：[`CLAUDE.md`](CLAUDE.md) + [`.cursorignore`](.cursorignore)（2026-05-30）
 - [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
+- [x] **Dashboard 六階段審查（2026-05-31）**：legacy CSS 移除、lib export 收斂；共用 `format-numbers`／`login-path`／`BrandMark`／`InstantCardNewsList`；`SignalsTable` 手機版 Link／button 分離；a11y（`:focus-visible`、login `role="alert"`、Relationships `<details>`、BacktestCharts `aria-label`）；`npm run lint` + typecheck + vitest + build 全綠
 
 ## 進行中 / 下一步
 
@@ -173,6 +174,7 @@
 - [x] **Canonical digest snapshot**：pipeline 寫入 `tech_pulse_digests/{id}`；Dashboard 首頁優先讀 snapshot
 - [ ] **Semantic prefilter rollout**：staging 已可透過 `TECH_PULSE_ENV=staging` 啟用
 - [ ] **Semantic dup drop**：`SEMANTIC_DUP_DROP_ENABLED=1` 需 Firestore vector index
+- [ ] **Dashboard a11y／效能（低優先）**：Archive 篩選 `aria-current`、DataTable `scope`、skip link；`/calibration` Recharts `next/dynamic`；Archive 手機篩選位置（列表下方）；首頁 digest 與 `@rail` 重複 fetch（可 `React.cache()`）
 - [ ] **Dashboard**：全文搜尋、RSS/Atom 對外訂閱（earnings 專欄基礎頁已完成）
 - [ ] **DIGEST_FORMAT v2**：維持 experimental；production 仍鎖 `v1`
 

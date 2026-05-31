@@ -7,7 +7,7 @@ const COLLECTION_PREFIX =
   process.env.FIRESTORE_COLLECTION_PREFIX?.trim() || "tech_pulse";
 const EARNINGS_COLLECTION = `${COLLECTION_PREFIX}_earnings_reports`;
 
-export interface MetricValueRow {
+interface MetricValueRow {
   actual?: number | null;
   estimate?: number | null;
   surprise_pct?: number | null;
@@ -17,14 +17,14 @@ export interface MetricValueRow {
   estimate_source?: string;
 }
 
-export interface ScorecardRow {
+interface ScorecardRow {
   revenue?: MetricValueRow | null;
   eps?: MetricValueRow | null;
   gross_margin_pct?: MetricValueRow | null;
   headline_verdict?: string;
 }
 
-export interface PriceReactionRow {
+interface PriceReactionRow {
   earnings_date?: string | null;
   session?: string;
   ret_1d_pct?: number | null;
@@ -36,7 +36,7 @@ export interface PriceReactionRow {
   degraded?: boolean;
 }
 
-export interface ValuationRatiosRow {
+interface ValuationRatiosRow {
   gross_margin?: number | null;
   operating_margin?: number | null;
   net_margin?: number | null;
@@ -48,14 +48,14 @@ export interface ValuationRatiosRow {
   period_matched?: string;
 }
 
-export interface SurprisePointRow {
+interface SurprisePointRow {
   period: string;
   eps_actual?: number | null;
   eps_estimate?: number | null;
   surprise_pct?: number | null;
 }
 
-export interface FinancialHealthRow {
+interface FinancialHealthRow {
   fcf?: number | null;
   fcf_conversion_pct?: number | null;
   roic_trend?: string;

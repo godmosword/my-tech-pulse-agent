@@ -1,4 +1,4 @@
-export type SignalRating =
+type SignalRating =
   | "強力看多"
   | "看多"
   | "中性"

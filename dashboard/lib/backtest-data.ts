@@ -16,14 +16,14 @@ export type BacktestSummary = {
   }>;
 };
 
-export type RatingBucket = {
+type RatingBucket = {
   n: number;
   mean_excess_pct?: number | null;
   win_rate?: number | null;
   insufficient_sample?: boolean;
 };
 
-export type QuantileSpread = {
+type QuantileSpread = {
   top_tertile_mean_excess_pct?: number | null;
   bottom_tertile_mean_excess_pct?: number | null;
   spread_pct?: number | null;

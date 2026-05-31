@@ -32,8 +32,12 @@ export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summ
   ];
 
   return (
-    <div className="h-48 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div
+      className="h-48 w-full"
+      role="img"
+      aria-label={`分位價差：Top 1/3 平均超額 ${fmtPct(topMean)}，Bottom 1/3 平均超額 ${fmtPct(bottomMean)}`}
+    >
+      <ResponsiveContainer width="100%" height="100%" aria-hidden>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--color-rule)" vertical={false} />
           <XAxis
@@ -94,13 +98,21 @@ export function BacktestCalibrationChart({
 
   if (data.length === 0) return null;
 
+  const chartLabel = data
+    .map((entry) => `${entry.rating} 平均超額 ${fmtPct(entry.mean)}（n=${entry.n}）`)
+    .join("；");
+
   return (
     <div className="mt-4">
       <p className="mb-2 font-sans text-meta font-semibold uppercase tracking-wide text-ink-faint">
         校準曲線（各評級平均超額 vs SOXX）
       </p>
-      <div className="h-56 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div
+        className="h-56 w-full"
+        role="img"
+        aria-label={`校準曲線：${chartLabel}`}
+      >
+        <ResponsiveContainer width="100%" height="100%" aria-hidden>
           <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
             <CartesianGrid stroke="var(--color-rule)" vertical={false} />
             <XAxis

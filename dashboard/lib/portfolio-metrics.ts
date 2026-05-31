@@ -84,12 +84,6 @@ export interface ThemeExposureRow {
 
 export type ThemeBiasLabel = "順風" | "中性" | "逆風";
 
-export interface ThemeBiasRow {
-  theme: string;
-  bias: ThemeBiasLabel;
-  drivers_zh: string[];
-}
-
 export interface PortfolioEnvironmentRow {
   theme: string;
   weight_pct: number;

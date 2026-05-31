@@ -8,7 +8,7 @@ import type { RenderableItem } from "./types";
  * collection (`tech_pulse_digests/<digest_id>`) over rewriting it here twice.
  */
 
-export const HIGH_SCORE_CONFIDENCE_FLOOR = 7.2;
+const HIGH_SCORE_CONFIDENCE_FLOOR = 7.2;
 
 const THEME_KEYWORDS: Record<string, string[]> = {
   "AI 基礎設施": [
@@ -90,7 +90,7 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function themeKey(item: RenderableItem): string {
+function themeKey(item: RenderableItem): string {
   if (item.category === "earnings") return "財報焦點";
   const corpus = `${item.entity} ${item.summary} ${item.title}`.toLowerCase();
   for (const [theme, keywords] of Object.entries(THEME_KEYWORDS)) {

@@ -11,7 +11,7 @@ import {
 } from "./digest";
 import type { RenderableItem } from "./types";
 
-export interface DigestThemeGroup {
+interface DigestThemeGroup {
   theme: string;
   item_ids: string[];
 }

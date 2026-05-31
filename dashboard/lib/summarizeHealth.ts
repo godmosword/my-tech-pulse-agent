@@ -15,11 +15,11 @@ export const PRIORITY_TIER_LABEL: Record<PriorityLevel, string> = {
   low: "偏低",
 };
 
-export type HealthKindCounts = Record<MemoryItemKind, number>;
+type HealthKindCounts = Record<MemoryItemKind, number>;
 
-export type HealthPriorityCounts = Record<PriorityLevel, number>;
+type HealthPriorityCounts = Record<PriorityLevel, number>;
 
-export interface HealthSummary {
+interface HealthSummary {
   /** Items with a non-null delivered_at, newest first. */
   delivered: RenderableItem[];
   latestDeliveredAtIso: string | null;

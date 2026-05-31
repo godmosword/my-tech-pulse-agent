@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export type MacroMetric = {
+type MacroMetric = {
   value?: number;
   date?: string;
   trend?: string;

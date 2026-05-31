@@ -5,6 +5,7 @@ import {
   authenticatedPrimaryBody,
   hasGatedLongContent,
 } from "@/lib/zh-content";
+import { loginReturnHref } from "@/lib/login-path";
 import { Kicker } from "./Kicker";
 
 interface DeepInsightCardProps {
@@ -27,7 +28,7 @@ export function DeepInsightCard({
 }: DeepInsightCardProps) {
   const parts = splitThreePart(item.summary);
   const headline = displayTitle(item);
-  const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
+  const loginHref = loginReturnHref(returnToPath);
   const teaser = publicSummaryLine(item);
   const bodyZh = authenticatedPrimaryBody(item);
   const useFlatZhBody = Boolean(item.zh_body?.trim());

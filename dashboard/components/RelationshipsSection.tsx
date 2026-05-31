@@ -31,7 +31,7 @@ function RelationColumn({
       </h3>
       <ul className="mt-3 space-y-3">
         {edges.map((e, i) => (
-          <li key={`${e.counterparty_name}-${i}`} className="group relative">
+          <li key={`${e.counterparty_name}-${i}`}>
             <p className="font-sans text-body text-ink">
               {e.counterparty_name}
               {e.counterparty_ticker ? (
@@ -43,13 +43,17 @@ function RelationColumn({
                 {e.concentration_note}
               </p>
             ) : null}
-            <p
-              className="mt-1 hidden font-sans text-meta text-ink-faint group-hover:block"
-              title="10-K 原文出處"
-            >
-              {e.verified ? "✓ " : ""}
-              {e.quote}
-            </p>
+            {e.quote ? (
+              <details className="mt-1 font-sans text-meta text-ink-faint">
+                <summary className="cursor-pointer text-ink-soft hover:text-accent">
+                  10-K 原文出處
+                </summary>
+                <p className="mt-1">
+                  {e.verified ? "✓ " : ""}
+                  {e.quote}
+                </p>
+              </details>
+            ) : null}
           </li>
         ))}
       </ul>

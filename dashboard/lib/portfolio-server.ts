@@ -18,7 +18,7 @@ import { watchlistTickerSet } from "./pillar-map";
 
 export type { PortfolioTier };
 
-export interface PortfolioPositionRow {
+interface PortfolioPositionRow {
   ticker: string;
   shares: number;
   avg_cost: number | null;

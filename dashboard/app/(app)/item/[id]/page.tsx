@@ -17,6 +17,7 @@ import { AgentCommentary } from "@/components/AgentCommentary";
 import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { NewsTakeawayBlock } from "@/components/NewsTakeawayBlock";
+import { loginReturnHref } from "@/lib/login-path";
 import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
@@ -68,7 +69,7 @@ export default async function ItemPage({
   const authenticated =
     !isPublicReadMode() || (await getReaderSession()) !== null;
   const returnToPath = `/item/${encodeURIComponent(decodedId)}`;
-  const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
+  const loginHref = loginReturnHref(returnToPath);
 
   if (item.kind === "deep_brief") {
     return (

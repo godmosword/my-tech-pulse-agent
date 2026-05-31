@@ -14,7 +14,7 @@ const FACTOR_LABELS: Record<string, string> = {
   quality: "品質",
 };
 
-export type SignalListItem = {
+type SignalListItem = {
   report_id: string;
   ticker: string;
   quarter_label: string;
@@ -147,29 +147,32 @@ export function SignalsTable({ items }: Props) {
               key={row.report_id}
               className={`section-band ${row.portfolio_tier === "holding" ? "ring-1 ring-accent/20" : ""}`}
             >
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-3 text-left"
-                onClick={() => setExpandedId(open ? null : row.report_id)}
-                aria-expanded={open}
-              >
-                <div>
+              <div className="flex w-full items-center justify-between gap-3">
+                <div className="min-w-0">
                   <Link
                     href={`/earnings/${row.ticker}`}
-                    className="font-semibold text-ink"
-                    onClick={(e) => e.stopPropagation()}
+                    className="font-semibold text-ink hover:text-accent"
                   >
                     {row.ticker}
                   </Link>
                   <span className="ml-2 font-sans text-meta text-ink-faint">#{idx + 1}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-sm px-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  onClick={() => setExpandedId(open ? null : row.report_id)}
+                  aria-expanded={open}
+                  aria-controls={`signal-factors-${row.report_id}`}
+                  aria-label={`${open ? "收合" : "展開"} ${row.ticker} 因子細項`}
+                >
                   <span className="stat-hero text-2xl text-ink">{row.score.toFixed(0)}</span>
                   <RatingBadge rating={row.rating} conviction={row.conviction} />
-                </div>
-              </button>
+                </button>
+              </div>
               {open && row.factors && row.factors.length > 0 && (
-                <FactorMiniBars factors={row.factors} />
+                <div id={`signal-factors-${row.report_id}`}>
+                  <FactorMiniBars factors={row.factors} />
+                </div>
               )}
             </div>
           );

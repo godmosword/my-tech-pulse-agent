@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Dashboard 共用模組（六階段審查）**：`lib/format-numbers.ts`（`fmtNum`／`fmtPctPlain`／`fmtPctSigned`）、`lib/login-path.ts`（`loginReturnHref`）；`BrandMark`、`InstantCardNewsList`（Today 主題／持倉新聞列表共用）。
 - **Agent 工作規範**：根目錄 [`CLAUDE.md`](CLAUDE.md)（繁中 DoD、驗證指令對齊 CI）；[`.cursorignore`](.cursorignore) 排除 build 產物與 lock 檔以降低 token 消耗。
 - **CI 品質閘（DoD 工具鏈）**：Python `ruff` / `pyright`（`sources`+`scoring`，basic）/ `vulture` + 白名單；pytest `--cov-fail-under=62`（核心套件）；Dashboard 獨立 `eslint.config.mjs` + `npm run lint`；`dashboard/lib/api-routes.test.ts` 覆蓋 9 個 `/api/v1` handler（health、portfolio、earnings、items、relationships、tickers、digest/today、auth 401/503）。
 - **Fiscal boundary fixtures（MSFT / GOOGL / TSM）**：[`docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md`](docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md) + 離線 `companyfacts` JSON；`tests/test_fiscal_boundary_fixtures.py`、`tests/test_sec_xbrl_accession_strict.py`；SEC submissions archive 分頁 fixture。
@@ -30,6 +31,9 @@ All notable changes to this project will be documented in this file.
 - [`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) — 財報 v3 Pipeline / Dashboard 環境變數與 API key 對照表。
 
 ### Changed
+- **Dashboard 程式品質（六階段審查）**：移除 `globals.css` legacy 樣式（`.kicker`／`.dek` 等零引用）；`lib/*` 未用 export 收斂；`ThemeSection`／`HoldingNewsSection` 改共用 `InstantCardNewsList`；`FundamentalsCard`／`PriceReactionCard`／`NavRail` 等接共用格式化與品牌元件。
+- **SignalsTable（手機 RWD）**：代號 Link 與展開因子 button 分離，修 nested interactive；補 `aria-expanded`／`aria-controls`／`min-h-[44px]`。
+- **RelationshipsSection**：10-K 原文由 hover-only 改 `<details>`／`<summary>`，鍵盤與螢幕閱讀器可達。
 - **Pyright**：`pyrightconfig.json` 限定 `sources`+`scoring`；`typeCheckingMode: basic`（strict 在現有 codebase 有 700+ 誤報）；`memory_store._make_vector()` 解決 optional call。
 - **Digest 共用邏輯 Consolidation（階段 3）**：deep dedupe、orphan 分組等 helper 收斂至 `digest.ts`；`digest-snapshot.ts` 精簡為 snapshot 合併 + 組裝。
 - **死碼清理（階段 2）**：移除 `sources/ir_scraper.py`、dashboard 未用 digest/earnings 函式與 re-export；補列 `server-only` 依賴。
@@ -41,6 +45,7 @@ All notable changes to this project will be documented in this file.
 - **`.env.example`**：`NEWS_TAKEAWAY_MODE` / `NEWS_TAKEAWAY_*`；`FRED_API_KEY`、`FRED_CACHE_TTL_SEC`、`SUPPLY_CHAIN_CACHE_TTL_SEC`（Phase 6 宏觀／供應鏈快取）。
 
 ### Fixed
+- **Dashboard a11y**：全站 `:focus-visible` outline；login 錯誤 `role="alert"`；`BacktestCharts` `role="img"` + `aria-label`（Recharts 裝飾層 `aria-hidden`）。
 - **Pyright CI**：`state_store._cosine_similarity` 改以 `importlib` 載入可選 `numpy`，避免 CI 未安裝 numpy 時 `reportMissingImports` 失敗。
 - **SEC XBRL accession strict（D1）**：`SecXbrlFetcher` 在 accession 無匹配 XBRL 列時回傳 `None`，不再 fallback 最新季（backfill / live 一致）。
 - **SEC submissions archive（D2）**：`list_filings_in_range` 依 `filings.files[]` 拉 archive 分頁，支援超出 `recent` 窗口的 backfill。
@@ -53,6 +58,7 @@ All notable changes to this project will be documented in this file.
 - **Phase 1 trend pipeline**：Phase 3 merge 遺失 `build_report_from_filing` 內 `build_earnings_trend` 掛載；已恢復（與 `fc10e03` 一致）。
 
 ### Docs
+- `README.md`、`TODOS.md`、`dashboard/README.md` 同步 Dashboard 六階段審查（共用模組、驗證指令、a11y follow-up）。
 - `README.md`、`TODOS.md`、`dashboard/README.md` 同步財報深度報告 v3（Finnhub、六段報告、待辦）。
 - `CHANGELOG.md`、`TODOS.md` 同步 Phase 4–6（訊號、回測、宏觀）。
 - [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) — 本機指令：`main.py`、`backfill_zh_fields.py`、Dashboard、`setup_dashboard_sa.sh`、驗證清單。

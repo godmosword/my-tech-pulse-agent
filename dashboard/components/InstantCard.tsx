@@ -20,6 +20,7 @@ import {
   priorityLevel,
   type RenderableItem,
 } from "@/lib/types";
+import { loginReturnHref } from "@/lib/login-path";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { Kicker, MetaDot } from "./Kicker";
 import { TickerQuote } from "./data/TickerQuote";
@@ -56,7 +57,7 @@ export function InstantCard({
   const headline = displayTitle(item);
   const meta = formatRelativeDateline(bestTimestamp(item));
   const cat = categoryLabel(item.category);
-  const loginHref = `/login?returnTo=${encodeURIComponent(returnToPath)}`;
+  const loginHref = loginReturnHref(returnToPath);
   const previewLine = publicSummaryLine(item);
   const isList = variant === "list";
   const subline = isList

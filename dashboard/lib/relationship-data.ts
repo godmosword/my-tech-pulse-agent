@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export type RelationshipEdge = {
+type RelationshipEdge = {
   counterparty_name: string;
   counterparty_ticker?: string | null;
   relation: "customer" | "supplier" | "competitor" | "partner";

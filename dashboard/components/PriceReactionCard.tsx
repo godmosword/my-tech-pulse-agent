@@ -1,4 +1,6 @@
-export interface PriceReactionView {
+import { fmtPctSigned } from "@/lib/format-numbers";
+
+interface PriceReactionView {
   earnings_date?: string | null;
   session?: string;
   ret_1d_pct?: number | null;
@@ -18,12 +20,6 @@ const LABEL_STYLES: Record<string, string> = {
   中性: "border-rule bg-paper text-ink-soft",
   資料不足: "border-rule bg-paper text-ink-faint",
 };
-
-function fmtPct(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return "—";
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${v.toFixed(2)}%`;
-}
 
 type Props = {
   reaction: PriceReactionView;
@@ -59,19 +55,19 @@ export function PriceReactionCard({ reaction }: Props) {
       <dl className="mt-4 grid gap-3 font-mono text-meta text-ink-soft sm:grid-cols-2">
         <div>
           <dt className="text-ink-faint">1 日報酬</dt>
-          <dd>{fmtPct(reaction.ret_1d_pct)}</dd>
+          <dd>{fmtPctSigned(reaction.ret_1d_pct)}</dd>
         </div>
         <div>
           <dt className="text-ink-faint">5 日報酬</dt>
-          <dd>{fmtPct(reaction.ret_5d_pct)}</dd>
+          <dd>{fmtPctSigned(reaction.ret_5d_pct)}</dd>
         </div>
         <div>
           <dt className="text-ink-faint">超額 1 日 vs {bench}</dt>
-          <dd>{fmtPct(reaction.excess_1d_pct)}</dd>
+          <dd>{fmtPctSigned(reaction.excess_1d_pct)}</dd>
         </div>
         <div>
           <dt className="text-ink-faint">超額 5 日 vs {bench}</dt>
-          <dd>{fmtPct(reaction.excess_5d_pct)}</dd>
+          <dd>{fmtPctSigned(reaction.excess_5d_pct)}</dd>
         </div>
       </dl>
     </section>

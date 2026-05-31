@@ -1,7 +1,7 @@
 import watchlistData from "./earnings-watchlist-data.json";
 
 /** Q-Silicon `api_routers/earnings.py` PILLAR_BY_TICKER (subset). */
-export const PILLAR_BY_TICKER: Record<string, string> = {
+const PILLAR_BY_TICKER: Record<string, string> = {
   MSFT: "cloud_software",
   GOOGL: "cloud_software",
   META: "cloud_software",

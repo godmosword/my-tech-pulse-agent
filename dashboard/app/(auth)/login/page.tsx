@@ -40,7 +40,10 @@ export default async function LoginPage({
       </header>
 
       {err && (
-        <p className="rounded border border-rule bg-ink/[0.03] px-3 py-2 font-sans text-meta text-ink">
+        <p
+          role="alert"
+          className="rounded border border-rule bg-ink/[0.03] px-3 py-2 font-sans text-meta text-ink"
+        >
           帳號或密碼不正確，請再試一次。
         </p>
       )}

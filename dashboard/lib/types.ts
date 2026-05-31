@@ -7,14 +7,14 @@ import { z } from "zod";
  * We accept Firestore Timestamp objects (with toDate()) or ISO strings — the
  * Admin SDK returns Timestamps; serialized JSON snapshots use strings.
  */
-export const MemoryItemKindSchema = z.enum([
+const MemoryItemKindSchema = z.enum([
   "instant_summary",
   "deep_brief",
   "earnings",
 ]);
 export type MemoryItemKind = z.infer<typeof MemoryItemKindSchema>;
 
-export const NewsTakeawaySchema = z.object({
+const NewsTakeawaySchema = z.object({
   item_id: z.string().optional(),
   takeaway_zh: z.string().default(""),
   angle: z
@@ -69,7 +69,6 @@ export const MemoryItemSchema = z.object({
   published_at: TimestampLikeSchema,
   delivered_at: TimestampLikeSchema,
 });
-export type MemoryItem = z.infer<typeof MemoryItemSchema>;
 
 /** Normalized item ready for rendering: timestamps coerced to ISO strings. */
 export interface RenderableItem {
@@ -138,7 +137,7 @@ function normalizeComparable(value: string): string {
 }
 
 /** 取繁中摘要的第一句，作為缺 zh_title 時的標題 fallback。 */
-export function firstZhSentence(text: string): string {
+function firstZhSentence(text: string): string {
   const t = text.trim();
   if (!t) return "";
   const match = t.match(/^[^。！？.!?]+[。！？.!?]?/u);
@@ -146,7 +145,7 @@ export function firstZhSentence(text: string): string {
 }
 
 /** 品質過低的 zh_title 不應蓋過完整的 title。 */
-export function isWeakZhTitle(
+function isWeakZhTitle(
   zhTitle: string,
   options: { title?: string; entity?: string } = {},
 ): boolean {

@@ -7,7 +7,7 @@ export interface FilterState {
   ticker: string | null;
 }
 
-export interface Facet {
+interface Facet {
   value: string;
   label: string;
   count: number;

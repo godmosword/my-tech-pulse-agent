@@ -1,5 +1,4 @@
-import { InstantCard } from "@/components/InstantCard";
-import { NewsTakeawayBlock } from "@/components/NewsTakeawayBlock";
+import { InstantCardNewsList } from "@/components/InstantCardNewsList";
 import { isPublicReadMode } from "@/lib/env-public-read";
 import { listLatestItems } from "@/lib/firestore";
 import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
@@ -36,27 +35,11 @@ export async function HoldingNewsSection() {
   );
 
   return (
-    <ul className="divide-y divide-rule">
-      {holdingNews.map((item) => {
-        const returnToPath = `/item/${encodeURIComponent(item.id)}`;
-        const relevance = tagItemPortfolioRelevance(item.takeaway?.tickers);
-        return (
-          <li key={item.id}>
-            <InstantCard
-              item={item}
-              authenticated={authenticated}
-              returnToPath={returnToPath}
-              variant="list"
-              quotes={quotes}
-            />
-            {item.takeaway && (
-              <div className="pb-3">
-                <NewsTakeawayBlock takeaway={item.takeaway} relevance={relevance} />
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <InstantCardNewsList
+      items={holdingNews}
+      authenticated={authenticated}
+      quotes={quotes}
+      takeawayWrapClassName="pb-3"
+    />
   );
 }
