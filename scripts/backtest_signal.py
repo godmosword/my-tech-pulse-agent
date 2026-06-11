@@ -58,6 +58,11 @@ def _write_records_csv(path: Path, rows: list[dict]) -> None:
                 for rk, rv in flat["returns"].items():
                     flat[rk] = rv
                 del flat["returns"]
+            if "factor_scores" in flat and isinstance(flat["factor_scores"], dict):
+                for fk, fv in flat["factor_scores"].items():
+                    flat[f"factor_{fk}"] = fv
+                del flat["factor_scores"]
+            flat.pop("factors", None)
             w.writerow(flat)
 
 
