@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getItemById } from "@/lib/firestore";
 import {
@@ -17,8 +16,8 @@ import { AgentCommentary } from "@/components/AgentCommentary";
 import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { NewsTakeawayBlock } from "@/components/NewsTakeawayBlock";
-import { loginReturnHref } from "@/lib/login-path";
 import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
+import { LoginToReadCta } from "@/components/LoginToReadCta";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
@@ -69,7 +68,6 @@ export default async function ItemPage({
   const authenticated =
     !isPublicReadMode() || (await getReaderSession()) !== null;
   const returnToPath = `/item/${encodeURIComponent(decodedId)}`;
-  const loginHref = loginReturnHref(returnToPath);
 
   if (item.kind === "deep_brief") {
     return (
@@ -150,14 +148,7 @@ export default async function ItemPage({
       )}
 
       {!authenticated && hasGatedLongContent(item) && (
-        <p className="font-sans text-meta text-ink-soft">
-          <Link
-            href={loginHref}
-            className="text-accent underline-offset-4 hover:underline"
-          >
-            登入以閱讀完整中文全文
-          </Link>
-        </p>
+        <LoginToReadCta returnToPath={returnToPath} />
       )}
 
       {englishSummary && (

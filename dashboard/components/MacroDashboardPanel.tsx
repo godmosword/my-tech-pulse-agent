@@ -1,3 +1,4 @@
+import { formatDashboardDate } from "@/lib/format-datetime";
 import type { MacroContextSnapshot } from "@/lib/macro-data";
 import { THEME_LABELS } from "@/lib/macro-data";
 import type { PortfolioEnvironmentRow } from "@/lib/portfolio-metrics";
@@ -48,7 +49,10 @@ export function MacroDashboardPanel({ snapshot, portfolioEnv, weightedBias }: Pr
       <section className="section-band">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-sans text-lg font-semibold text-ink">宏觀儀表</h2>
-          <SourceTag asOf={snapshot.as_of?.slice(0, 10)} source="FRED" />
+          <SourceTag
+            asOf={snapshot.as_of ? formatDashboardDate(snapshot.as_of) : undefined}
+            source="FRED"
+          />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(["fed_funds_rate", "cpi_yoy", "treasury_10y"] as const).map((key) => {

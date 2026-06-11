@@ -1,3 +1,10 @@
+import {
+  DASHBOARD_TIMEZONE,
+  dayKeyTaipei,
+  formatDashboardDate,
+  formatDashboardMetaDateTime,
+  parseDashboardInstant,
+} from "./format-datetime";
 import type { RenderableItem } from "./types";
 
 /**
@@ -217,25 +224,13 @@ export function shouldShowConfidenceBadge(item: RenderableItem): boolean {
   return tone === "warn" || tone === "bad";
 }
 
-const TIMEZONE = process.env.DIGEST_HEADER_TIMEZONE || "Asia/Taipei";
+const TIMEZONE = process.env.DIGEST_HEADER_TIMEZONE || DASHBOARD_TIMEZONE;
 
 /**
- * Long editorial date: "MAY 17, 2026". Masthead + archive day headers.
+ * Long editorial date (zh-TW, Asia/Taipei). Masthead + archive day headers.
  */
 export function formatEditorialDate(iso: string | null): string {
-  if (!iso) return "";
-  try {
-    return new Date(iso)
-      .toLocaleDateString("en-US", {
-        timeZone: TIMEZONE,
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-      .toUpperCase();
-  } catch {
-    return iso;
-  }
+  return formatDashboardDate(iso);
 }
 
 /**
@@ -263,54 +258,31 @@ export function bestTimestamp(item: {
  */
 export function formatRelativeDateline(iso: string | null, now: Date = new Date()): string {
   if (!iso) return "";
-  let d: Date;
-  try {
-    d = new Date(iso);
-  } catch {
-    return iso;
-  }
+  const d = parseDashboardInstant(iso);
+  if (!d) return iso;
   const diffMs = now.getTime() - d.getTime();
   if (diffMs < 0) return formatMetaDate(iso);
   if (diffMs < 60_000) return "剛剛";
   if (diffMs < 60 * 60_000) {
     return `${Math.floor(diffMs / 60_000)} 分鐘前`;
   }
-  const dayKey = (x: Date) =>
-    x.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
-  const today = dayKey(now);
-  const yesterday = dayKey(new Date(now.getTime() - 24 * 60 * 60_000));
-  const key = dayKey(d);
-  const hhmm = d.toLocaleTimeString("en-GB", {
+  const today = dayKeyTaipei(now);
+  const yesterday = dayKeyTaipei(new Date(now.getTime() - 24 * 60 * 60_000));
+  const key = dayKeyTaipei(d);
+  const hhmm = d.toLocaleTimeString("zh-TW", {
     timeZone: TIMEZONE,
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   if (key === today) return `今天 ${hhmm}`;
   if (key === yesterday) return `昨日 ${hhmm}`;
   return formatMetaDate(iso);
 }
 
-/** Compact meta: "MAY 17 · 11:15" for inline kicker meta lines. */
+/** Compact meta for inline kicker meta lines (zh-TW, Asia/Taipei). */
 export function formatMetaDate(iso: string | null): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    const day = d
-      .toLocaleDateString("en-US", {
-        timeZone: TIMEZONE,
-        month: "short",
-        day: "numeric",
-      })
-      .toUpperCase();
-    const time = d.toLocaleTimeString("en-GB", {
-      timeZone: TIMEZONE,
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    return `${day} · ${time}`;
-  } catch {
-    return iso;
-  }
+  return formatDashboardMetaDateTime(iso);
 }
 
 // Maps raw extractor categories (used across instant / deep / earnings kinds)

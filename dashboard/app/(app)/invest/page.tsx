@@ -17,6 +17,7 @@ import {
   portfolioEnvironment,
   weightedEnvironmentBias,
 } from "@/lib/portfolio-metrics";
+import { formatDashboardDate } from "@/lib/format-datetime";
 import { buildPortfolioPayload } from "@/lib/portfolio-server";
 
 export const dynamic = "force-dynamic";
@@ -373,7 +374,7 @@ async function MacroSection() {
           />
           <StatCard
             kicker="宏觀快照"
-            value={snapshot.as_of?.slice(0, 10) ?? "—"}
+            value={formatDashboardDate(snapshot.as_of) || "—"}
             source="macro_context_latest.json"
           />
         </div>

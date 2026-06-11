@@ -11,6 +11,7 @@ import { InvestmentSignalCard } from "@/components/InvestmentSignalCard";
 import { PriceReactionCard } from "@/components/PriceReactionCard";
 import { RelationshipsSection } from "@/components/RelationshipsSection";
 import { listEarningsPeers, listEarningsReports } from "@/lib/earnings-firestore";
+import { formatDashboardDate } from "@/lib/format-datetime";
 import { loadEarningsInsight } from "@/lib/earnings-portal";
 import {
   loadClustersSnapshot,
@@ -101,7 +102,7 @@ export default async function EarningsTickerPage({ params }: Props) {
               {row.quarter_label}
             </Link>
             <p className="mt-1 font-sans text-meta text-ink-faint">
-              申報 {row.published_at_iso?.slice(0, 10) ?? "—"} · {row.confidence}
+              申報 {formatDashboardDate(row.published_at_iso) || "—"} · {row.confidence}
               {row.scorecard?.headline_verdict
                 ? ` · ${row.scorecard.headline_verdict}`
                 : ""}

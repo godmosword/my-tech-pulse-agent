@@ -5,23 +5,13 @@ import { useCallback, useState } from "react";
 
 import { LoadMoreButton } from "@/components/LoadMoreButton";
 import type { EarningsReportRow } from "@/lib/earnings-firestore";
+import { formatDashboardDateTime } from "@/lib/format-datetime";
 
 type Props = {
   initialItems: EarningsReportRow[];
   initialNextCursor: string | null;
   pageSize: number;
 };
-
-function formatTp(iso: string | null): string {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("zh-TW", {
-    timeZone: "Asia/Taipei",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
 
 function metricBadge(
   metrics: { metric: string; label_zh: string; value: number; unit?: string }[],
@@ -94,7 +84,7 @@ export function EarningsList({ initialItems, initialNextCursor, pageSize }: Prop
                 </span>
               )}
               <span className="font-sans text-meta text-ink-faint">
-                {formatTp(row.published_at_iso)}
+                {formatDashboardDateTime(row.published_at_iso) || "—"}
               </span>
             </div>
             <p className="mt-1 font-sans text-body text-ink-soft">

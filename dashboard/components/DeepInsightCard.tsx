@@ -5,7 +5,7 @@ import {
   authenticatedPrimaryBody,
   hasGatedLongContent,
 } from "@/lib/zh-content";
-import { loginReturnHref } from "@/lib/login-path";
+import { LoginToReadCta } from "./LoginToReadCta";
 import { Kicker } from "./Kicker";
 
 interface DeepInsightCardProps {
@@ -28,7 +28,6 @@ export function DeepInsightCard({
 }: DeepInsightCardProps) {
   const parts = splitThreePart(item.summary);
   const headline = displayTitle(item);
-  const loginHref = loginReturnHref(returnToPath);
   const teaser = publicSummaryLine(item);
   const bodyZh = authenticatedPrimaryBody(item);
   const useFlatZhBody = Boolean(item.zh_body?.trim());
@@ -97,11 +96,7 @@ export function DeepInsightCard({
             </div>
           )}
           {hasGatedLongContent(item) && (
-            <p className="font-sans text-meta text-ink-soft">
-              <Link href={loginHref} className="text-accent underline-offset-4 hover:underline">
-                登入以閱讀完整洞見
-              </Link>
-            </p>
+            <LoginToReadCta returnToPath={returnToPath} />
           )}
         </div>
       )}
