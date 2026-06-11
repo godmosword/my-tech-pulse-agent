@@ -89,6 +89,7 @@ Runtime 使用 Job 預設服務帳號或自訂 SA，需具備：
 | `GEMINI_API_KEY` | Gemini 提取 / 打分 / 合成 |
 | `TELEGRAM_BOT_TOKEN` | Bot token |
 | `TELEGRAM_CHANNEL_ID` | 頻道 ID |
+| `TELEGRAM_ALERT_CHAT_ID` | **建議** — 管線未處理例外時的 Telegram 告警 chat（管理者私訊或獨立群組）；未設定時 fallback 至 `TELEGRAM_CHANNEL_ID` 並寫入日誌 |
 | `MEMORY_ENABLED` | `1` — 寫入 `tech_pulse_memory_items` |
 | `STATE_BACKEND` | `auto` 或 `firestore`（Cloud Run 建議 `auto`） |
 | `FIRESTORE_COLLECTION_PREFIX` | `tech_pulse`（與 Dashboard 一致） |

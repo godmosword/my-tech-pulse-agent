@@ -23,6 +23,7 @@ from agents.relationship_extractor import _load_aliases
 from agents.reviewer_agent import ReviewerAgent
 from agents.translation_agent import TranslationAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
+from delivery.pipeline_alert import notify_pipeline_failure
 from delivery.revalidate import revalidate_dashboard
 from delivery.telegram_bot import TelegramBot
 from pipeline.runtime_config import (
@@ -1019,10 +1020,17 @@ class TechPulseCrew:
         logger.debug("Saved %s", path)
 
 
-def main():
-    crew = TechPulseCrew()
-    result = crew.run()
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+def main() -> None:
+    import sys
+
+    try:
+        crew = TechPulseCrew()
+        result = crew.run()
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    except Exception as exc:
+        logger.exception("Pipeline failed with a critical unhandled exception")
+        notify_pipeline_failure("tech-pulse", exc)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

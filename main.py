@@ -7,7 +7,10 @@ import sys
 
 from dotenv import load_dotenv
 
+from delivery.pipeline_alert import notify_pipeline_failure
 from pipeline.crew import TechPulseCrew
+
+PIPELINE_NAME = "tech-pulse"
 
 
 def configure_logging() -> None:
@@ -28,8 +31,9 @@ def run_job() -> int:
 
     try:
         result = TechPulseCrew().run()
-    except Exception:
+    except Exception as exc:
         logger.exception("Pipeline failed with a critical unhandled exception")
+        notify_pipeline_failure(PIPELINE_NAME, exc)
         return 1
 
     fetched = int(result.get("articles_fetched", 0))

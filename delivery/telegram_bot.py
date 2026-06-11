@@ -141,6 +141,21 @@ class TelegramBot:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    def send_to_chat(self, text: str, chat_id: str) -> bool:
+        """Send HTML text to a specific chat (e.g. admin failure alerts)."""
+        if not self._bot:
+            logger.info("Telegram bot not configured; skipping send_to_chat")
+            return False
+        if not chat_id:
+            logger.warning("Telegram send_to_chat skipped: empty chat_id")
+            return False
+        try:
+            asyncio.run(self._async_send(text, chat_id=chat_id))
+            return True
+        except Exception as exc:
+            logger.error("Telegram send_to_chat failed: %s", exc)
+            return False
+
     def _send(self, text: str) -> bool:
         try:
             asyncio.run(self._async_send(text))
@@ -188,8 +203,9 @@ class TelegramBot:
                 if not (i == total - 1 and j == len(chunks) - 1):
                     await asyncio.sleep(TELEGRAM_CHUNK_DELAY_MS / 1000.0)
 
-    async def _async_send(self, text: str) -> None:
+    async def _async_send(self, text: str, *, chat_id: str | None = None) -> None:
         """Send message with smart chunking at theme boundaries to preserve formatting."""
+        target_chat_id = chat_id or self._channel_id
         chunks = self._smart_chunk_text(text)
 
         for i, chunk in enumerate(chunks):
@@ -201,7 +217,7 @@ class TelegramBot:
 
             try:
                 await self._bot.send_message(
-                    chat_id=self._channel_id,
+                    chat_id=target_chat_id,
                     text=chunk,
                     parse_mode="HTML",
                 )

@@ -38,9 +38,11 @@ def test_run_job_returns_one_when_pipeline_reports_critical_errors(capsys):
 
 
 def test_run_job_returns_one_on_critical_exception(capsys):
-    with patch("main.TechPulseCrew") as crew_cls:
-        crew_cls.return_value.run.side_effect = RuntimeError("boom")
+    with patch("main.TechPulseCrew") as crew_cls, patch("main.notify_pipeline_failure") as notify:
+        exc = RuntimeError("boom")
+        crew_cls.return_value.run.side_effect = exc
         exit_code = main.run_job()
 
     assert exit_code == 1
     assert "Pipeline failed with a critical unhandled exception" in capsys.readouterr().out
+    notify.assert_called_once_with("tech-pulse", exc)
