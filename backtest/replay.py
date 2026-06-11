@@ -87,6 +87,21 @@ def rebuild_signal_for_quarter(
     decision_date = first_trading_day_after(finnhub, symbol, from_date=filed)
     period = report.quarter_label or filing.get("period_end") or filed
 
+    factor_scores = {
+        f.name: f.score
+        for f in signal.factors
+        if f.available and f.score is not None
+    }
+    factors_payload = [
+        {
+            "name": f.name,
+            "score": f.score,
+            "available": f.available,
+            "weight": f.weight,
+        }
+        for f in signal.factors
+    ]
+
     return {
         "symbol": symbol.upper(),
         "cik": cik,
@@ -99,6 +114,8 @@ def rebuild_signal_for_quarter(
         "rating": signal.rating,
         "conviction": signal.conviction,
         "factors_available": sum(1 for f in signal.factors if f.available),
+        "factor_scores": factor_scores,
+        "factors": factors_payload,
     }
 
 
