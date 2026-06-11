@@ -17,6 +17,7 @@ const marketContextForTicker = vi.fn();
 const loadTodayDigestData = vi.fn();
 const latestDeliveredIso = vi.fn();
 const resolveDigestView = vi.fn();
+const searchPortal = vi.fn();
 
 vi.mock("@/lib/firestore", () => ({
   collectionName: () => "tech_pulse_memory_items",
@@ -50,6 +51,10 @@ vi.mock("@/lib/today-digest", () => ({
 
 vi.mock("@/lib/digest-snapshot", () => ({
   resolveDigestView: (...args: unknown[]) => resolveDigestView(...args),
+}));
+
+vi.mock("@/lib/search-firestore", () => ({
+  searchPortal: (...args: unknown[]) => searchPortal(...args),
 }));
 
 function authedRequest(path: string): NextRequest {
@@ -278,6 +283,34 @@ describe("/api/v1 route handlers", () => {
     const body = await res.json();
     expect(body.tickers[0]?.value).toBe("NVDA");
     expect(body.tickers[0]?.count).toBe(2);
+  });
+
+  it("GET /api/v1/search returns mixed news and earnings hits", async () => {
+    searchPortal.mockResolvedValue({
+      query: "NVDA",
+      news: [{ id: "n1", title: "NVDA", href: "/item/n1", tickers: ["NVDA"], delivered_at: null }],
+      earnings: [
+        {
+          ticker: "NVDA",
+          company: "NVIDIA",
+          quarter_label: "FY2026Q1",
+          href: "/earnings/NVDA",
+          published_at: null,
+        },
+      ],
+    });
+    const { GET } = await import("@/app/api/v1/search/route");
+    const res = await GET(authedRequest("/api/v1/search?q=NVDA"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.news).toHaveLength(1);
+    expect(body.earnings[0]?.ticker).toBe("NVDA");
+  });
+
+  it("GET /api/v1/search validates empty query", async () => {
+    const { GET } = await import("@/app/api/v1/search/route");
+    const res = await GET(authedRequest("/api/v1/search?q="));
+    expect(res.status).toBe(400);
   });
 
   it("GET /api/v1/digest/today returns digest payload", async () => {

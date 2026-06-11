@@ -4,6 +4,8 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **Dashboard 登入 CTA + 日期時區統一**：`LoginToReadCta`、`format-datetime`（Asia/Taipei zh-TW）
+- [x] **Dashboard 導覽搜尋**：NavRail／行動版 combobox + `GET /api/v1/search`（Firestore ticker／標題前綴，非全文）
 - [x] **Dashboard 列表載入更多分頁**：archive／earnings／signals cursor 分頁 API + `LoadMoreButton`；archive 篩選變更重置 cursor
 - [x] **財報報告頁 Markdown 渲染**：`/earnings/report/[reportId]` 結構化 Markdown + 章節目錄 + 語義色 surprise badge
 - [x] **Signal 權重建議腳本**：`scripts/suggest_signal_weights.py`（回測 records → 建議報告，不自動改 `signal_config.yaml`）

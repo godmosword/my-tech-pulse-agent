@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { AuthNav } from "./AuthNav";
 import { BrandMark } from "./BrandMark";
+import { MobileMastheadTop } from "./MobileMastheadTop";
+import { NavSearch } from "./NavSearch";
 import { ThemeToggle } from "./ThemeToggle";
 
 const readingLinks = (
@@ -33,6 +35,7 @@ export function NavRail() {
   return (
     <aside className="hidden lg:sticky lg:top-10 lg:block lg:self-start lg:pr-4">
       <BrandMark variant="rail" className="pb-8 min-w-0" />
+      <NavSearch variant="rail" />
 
       <nav
         aria-label="Primary"
@@ -61,13 +64,7 @@ export function NavRail() {
 export function MobileMasthead() {
   return (
     <header className="space-y-4 pb-6 lg:hidden">
-      <div className="flex items-start justify-between gap-3">
-        <BrandMark variant="mobile" className="min-w-0" />
-        <div className="flex shrink-0 items-center gap-2 pt-1">
-          <span className="sr-only">顯示模式</span>
-          <ThemeToggle />
-        </div>
-      </div>
+      <MobileMastheadTop />
       <nav
         aria-label="Primary"
         className="flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft"
