@@ -1,7 +1,11 @@
 import "server-only";
 
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import {
+  FieldPath,
+  getFirestore,
+  type Firestore,
+} from "firebase-admin/firestore";
 
 import {
   MemoryItemSchema,
@@ -93,19 +97,77 @@ export interface ListOptions {
   since?: Date;
 }
 
+export interface ItemFirestoreCursor {
+  deliveredAtIso: string;
+  id: string;
+}
+
+function deliveredAtFromIso(iso: string): Date {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) {
+    throw new Error(`invalid delivered_at cursor: ${iso}`);
+  }
+  return new Date(ms);
+}
+
+function baseItemsQuery(since?: Date) {
+  let query = db()
+    .collection(COLLECTION)
+    .orderBy("delivered_at", "desc")
+    .orderBy(FieldPath.documentId(), "desc");
+  if (since) query = query.where("delivered_at", ">=", since);
+  return query;
+}
+
 export async function listLatestItems({
   limit = 60,
   since,
 }: ListOptions = {}): Promise<RenderableItem[]> {
-  let query = db().collection(COLLECTION).orderBy("delivered_at", "desc");
-  if (since) query = query.where("delivered_at", ">=", since);
-  const snap = await query.limit(limit).get();
+  const snap = await baseItemsQuery(since).limit(limit).get();
   const items: RenderableItem[] = [];
   for (const doc of snap.docs) {
     const r = toRenderable(doc.id, doc.data());
     if (r) items.push(r);
   }
   return items;
+}
+
+export async function listLatestItemsAfter({
+  limit,
+  since,
+  cursor,
+}: {
+  limit: number;
+  since?: Date;
+  cursor?: ItemFirestoreCursor;
+}): Promise<{
+  items: RenderableItem[];
+  hasMore: boolean;
+  lastCursor: ItemFirestoreCursor | null;
+}> {
+  let query = baseItemsQuery(since);
+  if (cursor) {
+    query = query.startAfter(
+      deliveredAtFromIso(cursor.deliveredAtIso),
+      cursor.id,
+    );
+  }
+  const snap = await query.limit(limit + 1).get();
+  const docs = snap.docs.slice(0, limit);
+  const items: RenderableItem[] = [];
+  for (const doc of docs) {
+    const r = toRenderable(doc.id, doc.data());
+    if (r) items.push(r);
+  }
+  const last = items.at(-1);
+  return {
+    items,
+    hasMore: snap.docs.length > limit,
+    lastCursor:
+      last && last.delivered_at_iso
+        ? { deliveredAtIso: last.delivered_at_iso, id: last.id }
+        : null,
+  };
 }
 
 export async function getItemById(

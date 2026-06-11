@@ -15,6 +15,7 @@ export interface ItemListQuery {
   since: Date | null;
   filters: FilterState;
   kind: MemoryItemKind | null;
+  cursor: string | null;
 }
 
 export function parseItemListQuery(request: NextRequest): ItemListQuery {
@@ -45,7 +46,10 @@ export function parseItemListQuery(request: NextRequest): ItemListQuery {
     ticker: sp.get("ticker") ?? undefined,
   });
 
-  return { limit, since, filters, kind };
+  const cursorRaw = sp.get("cursor")?.trim();
+  const cursor = cursorRaw ? cursorRaw : null;
+
+  return { limit, since, filters, kind, cursor };
 }
 
 export function filterListedItems(

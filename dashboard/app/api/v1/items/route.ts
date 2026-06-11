@@ -1,19 +1,21 @@
 import { listLatestItems } from "@/lib/firestore";
-import { filterListedItems, parseItemListQuery } from "@/lib/api-query";
+import { parseItemListQuery } from "@/lib/api-query";
+import {
+  listFilteredItemsLegacy,
+  listFilteredItemsPage,
+} from "@/lib/items-list-page";
 import { serializeItem } from "@/lib/api-serialize";
 import { apiJson, withApiAuth } from "@/lib/api-route";
 
 export const GET = withApiAuth(async (request, { access }) => {
   const query = parseItemListQuery(request);
-  const fetchLimit = Math.min(query.limit * 4, 400);
-  const items = await listLatestItems({
-    limit: fetchLimit,
-    since: query.since ?? undefined,
-  });
-  const filtered = filterListedItems(items, query);
+  const page = query.cursor
+    ? await listFilteredItemsPage(query, query.cursor)
+    : await listFilteredItemsLegacy(query, listLatestItems);
   return apiJson({
-    items: filtered.map((item) => serializeItem(item, access)),
-    count: filtered.length,
+    items: page.items.map((item) => serializeItem(item, access)),
+    count: page.items.length,
     limit: query.limit,
+    nextCursor: page.nextCursor,
   });
 });

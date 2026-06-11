@@ -4,10 +4,12 @@ import Link from "next/link";
 import { BackfillCode, BackfillHint } from "@/components/data/BackfillHint";
 import { DensePageShell } from "@/components/data/DensePageShell";
 import { RatingBadge } from "@/components/data/RatingBadge";
-import { SignalsTable } from "@/components/data/SignalsTable";
+import {
+  SignalsListSection,
+  type SignalTableItem,
+} from "@/components/data/SignalsListSection";
 import { StatCard } from "@/components/data/StatCard";
-import { listEarningsSince } from "@/lib/earnings-firestore";
-import { classifyTier, type PortfolioTier } from "@/lib/portfolio-metrics";
+import { listSignalsPage } from "@/lib/signals-list-page";
 import { getPortfolioTierSets } from "@/lib/portfolio-server";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +18,9 @@ export const metadata: Metadata = {
   title: "投資訊號排行",
   description: "依綜合投資訊號分數排序的近期財報。",
 };
+
+const SIGNALS_PAGE_SIZE = 40;
+const SIGNALS_DAYS = 30;
 
 type Props = {
   searchParams: Promise<{ conviction?: string; tier?: string }>;
@@ -26,49 +31,29 @@ export default async function SignalsPage({ searchParams }: Props) {
   const conviction = sp.conviction || "";
   const tier = sp.tier || "";
 
-  const since = new Date();
-  since.setUTCDate(since.getUTCDate() - 30);
-
-  const rows = await listEarningsSince(since, { limit: 80, maxTier: 5 });
   const { holdingsSet, watchlistSet } = getPortfolioTierSets();
+  const page = await listSignalsPage(
+    {
+      days: SIGNALS_DAYS,
+      minConviction: conviction || undefined,
+      tierFilter: tier || undefined,
+      limit: SIGNALS_PAGE_SIZE,
+    },
+    holdingsSet,
+    watchlistSet,
+  );
 
-  let items = rows
-    .filter((r) => r.investment_signal?.score != null)
-    .map((r) => {
-      const sig = r.investment_signal!;
-      const top = [...(sig.factors || [])]
-        .filter((f) => f.available)
-        .sort((a, b) => b.weight - a.weight)[0];
-      return {
-        report_id: r.report_id,
-        ticker: r.ticker,
-        quarter_label: r.quarter_label,
-        score: sig.score as number,
-        rating: sig.rating,
-        conviction: sig.conviction,
-        top_factor: top?.name ?? "—",
-        portfolio_tier: classifyTier(r.ticker, holdingsSet, watchlistSet) as PortfolioTier,
-        factors: (sig.factors ?? []).map((f) => ({
-          name: f.name,
-          score: f.score ?? null,
-          available: f.available,
-        })),
-      };
-    });
-
-  if (conviction === "medium") {
-    items = items.filter((i) => i.conviction === "medium" || i.conviction === "high");
-  } else if (conviction === "high") {
-    items = items.filter((i) => i.conviction === "high");
-  }
-
-  if (tier === "holding") {
-    items = items.filter((i) => i.portfolio_tier === "holding");
-  } else if (tier === "watchlist") {
-    items = items.filter((i) => i.portfolio_tier === "watchlist");
-  }
-
-  items.sort((a, b) => b.score - a.score);
+  const items: SignalTableItem[] = page.items.map((item) => ({
+    report_id: item.report_id,
+    ticker: item.ticker,
+    quarter_label: item.quarter_label,
+    score: item.score,
+    rating: item.rating,
+    conviction: item.conviction,
+    top_factor: item.top_factor ?? "—",
+    portfolio_tier: item.portfolio_tier,
+    factors: item.factors,
+  }));
 
   const topBuy = items.find((i) => i.score >= 60);
   const topAvoid = [...items].reverse().find((i) => i.score < 45);
@@ -80,6 +65,8 @@ export default async function SignalsPage({ searchParams }: Props) {
     const q = params.toString();
     return q ? `/signals?${q}` : "/signals";
   }
+
+  const filterKey = [conviction, tier].join("|");
 
   return (
     <DensePageShell
@@ -166,9 +153,15 @@ python main.py`}</BackfillCode>
           <p>環境：SEC_USER_AGENT、Firestore ADC（GOOGLE_APPLICATION_CREDENTIALS 或 gcloud auth）。</p>
         </BackfillHint>
       ) : (
-        <div className="mt-6">
-          <SignalsTable items={items} />
-        </div>
+        <SignalsListSection
+          key={filterKey}
+          initialItems={items}
+          initialNextCursor={page.nextCursor}
+          pageSize={SIGNALS_PAGE_SIZE}
+          days={SIGNALS_DAYS}
+          conviction={conviction}
+          tier={tier}
+        />
       )}
     </DensePageShell>
   );

@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { listLatestItems } from "@/lib/firestore";
+import { categoryLabel } from "@/lib/digest";
 import {
-  bestTimestamp,
-  categoryLabel,
-  formatEditorialDate,
-} from "@/lib/digest";
-import {
-  applyFilters,
   buildArchiveHref,
   monthLabel,
   parseFilterState,
 } from "@/lib/archive-filters";
+import { listFilteredItemsLegacy } from "@/lib/items-list-page";
+import {
+  ArchiveList,
+  toInitialArchiveBuckets,
+} from "@/components/archive/ArchiveList";
+import { archiveItemFromRenderable } from "@/lib/archive-list";
 import { BackLink } from "@/components/BackLink";
 import { Hairline } from "@/components/Hairline";
-import { Kicker, MetaDot } from "@/components/Kicker";
-import { displayTitle, listingZhSubline } from "@/lib/types";
+import { Kicker } from "@/components/Kicker";
 import { ClearFiltersLink } from "@/components/ClearFiltersLink";
 
 /** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
@@ -30,8 +29,7 @@ export const metadata: Metadata = {
 };
 
 const ARCHIVE_WINDOW_DAYS = 90;
-
-type Items = Awaited<ReturnType<typeof listLatestItems>>;
+const ARCHIVE_PAGE_SIZE = 40;
 
 export default async function ArchivePage({
   searchParams,
@@ -40,10 +38,21 @@ export default async function ArchivePage({
 }) {
   const state = parseFilterState(await searchParams);
   const since = new Date(Date.now() - ARCHIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-  const items = await listLatestItems({ limit: 400, since });
-
-  const filtered = applyFilters(items, state);
-  const buckets = bucketByDay(filtered);
+  const page = await listFilteredItemsLegacy(
+    {
+      limit: ARCHIVE_PAGE_SIZE,
+      since,
+      filters: state,
+      kind: null,
+      cursor: null,
+    },
+    listLatestItems,
+  );
+  const archiveItems = page.items.map(archiveItemFromRenderable);
+  const buckets = toInitialArchiveBuckets(archiveItems);
+  const filterKey = [state.category, state.month, state.ticker, since.toISOString()].join(
+    "|",
+  );
 
   return (
     <div className="pt-2">
@@ -60,59 +69,20 @@ export default async function ArchivePage({
         <ActiveFilters state={state} />
       </header>
 
-      <div className="mt-10 space-y-12">
-        {buckets.length === 0 && (
-          <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-soft">
-            {items.length === 0
+      <div className="mt-10">
+        <ArchiveList
+          key={filterKey}
+          initialBuckets={buckets}
+          initialNextCursor={page.nextCursor}
+          pageSize={ARCHIVE_PAGE_SIZE}
+          sinceIso={since.toISOString()}
+          filters={state}
+          emptyMessage={
+            archiveItems.length === 0 && !state.category && !state.month && !state.ticker
               ? "No items yet."
-              : "目前篩選沒有符合的文章。"}
-          </p>
-        )}
-
-        {buckets.map(({ dayIso, items: dayItems }) => (
-          <section key={dayIso} className="space-y-4">
-            <h2 className="font-serif text-[22px] leading-tight tracking-[-0.018em] text-ink sm:text-[26px]">
-              {formatEditorialDate(dayIso) || "Undated"}
-            </h2>
-            <Hairline />
-            <ul className="divide-y divide-rule">
-              {dayItems.map((item) => {
-                const kickerSegments = archiveKickerSegments(item);
-                const subline = listingZhSubline(item);
-                return (
-                <li key={item.id} className="py-4">
-                  <Link
-                    href={`/item/${encodeURIComponent(item.id)}`}
-                    className="block space-y-2 hover:[&_h3]:underline"
-                  >
-                    {kickerSegments.length > 0 && (
-                        <Kicker
-                          as="div"
-                          className="flex flex-wrap items-center text-ink-soft"
-                        >
-                          {kickerSegments.map((segment, index) => (
-                            <span key={`${segment}-${index}`} className="contents">
-                              {index > 0 && <MetaDot />}
-                              <span>{segment}</span>
-                            </span>
-                          ))}
-                        </Kicker>
-                    )}
-                    <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
-                      {displayTitle(item)}
-                    </h3>
-                    {subline && (
-                      <p className="font-sans text-[15px] leading-snug text-ink-soft">
-                        {subline}
-                      </p>
-                    )}
-                  </Link>
-                </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+              : "目前篩選沒有符合的文章。"
+          }
+        />
       </div>
     </div>
   );
@@ -148,45 +118,4 @@ function ActiveFilters({
       </ClearFiltersLink>
     </p>
   );
-}
-
-function archiveKickerSegments(item: Items[number]): string[] {
-  const parts: string[] = [];
-  if (item.kind === "deep_brief") parts.push("Deep Insight");
-  else if (item.kind === "earnings") parts.push("Earnings");
-
-  if (item.category?.trim()) {
-    parts.push(categoryLabel(item.category));
-  }
-
-  const source = item.source_name?.trim();
-  if (source) parts.push(source);
-
-  return parts;
-}
-
-interface DayBucket {
-  /** ISO yyyy-mm-dd used for keying + sorting. */
-  dayIso: string;
-  items: Items;
-}
-
-function bucketByDay(items: Items): DayBucket[] {
-  const groups = new Map<string, Items>();
-  for (const item of items) {
-    // Bucket by the article's actual publish day (fallback to delivered).
-    // Backfilled rows where delivered_at = batch day would otherwise pile
-    // up under the wrong calendar day.
-    const key = bestTimestamp(item).slice(0, 10) || "unknown";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(item);
-  }
-  // Sort items inside each day by the same timestamp, newest first, so the
-  // displayed order matches the kicker timestamps.
-  for (const list of groups.values()) {
-    list.sort((a, b) => bestTimestamp(b).localeCompare(bestTimestamp(a)));
-  }
-  return [...groups.entries()]
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([dayIso, dayItems]) => ({ dayIso, items: dayItems }));
 }

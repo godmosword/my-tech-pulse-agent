@@ -1,5 +1,9 @@
 import "server-only";
-import { getFirestore } from "firebase-admin/firestore";
+import {
+  FieldPath,
+  getFirestore,
+  type QueryDocumentSnapshot,
+} from "firebase-admin/firestore";
 
 import { getApp } from "./firestore";
 
@@ -237,6 +241,37 @@ function sortByPublishedDesc(rows: EarningsReportRow[]): EarningsReportRow[] {
   );
 }
 
+export interface EarningsFirestoreCursor {
+  publishedAtIso: string;
+  reportId: string;
+}
+
+function publishedAtFromIso(iso: string): Date {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) {
+    throw new Error(`invalid published_at cursor: ${iso}`);
+  }
+  return new Date(ms);
+}
+
+function passesTier(row: EarningsReportRow, maxTier: number): boolean {
+  return row.tier == null || row.tier <= maxTier;
+}
+
+function collectTierFiltered(
+  docs: QueryDocumentSnapshot[],
+  maxTier: number,
+): EarningsReportRow[] {
+  const rows: EarningsReportRow[] = [];
+  for (const doc of docs) {
+    const row = toRow(doc.id, (doc.data() || {}) as Record<string, unknown>);
+    if (!row) continue;
+    if (!passesTier(row, maxTier)) continue;
+    rows.push(row);
+  }
+  return rows;
+}
+
 export async function listEarningsReports({
   limit = 30,
   ticker,
@@ -260,15 +295,96 @@ export async function listEarningsReports({
         .limit(limit * 3)
         .get();
 
-  const rows: EarningsReportRow[] = [];
-  for (const doc of snap.docs) {
-    const row = toRow(doc.id, (doc.data() || {}) as Record<string, unknown>);
-    if (!row) continue;
-    if (row.tier != null && row.tier > maxTier) continue;
-    rows.push(row);
+  const rows = collectTierFiltered(snap.docs, maxTier);
+  return sortByPublishedDesc(rows).slice(0, limit);
+}
+
+export async function listEarningsReportsPage({
+  limit = 30,
+  ticker,
+  maxTier = 5,
+  cursor,
+}: {
+  limit?: number;
+  ticker?: string;
+  maxTier?: number;
+  cursor?: EarningsFirestoreCursor;
+}): Promise<{
+  items: EarningsReportRow[];
+  hasMore: boolean;
+  lastCursor: EarningsFirestoreCursor | null;
+}> {
+  const batchSize = Math.max(limit * 3, 30);
+  const collected: EarningsReportRow[] = [];
+  let scanCursor = cursor;
+  let hasMoreInFirestore = true;
+
+  while (collected.length < limit + 1 && hasMoreInFirestore) {
+    let snap;
+    if (ticker) {
+      snap = await db()
+        .collection(EARNINGS_COLLECTION)
+        .where("ticker", "==", ticker.toUpperCase())
+        .limit(batchSize + 1)
+        .get();
+      hasMoreInFirestore = false;
+    } else {
+      let query = db()
+        .collection(EARNINGS_COLLECTION)
+        .orderBy("published_at", "desc")
+        .orderBy(FieldPath.documentId(), "desc");
+      if (scanCursor) {
+        query = query.startAfter(
+          publishedAtFromIso(scanCursor.publishedAtIso),
+          scanCursor.reportId,
+        );
+      }
+      snap = await query.limit(batchSize + 1).get();
+      hasMoreInFirestore = snap.docs.length > batchSize;
+    }
+
+    const docs = snap.docs.slice(0, batchSize);
+    const rows = sortByPublishedDesc(collectTierFiltered(docs, maxTier));
+    for (const row of rows) {
+      if (
+        scanCursor &&
+        publishedAtMs(row.published_at_iso) === publishedAtMs(scanCursor.publishedAtIso) &&
+        row.report_id === scanCursor.reportId
+      ) {
+        continue;
+      }
+      collected.push(row);
+      if (collected.length >= limit + 1) break;
+    }
+
+    const lastDoc = docs.at(-1);
+    if (!ticker && lastDoc) {
+      const lastRow = toRow(
+        lastDoc.id,
+        (lastDoc.data() || {}) as Record<string, unknown>,
+      );
+      if (lastRow?.published_at_iso) {
+        scanCursor = {
+          publishedAtIso: lastRow.published_at_iso,
+          reportId: lastRow.report_id,
+        };
+      }
+    }
+
+    if (!hasMoreInFirestore || ticker) break;
   }
 
-  return sortByPublishedDesc(rows).slice(0, limit);
+  const items = collected.slice(0, limit);
+  const last = items.at(-1);
+  const hasMore = collected.length > limit || (items.length === limit && hasMoreInFirestore);
+
+  return {
+    items,
+    hasMore,
+    lastCursor: last?.published_at_iso
+      ? { publishedAtIso: last.published_at_iso, reportId: last.report_id }
+      : null,
+  };
 }
 
 export async function getEarningsReport(
@@ -290,6 +406,37 @@ export async function listEarningsSince(
   return rows
     .filter((r) => publishedAtMs(r.published_at_iso) >= sinceMs)
     .slice(0, limit);
+}
+
+const EARNINGS_SINCE_SCAN_CAP = 500;
+
+export async function listEarningsSinceAll(
+  since: Date,
+  { maxTier = 5 }: { maxTier?: number } = {},
+): Promise<EarningsReportRow[]> {
+  const sinceMs = since.getTime();
+  const collected: EarningsReportRow[] = [];
+  let cursor: EarningsFirestoreCursor | undefined;
+  let hasMore = true;
+
+  while (hasMore && collected.length < EARNINGS_SINCE_SCAN_CAP) {
+    const page = await listEarningsReportsPage({
+      limit: 80,
+      maxTier,
+      cursor,
+    });
+    for (const row of page.items) {
+      if (publishedAtMs(row.published_at_iso) < sinceMs) {
+        hasMore = false;
+        break;
+      }
+      collected.push(row);
+    }
+    if (!page.hasMore || !page.lastCursor) break;
+    cursor = page.lastCursor;
+  }
+
+  return collected;
 }
 
 export async function listEarningsPeers(

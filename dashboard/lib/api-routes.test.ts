@@ -4,7 +4,11 @@ import { NextRequest } from "next/server";
 vi.mock("server-only", () => ({}));
 
 const listLatestItems = vi.fn();
+const listLatestItemsAfter = vi.fn();
 const listEarningsReports = vi.fn();
+const listEarningsReportsPage = vi.fn();
+const listEarningsSince = vi.fn();
+const listEarningsSinceAll = vi.fn();
 const getEarningsReport = vi.fn();
 const buildPortfolioPayload = vi.fn();
 const loadCompanyRelationships = vi.fn();
@@ -17,10 +21,14 @@ const resolveDigestView = vi.fn();
 vi.mock("@/lib/firestore", () => ({
   collectionName: () => "tech_pulse_memory_items",
   listLatestItems: (...args: unknown[]) => listLatestItems(...args),
+  listLatestItemsAfter: (...args: unknown[]) => listLatestItemsAfter(...args),
 }));
 
 vi.mock("@/lib/earnings-firestore", () => ({
   listEarningsReports: (...args: unknown[]) => listEarningsReports(...args),
+  listEarningsReportsPage: (...args: unknown[]) => listEarningsReportsPage(...args),
+  listEarningsSince: (...args: unknown[]) => listEarningsSince(...args),
+  listEarningsSinceAll: (...args: unknown[]) => listEarningsSinceAll(...args),
   getEarningsReport: (...args: unknown[]) => getEarningsReport(...args),
 }));
 
@@ -84,7 +92,12 @@ describe("/api/v1 route handlers", () => {
 
   it("GET /api/v1/earnings lists reports with count", async () => {
     listEarningsReports.mockResolvedValue([
-      { report_id: "r1", ticker: "NVDA", quarter_label: "FY2026Q1" },
+      {
+        report_id: "r1",
+        ticker: "NVDA",
+        quarter_label: "FY2026Q1",
+        published_at_iso: "2026-05-18T10:00:00.000Z",
+      },
     ]);
     const { GET } = await import("@/app/api/v1/earnings/route");
     const res = await GET(authedRequest("/api/v1/earnings?limit=5"));
@@ -92,6 +105,87 @@ describe("/api/v1 route handlers", () => {
     const body = await res.json();
     expect(body.count).toBe(1);
     expect(body.items[0]?.ticker).toBe("NVDA");
+    expect(body.nextCursor).toBeNull();
+  });
+
+  it("GET /api/v1/earnings paginates with cursor", async () => {
+    listEarningsReportsPage.mockResolvedValue({
+      items: [{ report_id: "r2", ticker: "AMD", quarter_label: "FY2026Q1" }],
+      hasMore: false,
+      lastCursor: {
+        publishedAtIso: "2026-05-17T10:00:00.000Z",
+        reportId: "r2",
+      },
+    });
+    const { encodeEarningsCursor } = await import("@/lib/pagination-cursor");
+    const cursor = encodeEarningsCursor({
+      publishedAtIso: "2026-05-18T10:00:00.000Z",
+      reportId: "r1",
+    });
+    const { GET } = await import("@/app/api/v1/earnings/route");
+    const res = await GET(
+      authedRequest(`/api/v1/earnings?limit=5&cursor=${encodeURIComponent(cursor)}`),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.items[0]?.ticker).toBe("AMD");
+    expect(body.nextCursor).toBeNull();
+  });
+
+  it("GET /api/v1/items returns nextCursor on full first page", async () => {
+    listLatestItems.mockResolvedValue([
+      {
+        id: "item-1",
+        title: "Title",
+        zh_title: "",
+        summary: "Summary",
+        zh_summary: "摘要",
+        zh_body: "",
+        source_url: "https://example.com/a",
+        source_name: "src",
+        entity: "Co",
+        category: "ai",
+        kind: "instant_summary",
+        score: 7,
+        score_status: "ok",
+        hook: "",
+        tickers: [],
+        what_happened: "",
+        why_it_matters: "",
+        takeaway: null,
+        published_at_iso: null,
+        delivered_at_iso: "2026-05-18T10:00:00.000Z",
+        themes: [],
+      },
+      {
+        id: "item-2",
+        title: "Title 2",
+        zh_title: "",
+        summary: "Summary",
+        zh_summary: "摘要",
+        zh_body: "",
+        source_url: "https://example.com/b",
+        source_name: "src",
+        entity: "Co",
+        category: "ai",
+        kind: "instant_summary",
+        score: 7,
+        score_status: "ok",
+        hook: "",
+        tickers: [],
+        what_happened: "",
+        why_it_matters: "",
+        takeaway: null,
+        published_at_iso: null,
+        delivered_at_iso: "2026-05-17T10:00:00.000Z",
+        themes: [],
+      },
+    ]);
+    const { GET } = await import("@/app/api/v1/items/route");
+    const res = await GET(authedRequest("/api/v1/items?limit=2"));
+    const body = await res.json();
+    expect(body.count).toBe(2);
+    expect(body.nextCursor).toBeTruthy();
   });
 
   it("GET /api/v1/items serializes listed items", async () => {
