@@ -2,8 +2,6 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
-import pytest
-
 from delivery import pipeline_alert
 
 
