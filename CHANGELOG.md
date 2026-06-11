@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Signal 權重建議離線腳本**：`scripts/suggest_signal_weights.py` + `backtest/weight_suggestions.py`；讀回測 records 計算各因子 Spearman 相關性，輸出 `weight_suggestions.json` / `.md`（不自動改 `signal_config.yaml`；樣本 < 門檻標示資料不足）；`tests/test_weight_suggestions.py`。
+- **Telegram 摘要回饋按鈕**：每日 digest intro／item 卡片附 👍／👎 inline keyboard；管線開頭 `getUpdates` 批次拉取 callback → `tech_pulse_feedback`（同 user+target 覆寫）；`delivery/feedback_poller.py`、`scoring/feedback_store.py`；`tests/test_feedback_vote.py`。
 - **Pipeline 失敗 Telegram 告警**：未處理例外時經 `delivery/pipeline_alert.py` 發送簡短告警（環境、管線名稱、例外類型、訊息前 200 字、Asia/Taipei 時間戳）；`TELEGRAM_ALERT_CHAT_ID`（未設定時 fallback `TELEGRAM_CHANNEL_ID`）；`main.py` 與 `pipeline/crew.py` entry point；`tests/test_pipeline_alert.py`。
 - **Dashboard 共用模組（六階段審查）**：`lib/format-numbers.ts`（`fmtNum`／`fmtPctPlain`／`fmtPctSigned`）、`lib/login-path.ts`（`loginReturnHref`）；`BrandMark`、`InstantCardNewsList`（Today 主題／持倉新聞列表共用）。
 - **Agent 工作規範**：根目錄 [`CLAUDE.md`](CLAUDE.md)（繁中 DoD、驗證指令對齊 CI）；[`.cursorignore`](.cursorignore) 排除 build 產物與 lock 檔以降低 token 消耗。
