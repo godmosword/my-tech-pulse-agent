@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Pipeline 失敗 Telegram 告警**：未處理例外時經 `delivery/pipeline_alert.py` 發送簡短告警（環境、管線名稱、例外類型、訊息前 200 字、Asia/Taipei 時間戳）；`TELEGRAM_ALERT_CHAT_ID`（未設定時 fallback `TELEGRAM_CHANNEL_ID`）；`main.py` 與 `pipeline/crew.py` entry point；`tests/test_pipeline_alert.py`。
 - **Dashboard 共用模組（六階段審查）**：`lib/format-numbers.ts`（`fmtNum`／`fmtPctPlain`／`fmtPctSigned`）、`lib/login-path.ts`（`loginReturnHref`）；`BrandMark`、`InstantCardNewsList`（Today 主題／持倉新聞列表共用）。
 - **Agent 工作規範**：根目錄 [`CLAUDE.md`](CLAUDE.md)（繁中 DoD、驗證指令對齊 CI）；[`.cursorignore`](.cursorignore) 排除 build 產物與 lock 檔以降低 token 消耗。
 - **CI 品質閘（DoD 工具鏈）**：Python `ruff` / `pyright`（`sources`+`scoring`，basic）/ `vulture` + 白名單；pytest `--cov-fail-under=62`（核心套件）；Dashboard 獨立 `eslint.config.mjs` + `npm run lint`；`dashboard/lib/api-routes.test.ts` 覆蓋 9 個 `/api/v1` handler（health、portfolio、earnings、items、relationships、tickers、digest/today、auth 401/503）。
