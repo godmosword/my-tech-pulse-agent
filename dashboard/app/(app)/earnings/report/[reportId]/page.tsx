@@ -4,7 +4,11 @@ import { notFound } from "next/navigation";
 import { Hairline } from "@/components/Hairline";
 import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { EarningsReportEmpty } from "@/components/earnings/EarningsReportEmpty";
+import { EarningsReportMarkdown } from "@/components/earnings/EarningsReportMarkdown";
+import { SurpriseBadge } from "@/components/earnings/SurpriseBadge";
 import { getEarningsReport } from "@/lib/earnings-firestore";
+import { hasRenderableMarkdown } from "@/lib/earnings-report-markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -20,34 +24,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function surpriseBadge(surprise: number | null | undefined, basis?: string) {
-  if (basis === "Mixed") {
-    return (
-      <span className="rounded border border-amber-500/40 px-2 py-0.5 text-meta text-amber-700 dark:text-amber-300">
-        基準不一致
-      </span>
-    );
-  }
-  if (surprise == null || !Number.isFinite(surprise)) return null;
-  const pos = surprise > 0;
-  return (
-    <span
-      className={`rounded px-2 py-0.5 font-mono text-meta ${
-        pos ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-red-500/15 text-red-700 dark:text-red-300"
-      }`}
-    >
-      {pos ? "🟢" : "🔴"} {surprise > 0 ? "+" : ""}
-      {surprise.toFixed(1)}%
-    </span>
-  );
-}
-
 export default async function EarningsReportPage({ params }: Props) {
   const { reportId } = await params;
   const row = await getEarningsReport(decodeURIComponent(reportId));
   if (!row) notFound();
 
   const sc = row.scorecard;
+  const markdown = row.rendered_markdown_zh;
 
   return (
     <div>
@@ -77,21 +60,25 @@ export default async function EarningsReportPage({ params }: Props) {
 
       {sc && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {surpriseBadge(sc.revenue?.surprise_pct, sc.revenue?.accounting_basis)}
-          {surpriseBadge(sc.eps?.surprise_pct, sc.eps?.accounting_basis)}
+          <SurpriseBadge
+            label="營收驚喜"
+            surprise={sc.revenue?.surprise_pct}
+            basis={sc.revenue?.accounting_basis}
+          />
+          <SurpriseBadge
+            label="EPS驚喜"
+            surprise={sc.eps?.surprise_pct}
+            basis={sc.eps?.accounting_basis}
+          />
         </div>
       )}
 
       <Hairline className="mt-6" />
 
-      {row.rendered_markdown_zh ? (
-        <article className="prose prose-neutral mt-6 max-w-none font-sans text-body text-ink dark:prose-invert">
-          <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed">
-            {row.rendered_markdown_zh}
-          </pre>
-        </article>
+      {hasRenderableMarkdown(markdown) ? (
+        <EarningsReportMarkdown content={markdown!.trim()} />
       ) : (
-        <p className="mt-6 text-body text-ink-soft">尚無深度報告正文。</p>
+        <EarningsReportEmpty ticker={row.ticker} />
       )}
 
       {row.source_url && (

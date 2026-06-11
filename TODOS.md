@@ -4,6 +4,7 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **財報報告頁 Markdown 渲染**：`/earnings/report/[reportId]` 結構化 Markdown + 章節目錄 + 語義色 surprise badge
 - [x] **Signal 權重建議腳本**：`scripts/suggest_signal_weights.py`（回測 records → 建議報告，不自動改 `signal_config.yaml`）
 - [x] **Telegram 摘要回饋**：👍／👎 inline keyboard + `getUpdates` 批次寫入 `tech_pulse_feedback`
 - [x] **Pipeline 失敗告警**：`TELEGRAM_ALERT_CHAT_ID` + `notify_pipeline_failure`（`main.py` / `crew.py` entry point）；見 [`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md) §2.1

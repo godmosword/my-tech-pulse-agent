@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **財報 v3 報告頁 Markdown 渲染**：`react-markdown` + `remark-gfm`；`EarningsReportMarkdown` 章節目錄（lg 側欄 sticky / 手機下拉）；`SurpriseBadge` 改用语義色 token；空內容 `EarningsReportEmpty`；vitest 覆蓋。
 - **Signal 權重建議離線腳本**：`scripts/suggest_signal_weights.py` + `backtest/weight_suggestions.py`；讀回測 records 計算各因子 Spearman 相關性，輸出 `weight_suggestions.json` / `.md`（不自動改 `signal_config.yaml`；樣本 < 門檻標示資料不足）；`tests/test_weight_suggestions.py`。
 - **Telegram 摘要回饋按鈕**：每日 digest intro／item 卡片附 👍／👎 inline keyboard；管線開頭 `getUpdates` 批次拉取 callback → `tech_pulse_feedback`（同 user+target 覆寫）；`delivery/feedback_poller.py`、`scoring/feedback_store.py`；`tests/test_feedback_vote.py`。
 - **Pipeline 失敗 Telegram 告警**：未處理例外時經 `delivery/pipeline_alert.py` 發送簡短告警（環境、管線名稱、例外類型、訊息前 200 字、Asia/Taipei 時間戳）；`TELEGRAM_ALERT_CHAT_ID`（未設定時 fallback `TELEGRAM_CHANNEL_ID`）；`main.py` 與 `pipeline/crew.py` entry point；`tests/test_pipeline_alert.py`。

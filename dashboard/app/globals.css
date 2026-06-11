@@ -171,6 +171,11 @@ summary:focus-visible {
   background: var(--color-paper-tint);
 }
 
+.earnings-report-md h2,
+.earnings-report-md h3 {
+  scroll-margin-top: 1.5rem;
+}
+
 .section-band {
   background: var(--color-paper-tint);
   border: 1px solid var(--color-rule);
