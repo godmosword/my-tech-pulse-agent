@@ -1,6 +1,7 @@
 """Inline keyboard builder and callback processor for user feedback.
 
 Callbacks:
+  fv:{1|0}:{d|i}:{id}    → digest/item vote (👍/👎), persisted to feedback store
   useful:{source_name}   → weight += 0.1 (capped at 2.0) in source_registry.yaml
   save:{item_id}         → insert into configured state store
   block_source:{name}    → set enabled: false in source_registry.yaml
@@ -13,6 +14,7 @@ from typing import Optional
 
 import yaml
 
+from scoring.feedback_store import TargetType, VoteValue, make_feedback_store
 from scoring.state_store import make_state_store
 
 logger = logging.getLogger(__name__)
@@ -20,6 +22,79 @@ logger = logging.getLogger(__name__)
 REGISTRY_PATH = Path(__file__).parent.parent / "sources" / "source_registry.yaml"
 MAX_WEIGHT = 2.0
 WEIGHT_INCREMENT = 0.1
+VOTE_CALLBACK_PREFIX = "fv"
+TARGET_TYPE_CODES = {"d": "digest", "i": "item"}
+TARGET_TYPE_TO_CODE = {v: k for k, v in TARGET_TYPE_CODES.items()}
+
+def encode_vote_callback(vote: VoteValue, target_key: str) -> str:
+    """Build Telegram callback_data for a digest/item vote (≤64 bytes)."""
+    vote_bit = "1" if vote == "up" else "0"
+    return f"{VOTE_CALLBACK_PREFIX}:{vote_bit}:{target_key}"
+
+
+def build_vote_keyboard(target_key: str) -> dict:
+    """Return InlineKeyboardMarkup-compatible dict with 👍/👎 vote buttons."""
+    return {
+        "inline_keyboard": [[
+            {"text": "👍 有價值", "callback_data": encode_vote_callback("up", target_key)},
+            {"text": "👎 沒價值", "callback_data": encode_vote_callback("down", target_key)},
+        ]]
+    }
+
+
+def parse_vote_callback(data: str) -> tuple[VoteValue, TargetType, str] | None:
+    """Parse `fv:{1|0}:{d|i}:{id}` into (vote, target_type, target_id)."""
+    if not data.startswith(f"{VOTE_CALLBACK_PREFIX}:"):
+        return None
+    parts = data.split(":", 3)
+    if len(parts) != 4:
+        return None
+    _, vote_bit, type_code, target_id = parts
+    if vote_bit not in {"0", "1"} or type_code not in TARGET_TYPE_CODES or not target_id:
+        return None
+    vote: VoteValue = "up" if vote_bit == "1" else "down"
+    target_type: TargetType = TARGET_TYPE_CODES[type_code]  # type: ignore[assignment]
+    return vote, target_type, target_id
+
+
+def digest_feedback_key(now: datetime | None = None) -> str:
+    from delivery.message_formatter import digest_feedback_date_key
+
+    return f"d:{digest_feedback_date_key(now)}"
+
+
+def item_feedback_key(source_url: str, *, fallback: str = "") -> str:
+    from delivery.message_formatter import item_feedback_id
+
+    item_id = item_feedback_id(source_url, fallback=fallback)
+    if not item_id:
+        return ""
+    return f"i:{item_id}"
+
+
+def handle_vote_callback(
+    data: str,
+    *,
+    user_id: int,
+    voted_at: datetime | None = None,
+) -> str:
+    """Persist a vote callback and return a short acknowledgement string."""
+    parsed = parse_vote_callback(data)
+    if not parsed:
+        return "Unknown vote callback."
+    vote, target_type, target_id = parsed
+    from scoring.feedback_store import hash_telegram_user_id
+
+    store = make_feedback_store()
+    store.save_vote(
+        target_id=target_id,
+        target_type=target_type,
+        vote=vote,
+        user_id_hash=hash_telegram_user_id(user_id),
+        voted_at=voted_at or datetime.now(timezone.utc),
+    )
+    return "已記錄回饋，謝謝！"
+
 
 def build_keyboard(item_id: str, source_name: str) -> dict:
     """Return an InlineKeyboardMarkup-compatible dict with feedback buttons.

@@ -10,7 +10,7 @@ from agents.earnings_models import EarningsReport
 from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput, StoryInsight, Theme
-from delivery.feedback_handler import handle_callback
+from delivery.feedback_handler import build_vote_keyboard, handle_callback
 from delivery.message_formatter import (
     build_items_digest_messages,
     escape,
@@ -171,19 +171,13 @@ class TelegramBot:
         Long card text is still chunk-safe via _smart_chunk_text — only the
         FIRST chunk receives the button (subsequent chunks are continuations).
         """
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup  # noqa: PLC0415
-
         total = len(messages)
         for i, msg in enumerate(messages):
             text = (msg.text or "").strip()
             if not text:
                 continue
             chunks = self._smart_chunk_text(text)
-            keyboard = None
-            if msg.url:
-                keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("📖 讀原文", url=msg.url)]]
-                )
+            keyboard = self._build_digest_reply_markup(msg)
             for j, chunk in enumerate(chunks):
                 attach_button = keyboard if j == len(chunks) - 1 else None
                 try:
@@ -228,6 +222,27 @@ class TelegramBot:
             except Exception as exc:
                 logger.error("Chunk %d delivery failed: %s", i, exc)
                 raise
+
+    @staticmethod
+    def _build_digest_reply_markup(msg) -> object | None:
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup  # noqa: PLC0415
+
+        rows: list[list] = []
+        if getattr(msg, "feedback_target", None):
+            vote_kb = build_vote_keyboard(msg.feedback_target)
+            for row in vote_kb["inline_keyboard"]:
+                rows.append([
+                    InlineKeyboardButton(
+                        text=btn["text"],
+                        callback_data=btn["callback_data"],
+                    )
+                    for btn in row
+                ])
+        if msg.url:
+            rows.append([InlineKeyboardButton("📖 讀原文", url=msg.url)])
+        if not rows:
+            return None
+        return InlineKeyboardMarkup(rows)
 
     @staticmethod
     def _smart_chunk_text(text: str, max_length: int = MAX_MESSAGE_LENGTH) -> list[str]:

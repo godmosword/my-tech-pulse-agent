@@ -23,6 +23,7 @@ from agents.relationship_extractor import _load_aliases
 from agents.reviewer_agent import ReviewerAgent
 from agents.translation_agent import TranslationAgent
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
+from delivery.feedback_poller import poll_pending_feedback
 from delivery.pipeline_alert import notify_pipeline_failure
 from delivery.revalidate import revalidate_dashboard
 from delivery.telegram_bot import TelegramBot
@@ -149,6 +150,13 @@ class TechPulseCrew:
             signal.alarm(PIPELINE_TIMEOUT_SECONDS)
 
         logger.info("=== tech-pulse pipeline starting ===")
+        try:
+            feedback_count = poll_pending_feedback()
+            if feedback_count:
+                logger.info("Processed %d Telegram feedback callback(s)", feedback_count)
+        except Exception as exc:
+            logger.warning("Telegram feedback poll skipped: %s", exc)
+
         raw_articles = []
         articles = []
         scored_articles = []

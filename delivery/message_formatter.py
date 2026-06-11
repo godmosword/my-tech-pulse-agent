@@ -1,5 +1,6 @@
 """HTML message formatter for #科技脈搏 Telegram channel."""
 
+import hashlib
 import os
 import re
 from dataclasses import dataclass
@@ -42,6 +43,19 @@ _THEME_EMOJI: dict[str, str] = {
     "政策與監管": "⚖️",
     "併購與整併": "🤝",
 }
+
+
+def digest_feedback_date_key(now: Optional[datetime] = None) -> str:
+    """Compact digest date key for Telegram vote callback_data (YYYYMMDD)."""
+    return _digest_header_display_dt(now).strftime("%Y%m%d")
+
+
+def item_feedback_id(source_url: str, *, fallback: str = "") -> str:
+    """Short stable id for an item card (8-char SHA-256 prefix)."""
+    key = (source_url or fallback).strip()
+    if not key:
+        return ""
+    return hashlib.sha256(key.encode()).hexdigest()[:8]
 
 
 def _digest_header_display_dt(now: Optional[datetime]) -> datetime:
@@ -704,6 +718,7 @@ class DigestMessage:
     """One Telegram message: HTML text, optional URL for inline 「📖 讀原文」button."""
     text: str
     url: Optional[str] = None
+    feedback_target: Optional[str] = None
 
 
 def _section_header(label: str) -> str:
@@ -746,7 +761,12 @@ def _intro_text(
 
 def _card_message(s: ArticleSummary) -> DigestMessage:
     text = "\n".join(_format_article_card(s)).rstrip()
-    return DigestMessage(text=text, url=(s.source_url or None))
+    item_key = item_feedback_id(s.source_url or "", fallback=f"{s.source_name}:{s.title}")
+    return DigestMessage(
+        text=text,
+        url=(s.source_url or None),
+        feedback_target=(f"i:{item_key}" if item_key else None),
+    )
 
 
 def _story_message(story: StoryInsight) -> DigestMessage:
@@ -754,7 +774,15 @@ def _story_message(story: StoryInsight) -> DigestMessage:
     # Strip the inline 🔗 原文連結 footer that _format_story_insight appends —
     # the same URL will surface as an inline button.
     text = re.sub(r"\n*🔗 <a [^>]+>原文連結</a>\s*$", "", text).rstrip()
-    return DigestMessage(text=text, url=(story.source_url or None))
+    item_key = item_feedback_id(
+        story.source_url or "",
+        fallback=f"{story.source_name}:{story.title}",
+    )
+    return DigestMessage(
+        text=text,
+        url=(story.source_url or None),
+        feedback_target=(f"i:{item_key}" if item_key else None),
+    )
 
 
 def build_items_digest_messages(
@@ -828,19 +856,26 @@ def build_items_digest_messages(
     fallback_only = not valid_ranked and bool(fallback_items)
 
     messages: list[DigestMessage] = []
-    messages.append(DigestMessage(text=_intro_text(
-        date_str=date_str,
-        headline=headline,
-        themes=themes,
-        narrative_excerpt=narrative_excerpt,
-        market_takeaway=(
-            market_takeaway
-            if not (market_takeaway and narrative_excerpt and narrative_excerpt.startswith(market_takeaway[:50]))
-            else None
+    messages.append(DigestMessage(
+        text=_intro_text(
+            date_str=date_str,
+            headline=headline,
+            themes=themes,
+            narrative_excerpt=narrative_excerpt,
+            market_takeaway=(
+                market_takeaway
+                if not (
+                    market_takeaway
+                    and narrative_excerpt
+                    and narrative_excerpt.startswith(market_takeaway[:50])
+                )
+                else None
+            ),
+            degraded=degradation > UNSCORED_ALERT_RATIO,
+            fallback_only=fallback_only,
         ),
-        degraded=degradation > UNSCORED_ALERT_RATIO,
-        fallback_only=fallback_only,
-    )))
+        feedback_target=f"d:{digest_feedback_date_key(now)}",
+    ))
 
     shown_items: list[ArticleSummary] = []
 
