@@ -6,6 +6,7 @@ import {
   portfolioEnvironment,
   weightedEnvironmentBias,
 } from "@/lib/portfolio-metrics";
+import { formatDashboardDate } from "@/lib/format-datetime";
 import { buildPortfolioPayload } from "@/lib/portfolio-server";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export default async function MacroPage() {
       title="宏觀與供應鏈對照"
       description="慢資料加快取；manual 來源會標示 as_of。僅供環境參考，非投資建議。"
       source={snapshot ? "macro_context_latest.json" : undefined}
-      asOf={snapshot?.as_of?.slice(0, 10)}
+      asOf={snapshot?.as_of ? formatDashboardDate(snapshot.as_of) : undefined}
       backHref="/invest"
       backLabel="返回投資中樞"
       breadcrumb={[

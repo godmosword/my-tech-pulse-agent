@@ -20,8 +20,8 @@ import {
   priorityLevel,
   type RenderableItem,
 } from "@/lib/types";
-import { loginReturnHref } from "@/lib/login-path";
 import { ConfidenceBadge } from "./ConfidenceBadge";
+import { LoginToReadCta } from "./LoginToReadCta";
 import { Kicker, MetaDot } from "./Kicker";
 import { TickerQuote } from "./data/TickerQuote";
 
@@ -57,7 +57,6 @@ export function InstantCard({
   const headline = displayTitle(item);
   const meta = formatRelativeDateline(bestTimestamp(item));
   const cat = categoryLabel(item.category);
-  const loginHref = loginReturnHref(returnToPath);
   const previewLine = publicSummaryLine(item);
   const isList = variant === "list";
   const subline = isList
@@ -121,11 +120,7 @@ export function InstantCard({
             <p className="font-sans text-dek text-ink">{previewLine}</p>
           )}
           {hasGatedLongContent(item) && (
-            <p className="font-sans text-meta text-ink-soft">
-              <Link href={loginHref} className="text-accent underline-offset-4 hover:underline">
-                登入以閱讀完整中文全文
-              </Link>
-            </p>
+            <LoginToReadCta returnToPath={returnToPath} />
           )}
         </>
       )}

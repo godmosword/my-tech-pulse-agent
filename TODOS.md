@@ -4,6 +4,7 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **Dashboard 登入 CTA + 日期時區統一**：`LoginToReadCta`、`format-datetime`（Asia/Taipei zh-TW）
 - [x] **財報報告頁 Markdown 渲染**：`/earnings/report/[reportId]` 結構化 Markdown + 章節目錄 + 語義色 surprise badge
 - [x] **Signal 權重建議腳本**：`scripts/suggest_signal_weights.py`（回測 records → 建議報告，不自動改 `signal_config.yaml`）
 - [x] **Telegram 摘要回饋**：👍／👎 inline keyboard + `getUpdates` 批次寫入 `tech_pulse_feedback`

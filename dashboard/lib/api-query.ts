@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 
+import { dayKeyTaipei } from "./format-datetime";
+
 import {
   applyFilters,
   type FilterState,
@@ -61,9 +63,7 @@ export function filterListedItems(
 
 /** Asia/Taipei midnight as UTC Date — same boundary as homepage. */
 export function startOfTodayTaipeiUtc(): Date {
-  const todayTpe = new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Taipei",
-  });
+  const todayTpe = dayKeyTaipei(new Date());
   return new Date(`${todayTpe}T00:00:00+08:00`);
 }
 

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Dashboard UX：登入 CTA + 統一時區**：`LoginToReadCta`（漸層遮蔽處「登入閱讀完整內容」→ `/login?returnTo=`）；`lib/format-datetime.ts`（`zh-TW` + `Asia/Taipei` 日期／日期時間）；`digest` 日期函式收斂；vitest 含跨日邊界。
 - **財報 v3 報告頁 Markdown 渲染**：`react-markdown` + `remark-gfm`；`EarningsReportMarkdown` 章節目錄（lg 側欄 sticky / 手機下拉）；`SurpriseBadge` 改用语義色 token；空內容 `EarningsReportEmpty`；vitest 覆蓋。
 - **Signal 權重建議離線腳本**：`scripts/suggest_signal_weights.py` + `backtest/weight_suggestions.py`；讀回測 records 計算各因子 Spearman 相關性，輸出 `weight_suggestions.json` / `.md`（不自動改 `signal_config.yaml`；樣本 < 門檻標示資料不足）；`tests/test_weight_suggestions.py`。
 - **Telegram 摘要回饋按鈕**：每日 digest intro／item 卡片附 👍／👎 inline keyboard；管線開頭 `getUpdates` 批次拉取 callback → `tech_pulse_feedback`（同 user+target 覆寫）；`delivery/feedback_poller.py`、`scoring/feedback_store.py`；`tests/test_feedback_vote.py`。

@@ -6,6 +6,7 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 import { Hairline } from "@/components/Hairline";
 import { Kicker } from "@/components/Kicker";
 import { listEarningsReports } from "@/lib/earnings-firestore";
+import { formatDashboardDateTime } from "@/lib/format-datetime";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
@@ -14,17 +15,6 @@ export const metadata: Metadata = {
   title: "財報",
   description: "美股 AI 半導體財報雷達：以 SEC 申報時間排序的結構化季報指標。",
 };
-
-function formatTp(iso: string | null): string {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("zh-TW", {
-    timeZone: "Asia/Taipei",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
 
 function metricBadge(
   metrics: { metric: string; label_zh: string; value: number; unit?: string }[],
@@ -93,7 +83,7 @@ export default async function EarningsPage() {
                   </span>
                 )}
                 <span className="font-sans text-meta text-ink-faint">
-                  {formatTp(row.published_at_iso)}
+                  {formatDashboardDateTime(row.published_at_iso) || "—"}
                 </span>
               </div>
               <p className="mt-1 font-sans text-body text-ink-soft">
