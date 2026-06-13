@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **RSS/KOL 抓取重試**：`RSSFetcher._get_with_retry` 對暫時性錯誤（timeout／transport／5xx／429）重試，永久回應（304／其他 4xx／2xx）即時返回；尊重 `Retry-After`（上限 5s）；`RSS_MAX_ATTEMPTS`（預設 2，1 停用）；成功路徑與 304／fallback 行為不變；`tests/test_rss_retry.py`。
 - **Dashboard UX：登入 CTA + 統一時區**：`LoginToReadCta`（漸層遮蔽處「登入閱讀完整內容」→ `/login?returnTo=`）；`lib/format-datetime.ts`（`zh-TW` + `Asia/Taipei` 日期／日期時間）；`digest` 日期函式收斂；vitest 含跨日邊界。
 - **Dashboard 導覽搜尋**：`GET /api/v1/search?q=`（Zod 驗證、ticker 精確比對 + 標題/公司前綴）；`NavSearch` combobox（debounce 300ms、鍵盤導覽、行動版放大鏡全寬展開）；vitest 覆蓋 API 與元件。
 - **Dashboard 列表「載入更多」分頁**：`/archive`、`/earnings`、`/signals` 首頁 40 筆 + client「載入更多」；`GET /api/v1/items`、`/earnings`、`/earnings/signals` 支援 `cursor`／`limit`（Firestore `startAfter`／訊號分數 cursor）；回應新增 `nextCursor`（additive）；`LoadMoreButton`、`pagination-cursor`、vitest 覆蓋。

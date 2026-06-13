@@ -2,7 +2,9 @@
 
 import html
 import logging
+import os
 import re
+import time
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from email.utils import parsedate_to_datetime
@@ -18,6 +20,36 @@ logger = logging.getLogger(__name__)
 REGISTRY_PATH = Path(__file__).parent / "source_registry.yaml"
 KOL_REGISTRY_PATH = Path(__file__).parent / "kol_registry.yaml"
 MAX_ARTICLES_PER_FEED = 20
+
+
+def _env_max_attempts() -> int:
+    try:
+        return max(1, int(os.getenv("RSS_MAX_ATTEMPTS", "2")))
+    except ValueError:
+        return 2
+
+
+# RSS/KOL fetch retry budget. Intentionally distinct from SecClient.get_json
+# (3 paced attempts, 429 exponential): RSS sources default to 2 attempts with
+# short linear backoff. 1 disables retry.
+RSS_MAX_ATTEMPTS = _env_max_attempts()
+_RETRYABLE_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+_RETRY_AFTER_CAP_SEC = 5.0
+
+
+def _retry_backoff_sec(attempt: int) -> float:
+    return 0.5 * (attempt + 1)
+
+
+def _retry_after_sec(resp: httpx.Response) -> Optional[float]:
+    """Honor a numeric Retry-After header, capped to avoid stalling the pipeline."""
+    raw = resp.headers.get("Retry-After")
+    if not raw:
+        return None
+    try:
+        return min(float(int(raw)), _RETRY_AFTER_CAP_SEC)
+    except (TypeError, ValueError):
+        return None
 
 # RSS / Atom namespaces
 NS = {
@@ -231,6 +263,42 @@ class RSSFetcher:
 
         return articles
 
+    def _get_with_retry(self, url: str, headers: dict[str, str]) -> httpx.Response:
+        """GET with limited retries on transient failures (timeout/transport/5xx/429).
+
+        Permanent responses (304, other 4xx, 2xx) return immediately. The pipeline
+        deadline (PIPELINE_TIMEOUT_SECONDS) bounds total time; the fallback chain in
+        _fetch_source runs its own bounded retry per source, so amplification is small.
+        """
+        last_exc: Optional[Exception] = None
+        with httpx.Client(timeout=15, follow_redirects=True) as client:
+            for attempt in range(RSS_MAX_ATTEMPTS):
+                is_last = attempt == RSS_MAX_ATTEMPTS - 1
+                try:
+                    resp = client.get(url, headers=headers)
+                except httpx.TransportError as exc:
+                    last_exc = exc
+                    if is_last:
+                        raise
+                    logger.warning(
+                        "RSS GET transient error (attempt %d/%d): %s %s",
+                        attempt + 1, RSS_MAX_ATTEMPTS, url[:120], exc,
+                    )
+                    time.sleep(_retry_backoff_sec(attempt))
+                    continue
+                if resp.status_code in _RETRYABLE_STATUS and not is_last:
+                    logger.warning(
+                        "RSS GET status %d (attempt %d/%d): %s",
+                        resp.status_code, attempt + 1, RSS_MAX_ATTEMPTS, url[:120],
+                    )
+                    time.sleep(_retry_after_sec(resp) or _retry_backoff_sec(attempt))
+                    continue
+                if attempt > 0:
+                    logger.info("RSS GET recovered on attempt %d: %s", attempt + 1, url[:120])
+                return resp
+        # Unreachable: the final iteration always returns or raises. Guard for type-checker.
+        raise last_exc or RuntimeError(f"RSS GET failed: {url}")
+
     def _fetch_kol_source(self, kol: KOLConfig) -> list[Article]:
         """Fetch and label articles from a KOL Substack/blog feed."""
         if kol.connector != "rss" or not kol.url:
@@ -243,8 +311,7 @@ class RSSFetcher:
             elif kol.name in self._last_modified_cache:
                 headers["If-Modified-Since"] = self._last_modified_cache[kol.name]
 
-            with httpx.Client(timeout=15, follow_redirects=True) as client:
-                resp = client.get(kol.url, headers=headers)
+            resp = self._get_with_retry(kol.url, headers)
 
             if resp.status_code == 304:
                 logger.debug("KOL feed %s not modified (304); skipping", kol.name)
@@ -282,8 +349,7 @@ class RSSFetcher:
             elif source.name in self._last_modified_cache:
                 headers["If-Modified-Since"] = self._last_modified_cache[source.name]
 
-            with httpx.Client(timeout=15, follow_redirects=True) as client:
-                resp = client.get(source.url, headers=headers)
+            resp = self._get_with_retry(source.url, headers)
 
             if resp.status_code == 304:
                 logger.debug("Feed %s not modified (304); skipping parse", source.name)
