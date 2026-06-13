@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import type { BacktestSummary } from "@/lib/backtest-data";
+import { fmtPctSigned } from "@/lib/format-numbers";
 
 type Props = {
   summary: BacktestSummary;
@@ -19,11 +20,6 @@ type Props = {
   topMean: number;
   bottomMean: number;
 };
-
-function fmtPct(v: number): string {
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${v.toFixed(2)}%`;
-}
 
 export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summary" | "horizonKey">) {
   const data = [
@@ -35,7 +31,7 @@ export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summ
     <div
       className="h-48 w-full"
       role="img"
-      aria-label={`分位價差：Top 1/3 平均超額 ${fmtPct(topMean)}，Bottom 1/3 平均超額 ${fmtPct(bottomMean)}`}
+      aria-label={`分位價差：Top 1/3 平均超額 ${fmtPctSigned(topMean)}，Bottom 1/3 平均超額 ${fmtPctSigned(bottomMean)}`}
     >
       <ResponsiveContainer width="100%" height="100%" aria-hidden>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -53,7 +49,7 @@ export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summ
             tickFormatter={(v) => `${v}%`}
           />
           <Tooltip
-            formatter={(v: number) => [fmtPct(v), "平均超額"]}
+            formatter={(v: number) => [fmtPctSigned(v), "平均超額"]}
             contentStyle={{
               background: "var(--color-paper-tint)",
               border: "1px solid var(--color-rule)",
@@ -99,7 +95,7 @@ export function BacktestCalibrationChart({
   if (data.length === 0) return null;
 
   const chartLabel = data
-    .map((entry) => `${entry.rating} 平均超額 ${fmtPct(entry.mean)}（n=${entry.n}）`)
+    .map((entry) => `${entry.rating} 平均超額 ${fmtPctSigned(entry.mean)}（n=${entry.n}）`)
     .join("；");
 
   return (
@@ -134,7 +130,7 @@ export function BacktestCalibrationChart({
             <Tooltip
               formatter={(v: number, _n, item) => {
                 const payload = item.payload as { n: number };
-                return [fmtPct(v), `n=${payload.n}`];
+                return [fmtPctSigned(v), `n=${payload.n}`];
               }}
               contentStyle={{
                 background: "var(--color-paper-tint)",

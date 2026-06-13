@@ -7,6 +7,7 @@ import { DensePageShell } from "@/components/data/DensePageShell";
 import { SourceTag } from "@/components/data/SourceTag";
 import { StackedExposureBar } from "@/components/data/StackedExposureBar";
 import { StatCard } from "@/components/data/StatCard";
+import { fmtUsd } from "@/lib/format-numbers";
 import { ExposurePassthroughCard } from "@/components/ExposurePassthroughCard";
 import { THEME_LABELS } from "@/lib/macro-data";
 import { exposurePassthrough } from "@/lib/exposure-passthrough";
@@ -26,12 +27,6 @@ export const metadata: Metadata = {
   title: "持倉",
   description: "持倉感知、主題曝險與配置漂移（config/portfolio.yaml）。",
 };
-
-function fmtUsd(n: number): string {
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-}
 
 type PositionRow = Awaited<ReturnType<typeof buildPortfolioPayload>>["positions"][number];
 

@@ -10,6 +10,7 @@ import { SourceTag } from "@/components/data/SourceTag";
 import { StackedExposureBar } from "@/components/data/StackedExposureBar";
 import { StatCard } from "@/components/data/StatCard";
 import { loadBacktestSummary, signalHitRateCaption } from "@/lib/backtest-data";
+import { fmtUsd, fmtPctSigned } from "@/lib/format-numbers";
 import { listEarningsSince } from "@/lib/earnings-firestore";
 import { loadUpcomingEarnings } from "@/lib/earnings-portal";
 import { THEME_LABELS, loadMacroContextSnapshot } from "@/lib/macro-data";
@@ -26,12 +27,6 @@ export const metadata: Metadata = {
   title: "投資",
   description: "持倉、訊號、財報、宏觀與校驗的一頁綜覽。",
 };
-
-function fmtUsd(n: number): string {
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-}
 
 function themeLabel(theme: string): string {
   return THEME_LABELS[theme] ?? theme;
@@ -443,11 +438,7 @@ function CalibrationSection() {
         />
         <StatCard
           kicker="分位價差"
-          value={
-            spread != null && Number.isFinite(spread)
-              ? `${spread > 0 ? "+" : ""}${spread.toFixed(2)}%`
-              : "—"
-          }
+          value={fmtPctSigned(spread)}
           footnote={`樣本 ${summary.n_records ?? "—"} 筆`}
         />
       </div>

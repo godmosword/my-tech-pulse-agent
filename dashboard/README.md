@@ -88,7 +88,7 @@ dashboard/
 │  ├─ firestore.ts      # Admin SDK init + readers (server-only)
 │  ├─ types.ts          # Zod schema for MemoryItem + ISO coercion
 │  ├─ digest.ts         # theme grouping / dedupe / badge logic
-│  ├─ format-numbers.ts # fmtNum / fmtPctPlain / fmtPctSigned (dense cards)
+│  ├─ format-numbers.ts # fmtNum / fmtPctPlain / fmtPctSigned / fmtUsd (dense cards)
 │  └─ login-path.ts     # loginReturnHref() for reader cookie flows
 ├─ components/          # presentation, no Firestore imports
 │  ├─ BrandMark.tsx     # Nav rail wordmark

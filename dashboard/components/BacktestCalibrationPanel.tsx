@@ -1,4 +1,5 @@
 import type { BacktestSummary } from "@/lib/backtest-data";
+import { fmtPctSigned } from "@/lib/format-numbers";
 
 import {
   BacktestCalibrationChart,
@@ -14,12 +15,6 @@ type Props = {
   summary: BacktestSummary;
   title: string;
 };
-
-function fmtPct(v: number | null | undefined): string {
-  if (v === undefined || v === null || Number.isNaN(v)) return "—";
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${v.toFixed(2)}%`;
-}
 
 type RatingRow = {
   rating: string;
@@ -60,7 +55,7 @@ export function BacktestCalibrationPanel({ summary, title }: Props) {
           return {
             rating,
             n: b.n,
-            mean: fmtPct(b.mean_excess_pct),
+            mean: fmtPctSigned(b.mean_excess_pct),
             winRate: b.win_rate != null ? `${(b.win_rate * 100).toFixed(0)}%` : "—",
             warn: Boolean(b.insufficient_sample),
           };
@@ -87,7 +82,7 @@ export function BacktestCalibrationPanel({ summary, title }: Props) {
             <h3 className="font-sans text-body font-semibold text-ink">{h} 交易日</h3>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <StatCard kicker="分位數價差（高 − 低）" value={fmtPct(q?.spread_pct)} />
+              <StatCard kicker="分位數價差（高 − 低）" value={fmtPctSigned(q?.spread_pct)} />
               <StatCard
                 kicker="IC（Spearman）"
                 value={ic != null ? ic.toFixed(3) : "—"}
@@ -103,10 +98,10 @@ export function BacktestCalibrationPanel({ summary, title }: Props) {
                 <BacktestQuantileChart topMean={top} bottomMean={bot} />
                 <div className="mt-2 flex justify-between font-sans text-meta text-ink-soft">
                   <span>
-                    Top: <span className="data-num text-pos">{fmtPct(top)}</span>
+                    Top: <span className="data-num text-pos">{fmtPctSigned(top)}</span>
                   </span>
                   <span>
-                    Bottom: <span className="data-num text-neg">{fmtPct(bot)}</span>
+                    Bottom: <span className="data-num text-neg">{fmtPctSigned(bot)}</span>
                   </span>
                 </div>
               </div>
