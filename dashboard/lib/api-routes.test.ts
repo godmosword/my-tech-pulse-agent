@@ -18,12 +18,29 @@ const loadTodayDigestData = vi.fn();
 const latestDeliveredIso = vi.fn();
 const resolveDigestView = vi.fn();
 const searchPortal = vi.fn();
+const getItemById = vi.fn();
+const loadNewsDigestItems = vi.fn();
+const loadNewsDeepItems = vi.fn();
+const getNewsDeepById = vi.fn();
 
 vi.mock("@/lib/firestore", () => ({
   collectionName: () => "tech_pulse_memory_items",
   listLatestItems: (...args: unknown[]) => listLatestItems(...args),
   listLatestItemsAfter: (...args: unknown[]) => listLatestItemsAfter(...args),
+  getItemById: (...args: unknown[]) => getItemById(...args),
 }));
+
+// Keep the real pure transforms (themeCounts / buildNewsExclusionSummary /
+// normalizePillar / newsSourceLabel); only stub the Firestore-backed loaders.
+vi.mock("@/lib/news-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/news-api")>();
+  return {
+    ...actual,
+    loadNewsDigestItems: (...args: unknown[]) => loadNewsDigestItems(...args),
+    loadNewsDeepItems: (...args: unknown[]) => loadNewsDeepItems(...args),
+    getNewsDeepById: (...args: unknown[]) => getNewsDeepById(...args),
+  };
+});
 
 vi.mock("@/lib/earnings-firestore", () => ({
   listEarningsReports: (...args: unknown[]) => listEarningsReports(...args),
@@ -333,5 +350,179 @@ describe("/api/v1 route handlers", () => {
     const body = await res.json();
     expect(body.timezone).toBe("Asia/Taipei");
     expect(body.digest.themes[0]?.theme).toBe("AI");
+  });
+
+  function newsDigestItem(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "news-1",
+      title: "NVDA ships Blackwell",
+      headline: "NVDA ships Blackwell",
+      summary: "summary",
+      gemini_take: "",
+      commentary_zh: "輝達出貨",
+      commentary_en: "",
+      source_domain: "example.com",
+      source_url: "https://example.com/a",
+      published_at: "2026-05-18T10:00:00.000Z",
+      date: "2026-05-18",
+      tags: ["ai", "gpu"],
+      pillar: "AI",
+      pillar_key: "ai",
+      confidence: 0.8,
+      ...overrides,
+    };
+  }
+
+  function newsDeepItem(overrides: Record<string, unknown> = {}) {
+    return {
+      ...newsDigestItem(),
+      deep_brief: "brief",
+      body: "body",
+      content: "content",
+      thesis_breakdown: ["t1"],
+      tickers: ["NVDA"],
+      reading_minutes: 5,
+      ...overrides,
+    };
+  }
+
+  it("GET /api/v1/news/digest returns items, themes, and summary", async () => {
+    loadNewsDigestItems.mockResolvedValue([newsDigestItem()]);
+    const { GET } = await import("@/app/api/v1/news/digest/route");
+    const res = await GET(authedRequest("/api/v1/news/digest?limit=20"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.available).toBe(true);
+    expect(body.items).toHaveLength(1);
+    expect(body.themes.length).toBeGreaterThan(0);
+    expect(body.summary).toContain("輝達出貨");
+    expect(body.source).toBe("firestore:tech_pulse_memory_items");
+  });
+
+  it("GET /api/v1/news/digest rejects malformed date", async () => {
+    const { GET } = await import("@/app/api/v1/news/digest/route");
+    const res = await GET(authedRequest("/api/v1/news/digest?date=2026-5-1"));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toBe("invalid_date");
+    expect(loadNewsDigestItems).not.toHaveBeenCalled();
+  });
+
+  it("GET /api/v1/news/digest returns 503 when loader throws", async () => {
+    loadNewsDigestItems.mockRejectedValue(new Error("firestore down"));
+    const { GET } = await import("@/app/api/v1/news/digest/route");
+    const res = await GET(authedRequest("/api/v1/news/digest"));
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.available).toBe(false);
+    expect(body.error).toBe("news_firestore_unavailable");
+  });
+
+  it("GET /api/v1/news/deep filters by pillar", async () => {
+    loadNewsDeepItems.mockResolvedValue([newsDeepItem()]);
+    const { GET } = await import("@/app/api/v1/news/deep/route");
+    const res = await GET(authedRequest("/api/v1/news/deep?pillar=ai"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.pillar).toBe("ai");
+    expect(body.items).toHaveLength(1);
+    expect(loadNewsDeepItems).toHaveBeenCalledWith(20, "ai");
+  });
+
+  it("GET /api/v1/news/deep rejects an invalid pillar", async () => {
+    const { GET } = await import("@/app/api/v1/news/deep/route");
+    const res = await GET(authedRequest("/api/v1/news/deep?pillar=bogus"));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toBe("invalid_pillar");
+    expect(loadNewsDeepItems).not.toHaveBeenCalled();
+  });
+
+  it("GET /api/v1/news/deep/[itemId] returns the item or 404", async () => {
+    getNewsDeepById.mockResolvedValueOnce(newsDeepItem({ id: "deep-7" }));
+    const route = await import("@/app/api/v1/news/deep/[itemId]/route");
+    const ok = await route.GET(authedRequest("/api/v1/news/deep/deep-7"), {
+      params: Promise.resolve({ itemId: "deep-7" }),
+    });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).id).toBe("deep-7");
+
+    getNewsDeepById.mockResolvedValueOnce(null);
+    const missing = await route.GET(authedRequest("/api/v1/news/deep/nope"), {
+      params: Promise.resolve({ itemId: "nope" }),
+    });
+    expect(missing.status).toBe(404);
+  });
+
+  it("GET /api/v1/news/themes returns theme counts", async () => {
+    loadNewsDigestItems.mockResolvedValue([
+      newsDigestItem(),
+      newsDigestItem({ id: "news-2", tags: ["ai"] }),
+    ]);
+    const { GET } = await import("@/app/api/v1/news/themes/route");
+    const res = await GET(authedRequest("/api/v1/news/themes"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.available).toBe(true);
+    const ai = body.themes.find((t: { id: string }) => t.id === "ai");
+    expect(ai?.count).toBe(2);
+  });
+
+  it("GET /api/v1/archive/facets builds facets from the window", async () => {
+    listLatestItems.mockResolvedValue([
+      { id: "a", category: "ai", delivered_at_iso: "2026-05-18T10:00:00.000Z" },
+      { id: "b", category: "ai", delivered_at_iso: "2026-05-10T10:00:00.000Z" },
+      { id: "c", category: "crypto", delivered_at_iso: "2026-04-20T10:00:00.000Z" },
+    ]);
+    const { GET } = await import("@/app/api/v1/archive/facets/route");
+    const res = await GET(authedRequest("/api/v1/archive/facets?window_days=90"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.window_days).toBe(90);
+    expect(body.item_count).toBe(3);
+    const ai = body.facets.categories.find((c: { value: string }) => c.value === "ai");
+    expect(ai?.count).toBe(2);
+  });
+
+  it("GET /api/v1/items/[id] serializes a found item", async () => {
+    getItemById.mockResolvedValueOnce({
+      id: "item-9",
+      title: "Title",
+      zh_title: "",
+      summary: "Summary",
+      zh_summary: "摘要",
+      zh_body: "",
+      source_url: "https://example.com/a",
+      source_name: "src",
+      entity: "Co",
+      category: "ai",
+      kind: "instant_summary",
+      score: 7,
+      score_status: "ok",
+      hook: "",
+      tickers: [],
+      what_happened: "",
+      why_it_matters: "",
+      takeaway: null,
+      published_at_iso: null,
+      delivered_at_iso: "2026-05-18T10:00:00.000Z",
+      themes: [],
+    });
+    const route = await import("@/app/api/v1/items/[id]/route");
+    const res = await route.GET(authedRequest("/api/v1/items/item-9"), {
+      params: Promise.resolve({ id: "item-9" }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).item.id).toBe("item-9");
+  });
+
+  it("GET /api/v1/items/[id] returns 404 when missing", async () => {
+    getItemById.mockResolvedValueOnce(null);
+    const route = await import("@/app/api/v1/items/[id]/route");
+    const res = await route.GET(authedRequest("/api/v1/items/gone"), {
+      params: Promise.resolve({ id: "gone" }),
+    });
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBe("not_found");
   });
 });
