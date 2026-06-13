@@ -55,6 +55,7 @@ export function DataTable<T>({ columns, rows, rowKey, rowClassName }: Props<T>) 
               {columns.map((col) => (
                 <th
                   key={col.key}
+                  scope="col"
                   className={col.align === "left" || col.key === columns[0]?.key ? "" : "text-right"}
                 >
                   {col.header}

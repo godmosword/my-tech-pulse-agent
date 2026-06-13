@@ -91,7 +91,10 @@ export function PortfolioEditorPrototype({
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
+        <h2
+          id="portfolio-editor-heading"
+          className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft"
+        >
           持倉編輯（原型）
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -114,13 +117,16 @@ export function PortfolioEditorPrototype({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="data-table w-full min-w-[480px]">
+        <table
+          className="data-table w-full min-w-[480px]"
+          aria-labelledby="portfolio-editor-heading"
+        >
           <thead>
             <tr>
-              <th className="text-left">代號</th>
-              <th className="text-right">股數</th>
-              <th className="text-right">成本</th>
-              <th className="text-right">操作</th>
+              <th scope="col" className="text-left">代號</th>
+              <th scope="col" className="text-right">股數</th>
+              <th scope="col" className="text-right">成本</th>
+              <th scope="col" className="text-right">操作</th>
             </tr>
           </thead>
           <tbody>

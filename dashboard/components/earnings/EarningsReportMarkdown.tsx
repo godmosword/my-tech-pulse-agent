@@ -152,7 +152,9 @@ export function EarningsReportMarkdown({ content }: Props) {
     thead: ({ children }) => <thead>{children}</thead>,
     tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => <tr>{children}</tr>,
-    th: ({ children }) => <th>{children}</th>,
+    // GFM tables are column-header tables; scope="col" is correct here.
+    // Row-header support is out of scope (remark-gfm does not emit row headers).
+    th: ({ children }) => <th scope="col">{children}</th>,
     td: ({ children }) => <td>{children}</td>,
   };
 

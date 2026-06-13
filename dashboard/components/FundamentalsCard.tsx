@@ -90,17 +90,23 @@ export function FundamentalsCard({ ratios, surpriseHistory, financialHealth }: P
 
       {surpriseHistory && surpriseHistory.length > 0 && (
         <section className="mt-6 rounded-lg border border-rule p-5">
-          <h2 className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
+          <h2
+            id="eps-surprise-history-heading"
+            className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft"
+          >
             EPS Surprise 歷史
           </h2>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[320px] font-mono text-meta text-ink-soft">
+            <table
+              className="w-full min-w-[320px] font-mono text-meta text-ink-soft"
+              aria-labelledby="eps-surprise-history-heading"
+            >
               <thead>
                 <tr className="border-b border-rule text-left text-ink-faint">
-                  <th className="pb-2 pr-4 font-sans font-normal">期間</th>
-                  <th className="pb-2 pr-4 font-sans font-normal">Actual</th>
-                  <th className="pb-2 pr-4 font-sans font-normal">Est.</th>
-                  <th className="pb-2 font-sans font-normal">Surprise</th>
+                  <th scope="col" className="pb-2 pr-4 font-sans font-normal">期間</th>
+                  <th scope="col" className="pb-2 pr-4 font-sans font-normal">Actual</th>
+                  <th scope="col" className="pb-2 pr-4 font-sans font-normal">Est.</th>
+                  <th scope="col" className="pb-2 font-sans font-normal">Surprise</th>
                 </tr>
               </thead>
               <tbody>
