@@ -14,6 +14,18 @@ import {
 import type { BacktestSummary } from "@/lib/backtest-data";
 import { fmtPctSigned } from "@/lib/format-numbers";
 
+// Theme-aware tooltip styling. CSS vars flip with light/dark; explicit text
+// colors keep labels/values readable on the dark paper-tint background.
+const TOOLTIP_CONTENT_STYLE = {
+  background: "var(--color-paper-tint)",
+  border: "1px solid var(--color-rule)",
+  borderRadius: 8,
+  fontSize: 13,
+  color: "var(--color-ink)",
+} as const;
+const TOOLTIP_LABEL_STYLE = { color: "var(--color-ink-soft)" } as const;
+const TOOLTIP_ITEM_STYLE = { color: "var(--color-ink)" } as const;
+
 type Props = {
   summary: BacktestSummary;
   horizonKey: string;
@@ -50,12 +62,9 @@ export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summ
           />
           <Tooltip
             formatter={(v: number) => [fmtPctSigned(v), "平均超額"]}
-            contentStyle={{
-              background: "var(--color-paper-tint)",
-              border: "1px solid var(--color-rule)",
-              borderRadius: 8,
-              fontSize: 13,
-            }}
+            contentStyle={TOOLTIP_CONTENT_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
+            itemStyle={TOOLTIP_ITEM_STYLE}
           />
           <Bar dataKey="value" radius={[4, 4, 0, 0]}>
             {data.map((entry) => (
@@ -132,12 +141,9 @@ export function BacktestCalibrationChart({
                 const payload = item.payload as { n: number };
                 return [fmtPctSigned(v), `n=${payload.n}`];
               }}
-              contentStyle={{
-                background: "var(--color-paper-tint)",
-                border: "1px solid var(--color-rule)",
-                borderRadius: 8,
-                fontSize: 13,
-              }}
+              contentStyle={TOOLTIP_CONTENT_STYLE}
+              labelStyle={TOOLTIP_LABEL_STYLE}
+              itemStyle={TOOLTIP_ITEM_STYLE}
             />
             <Bar dataKey="mean" radius={[4, 4, 0, 0]}>
               {data.map((entry) => (

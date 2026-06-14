@@ -215,6 +215,12 @@ summary:focus-visible {
   padding: 12px 14px;
 }
 
+/* Nested inside a section band, cards share the band's tint and lose their
+   edge. Drop to the base paper tone so the hierarchy reads (theme-aware). */
+.section-band .data-table-card {
+  background: var(--color-paper);
+}
+
 .data-table-card-row {
   display: flex;
   justify-content: space-between;

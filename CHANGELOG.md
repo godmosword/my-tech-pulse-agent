@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **載入骨架（B2）**：共用 `components/data/PageSkeleton`（中性 shimmer、`role="status"`＋`aria-busy`＋`motion-safe:animate-pulse`，色塊 `aria-hidden`）；`app/(app)/loading.tsx`（主內容欄 Suspense fallback，不重建 chrome）與 `@rail/loading.tsx`（右欄極簡 fallback）；`components/data/PageSkeleton.test.tsx`。
+- **圖表 Tooltip 對比與卡片層級（B6）**：`BacktestCharts` 兩個 Tooltip 抽共用樣式常數並補 `color`／`labelStyle`／`itemStyle`（深色模式文字可讀，淺色模式視覺等價）；`globals.css` 巢狀 `.section-band .data-table-card` 改用 `--color-paper`（theme-aware）與外層 band 區隔層級，取代全站陰影方案。
 - **評分閾值可配置/可觀測（A5）**：`Scorer.threshold()` 泛化 env override（`SCORE_THRESHOLD` 為 default、`SCORE_THRESHOLD_<TYPE>` 如 `SCORE_THRESHOLD_KOL` 為其餘類型）；新增 `_env_float` 統一解析（未設／空字串／非法值皆回退 yaml 預設，不再因 `SCORE_THRESHOLD=` 崩潰）；`filter_articles` 依 effective_type（default／kol）分桶輸出 `Threshold summary` 通過率日誌供漂移調參；`tests/test_scorer_thresholds.py`；`.env.example` 修正預設註解 7.2→6.8 並補 `SCORE_THRESHOLD_KOL`。預設行為不變。
 - **Watchlist 覆蓋稽核（A6）**：`sources/watchlist_audit.py` + `scripts/watchlist_coverage.py`（唯讀，不改 yaml、不臆造 ticker）；報告各 tier 筆數、重複（同 tier）／跨 tier 衝突、tag 分佈、異常 tier 值；`--observed`（CSV ticker/symbol 或 JSON 三種形）／`--tickers` 提供實際觀測資料時列出「不在 watchlist 的候選」供人工確認；`--targets` JSON 計算各 tier 缺口；`tests/test_watchlist_audit.py`。
 - **資料表無障礙（B3）**：所有 `<th>` 加 `scope="col"`（共用 `DataTable`、`PortfolioEditorPrototype`、`FundamentalsCard` EPS Surprise 表、`EarningsReportMarkdown` GFM 表）；`PortfolioEditorPrototype`／`FundamentalsCard` 表格以 `aria-labelledby` 指向章節標題取得無障礙名稱；`components/PortfolioEditorPrototype.test.tsx` 斷言 table accessible name 與欄標題。視覺與行為不變。（B4 recharts 懶載／portfolio `Promise.all` 經查證不適用：recharts 已路由隔離於單一 `/calibration` chunk，portfolio 僅單一 async await，其餘載入皆同步。）
