@@ -61,8 +61,11 @@ Pipeline（Cloud Run Job）與 Dashboard（Vercel）分工不同：**Finnhub 只
 python3 -m pytest tests/test_scorecard_builder.py tests/test_guidance_segment_extractors.py -q
 
 # Pipeline 跑完後日誌應含：
-# earnings_vendor_enriched_count > 0  （當 FINNHUB 已開）
+# earnings_vendor_enriched_count > 0       （當 FINNHUB 已開）
+# earnings_fundamental_enriched_count > 0  （當 FMP 已開）
 # earnings_reports_archived > 0
+#
+# 分階段啟用、成本決策清單與回滾見 docs/VENDOR_ENABLEMENT.md
 
 # Dashboard
 open https://<your-host>/earnings

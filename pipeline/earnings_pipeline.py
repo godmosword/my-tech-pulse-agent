@@ -43,6 +43,7 @@ class EarningsRunStats:
     reports_archived: int = 0
     sec_only_count: int = 0
     vendor_enriched_count: int = 0
+    fundamental_enriched_count: int = 0
     vendor_calls: int = 0
     telegram_candidates: int = 0
     sec_api_calls: int = 0
@@ -279,6 +280,8 @@ class EarningsPipelineRunner:
                 )
                 report = _try_attach_price_reaction(report, self.vendor.finnhub)
                 report, fundamentals = _try_fundamental_enrich(report)
+                if fundamentals:
+                    stats.fundamental_enriched_count += 1
                 report = enrich_earnings_v3(
                     report,
                     filing_text=filing.raw_text or "",
@@ -318,6 +321,8 @@ class EarningsPipelineRunner:
                     vendor_market=None,
                 )
                 report, fundamentals = _try_fundamental_enrich(report)
+                if fundamentals:
+                    stats.fundamental_enriched_count += 1
                 report = enrich_earnings_v3(
                     report,
                     filing_text="",

@@ -184,3 +184,31 @@ def test_fundamental_provider_off_returns_empty(monkeypatch):
     monkeypatch.setenv("FMP_API_KEY", "test-key")
     provider = FundamentalProvider()
     assert provider.enrich_for_report(_report()) == {}
+
+
+def test_try_fundamental_enrich_returns_none_when_empty(monkeypatch):
+    """No fundamentals -> None, so fundamental_enriched_count must not increment."""
+    from pipeline import earnings_pipeline as ep
+
+    monkeypatch.setattr(
+        "sources.fundamental_provider.FundamentalProvider.enrich_for_report",
+        lambda self, report: {},
+    )
+    _, fundamentals = ep._try_fundamental_enrich(_report())
+    assert fundamentals is None
+
+
+def test_try_fundamental_enrich_returns_dict_when_present(monkeypatch):
+    """Non-empty fundamentals -> truthy dict, so the counter increments."""
+    from pipeline import earnings_pipeline as ep
+
+    monkeypatch.setattr(
+        "sources.fundamental_provider.FundamentalProvider.enrich_for_report",
+        lambda self, report: {"fcf": 1.0},
+    )
+    monkeypatch.setattr(
+        "sources.fundamental_provider.attach_fmp_fields_to_report",
+        lambda report, fundamentals: report,
+    )
+    _, fundamentals = ep._try_fundamental_enrich(_report())
+    assert fundamentals == {"fcf": 1.0}

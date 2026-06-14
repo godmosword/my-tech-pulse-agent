@@ -517,6 +517,7 @@ class TechPulseCrew:
                     "earnings_reports_archived": es.reports_archived,
                     "earnings_sec_only_count": es.sec_only_count,
                     "earnings_vendor_enriched_count": es.vendor_enriched_count,
+                    "earnings_fundamental_enriched_count": es.fundamental_enriched_count,
                     "earnings_telegram_candidates": es.telegram_candidates,
                 }
             )

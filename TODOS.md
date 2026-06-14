@@ -88,7 +88,8 @@
 - [x] **Pipeline**：`_try_fundamental_enrich`；SEC headline 不覆寫；FMP 失敗不影響主流程
 - [x] **Dashboard**：`/earnings/[ticker]` 估值比率 + EPS surprise 迷你表
 - [x] **測試** `tests/test_fmp_fundamentals.py`（7 cases）
-- [ ] **Production env**：Cloud Run 設 `FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`（見「付費 Vendor API」）
+- [ ] **Production env**：Cloud Run 設 `FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`（分階段啟用見 [`docs/VENDOR_ENABLEMENT.md`](docs/VENDOR_ENABLEMENT.md)）
+- [ ] **FMP 全域 per-run cap**：`_try_fundamental_enrich` 每筆新建 `FundamentalProvider()`，`MAX_FMP_CALLS_PER_RUN` 計數隨之歸零，故 cap 僅限單筆內、非全輪。改為整輪重用同一 provider 實例以使 cap 成為真正全輪上限
 
 ## 財報 — Phase 4 投資訊號（2026-05-21）
 
