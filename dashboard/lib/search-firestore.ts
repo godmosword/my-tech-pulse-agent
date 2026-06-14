@@ -9,6 +9,7 @@ import {
   titlePrefixBounds,
   type NormalizedSearchQuery,
 } from "./search-query";
+import { tokenizeQuery, tokenMatchScore } from "./search-tokens";
 import { hasCjk, MemoryItemSchema, toIsoString, displayTitle } from "./types";
 
 const COLLECTION_PREFIX =
@@ -109,6 +110,37 @@ async function searchNewsByTitlePrefix(
   return hits;
 }
 
+async function searchNewsByTokens(
+  queryTokens: string[],
+  limit: number,
+): Promise<SearchNewsHit[]> {
+  if (queryTokens.length === 0) return [];
+  const snap = await db()
+    .collection(COLLECTION)
+    .where("search_tokens", "array-contains-any", queryTokens.slice(0, 30))
+    .limit(limit * 3)
+    .get();
+
+  const ranked: { hit: SearchNewsHit; score: number; at: number }[] = [];
+  for (const doc of snap.docs) {
+    const raw = (doc.data() || {}) as Record<string, unknown>;
+    const hit = toNewsHit(doc.id, raw);
+    if (!hit) continue;
+    const docTokens = Array.isArray(raw.search_tokens)
+      ? (raw.search_tokens as unknown[]).map(String)
+      : [];
+    ranked.push({
+      hit,
+      score: tokenMatchScore(queryTokens, docTokens),
+      at: hit.delivered_at ? Date.parse(hit.delivered_at) : 0,
+    });
+  }
+
+  // More matched tokens first; break ties by recency.
+  ranked.sort((a, b) => b.score - a.score || b.at - a.at);
+  return ranked.slice(0, limit).map((r) => r.hit);
+}
+
 function mergeNewsHits(
   batches: SearchNewsHit[][],
   limit: number,
@@ -132,10 +164,14 @@ async function searchNews(
 ): Promise<SearchNewsHit[]> {
   const tasks: Promise<SearchNewsHit[]>[] = [];
 
+  // Primary: keyword tokens (matches any word/CJK bigram, not just title start).
+  tasks.push(searchNewsByTokens(tokenizeQuery(normalized.q), limit));
+
   if (normalized.ticker) {
     tasks.push(searchNewsByTicker(normalized.ticker, limit));
   }
 
+  // Fallback: title-prefix for documents not yet backfilled with search_tokens.
   for (const prefix of titlePrefixBounds(normalized.q)) {
     tasks.push(searchNewsByTitlePrefix("title", prefix, limit));
   }

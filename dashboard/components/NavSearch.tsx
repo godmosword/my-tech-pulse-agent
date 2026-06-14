@@ -168,8 +168,16 @@ export function NavSearch({ variant, onClose }: Props) {
   const activeDescendant =
     activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined;
 
+  const clearQuery = useCallback(() => {
+    setQuery("");
+    setDebouncedQuery("");
+    setResults(null);
+    setActiveIndex(-1);
+    inputRef.current?.focus();
+  }, []);
+
   const inputClass =
-    "w-full rounded border border-rule bg-paper px-3 py-2 font-sans text-body text-ink placeholder:text-ink-faint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+    "w-full rounded border border-rule bg-paper pl-9 pr-9 py-2 font-sans text-body text-ink placeholder:text-ink-faint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
   const panel = showPanel ? (
     <div
@@ -262,7 +270,7 @@ export function NavSearch({ variant, onClose }: Props) {
         </div>
       )}
       <p className="border-t border-rule px-3 py-2 font-sans text-meta text-ink-faint">
-        代號精確比對 · 標題前綴（非全文檢索）
+        代號精確比對 · 標題與內文關鍵字
       </p>
     </div>
   ) : null;
@@ -276,26 +284,52 @@ export function NavSearch({ variant, onClose }: Props) {
         搜尋新聞或財報
       </label>
       <div className={variant === "mobile" ? "flex items-center gap-2" : ""}>
-        <input
-          ref={inputRef}
-          id={`${listboxId}-input`}
-          type="search"
-          role="combobox"
-          aria-expanded={showPanel}
-          aria-controls={showPanel ? listboxId : undefined}
-          aria-activedescendant={activeDescendant}
-          aria-autocomplete="list"
-          placeholder="搜尋代號或標題…"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={onKeyDown}
-          className={inputClass}
-          autoComplete="off"
-        />
+        <div className="relative flex-1">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            fill="none"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+          >
+            <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.6" />
+            <path
+              d="m14 14 3.5 3.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            ref={inputRef}
+            id={`${listboxId}-input`}
+            type="search"
+            role="combobox"
+            aria-expanded={showPanel}
+            aria-controls={showPanel ? listboxId : undefined}
+            aria-activedescendant={activeDescendant}
+            aria-autocomplete="list"
+            placeholder="搜尋代號或標題…"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
+            className={inputClass}
+            autoComplete="off"
+          />
+          {query && (
+            <button
+              type="button"
+              aria-label="清除搜尋"
+              onClick={clearQuery}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 font-sans text-meta text-ink-faint hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            >
+              ✕
+            </button>
+          )}
+        </div>
         {variant === "mobile" && (
           <button
             type="button"

@@ -16,6 +16,7 @@ from agents.earnings_models import EarningsReport, report_to_legacy_output
 from agents.extractor_agent import ArticleSummary
 from llm.embedding_client import GeminiEmbedder, MEMORY_EMBEDDING_DIM
 from llm.localization import derive_zh_title
+from scoring.search_tokens import search_tokens_for_payload
 
 logger = logging.getLogger(__name__)
 
@@ -372,8 +373,10 @@ class FirestoreMemoryService:
         return self._client.collection(f"{self._prefix}_{MEMORY_COLLECTION_SUFFIX}")
 
     def _write_payload(self, item_id: str, payload: dict[str, Any]) -> None:
+        # Additive keyword-search index; mirrored by dashboard/lib/search-tokens.ts.
+        enriched = {**payload, "search_tokens": search_tokens_for_payload(payload)}
         try:
-            self._collection().document(item_id).set(payload, merge=True)
+            self._collection().document(item_id).set(enriched, merge=True)
         except Exception as exc:
             logger.warning("Firestore memory archive skipped for %s: %s", item_id, exc)
 
