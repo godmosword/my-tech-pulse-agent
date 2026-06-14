@@ -68,6 +68,9 @@ MAX_DEEP_ARTICLES = int(os.getenv("MAX_DEEP_ARTICLES", "3"))
 MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
 MIN_DIGEST_ITEMS = int(os.getenv("MIN_DIGEST_ITEMS", "5"))
 SEMANTIC_DUP_DROP_ENABLED = os.getenv("SEMANTIC_DUP_DROP_ENABLED", "0") == "1"
+# Shadow-rollout: log every near-duplicate candidate (even when drop is disabled)
+# so the would-drop rate and false positives can be reviewed before flipping the flag.
+SEMANTIC_DUP_SHADOW_LOG = os.getenv("SEMANTIC_DUP_SHADOW_LOG", "0") == "1"
 MEMORY_CONTEXT_MAX_DISTANCE = float(os.getenv("MEMORY_CONTEXT_MAX_DISTANCE", "0.35"))
 EXTRACTOR_FULLTEXT_TOP_K = int(os.getenv("EXTRACTOR_FULLTEXT_TOP_K", "0"))
 EXTRACTOR_FULLTEXT_MIN_WORDS = int(os.getenv("EXTRACTOR_FULLTEXT_MIN_WORDS", "120"))
@@ -169,6 +172,11 @@ class TechPulseCrew:
         translation_filled_count = 0
         semantic_prefilter_dropped = 0
         newsapi_fetched = 0
+        # Reset per-run semantic dedup observability (avoid stale values on reruns
+        # or when the memory step is skipped).
+        self._semantic_dup_checked = 0
+        self._semantic_dup_would_drop = 0
+        self._semantic_dup_dropped = 0
 
         try:
             if is_staging():
@@ -440,6 +448,9 @@ class TechPulseCrew:
                         "newsapi_fetched": newsapi_fetched,
                         "semantic_prefilter_dropped": semantic_prefilter_dropped,
                         "semantic_prefilter_enabled": semantic_prefilter_enabled(),
+                        "semantic_dup_checked": self._semantic_dup_checked,
+                        "semantic_dup_would_drop": self._semantic_dup_would_drop,
+                        "semantic_dup_dropped": self._semantic_dup_dropped,
                     },
                 )
             except Exception as exc:
@@ -478,6 +489,10 @@ class TechPulseCrew:
             "articles_after_scoring": len(scored_articles),
             "semantic_prefilter_enabled": semantic_prefilter_enabled(),
             "semantic_prefilter_dropped": semantic_prefilter_dropped,
+            "semantic_dup_drop_enabled": SEMANTIC_DUP_DROP_ENABLED,
+            "semantic_dup_checked": self._semantic_dup_checked,
+            "semantic_dup_would_drop": self._semantic_dup_would_drop,
+            "semantic_dup_dropped": self._semantic_dup_dropped,
             "tech_pulse_env": os.getenv("TECH_PULSE_ENV", "production"),
             "instant_candidates": len(instant_scored_articles),
             "synthesis_ran": digest is not None,
@@ -781,8 +796,17 @@ class TechPulseCrew:
         return enriched
 
     def _apply_memory_context(self, summaries: list[ArticleSummary]) -> list[ArticleSummary]:
-        """Attach retrieval-memory context and optionally drop semantic duplicates."""
+        """Attach retrieval-memory context and optionally drop semantic duplicates.
+
+        Tracks shadow-rollout observability on self: `_semantic_dup_checked`
+        (summaries that reached memory search), `_semantic_dup_would_drop`
+        (near-duplicate candidates regardless of the drop flag), and
+        `_semantic_dup_dropped` (actually dropped). The drop decision itself is
+        unchanged — gated by SEMANTIC_DUP_DROP_ENABLED.
+        """
         retained: list[ArticleSummary] = []
+        checked = 0
+        would_drop = 0
         dropped = 0
         for summary in summaries:
             query_summary = self._summary_memory_text(summary)
@@ -798,11 +822,23 @@ class TechPulseCrew:
                 retained.append(summary)
                 continue
 
+            checked += 1
             nearest = matches[0] if matches else None
             if nearest and nearest.distance is not None:
                 summary.semantic_distance = nearest.distance
                 if nearest.distance <= SEMANTIC_DUP_DISTANCE_THRESHOLD:
                     summary.semantic_duplicate = True
+                    would_drop += 1
+                    if SEMANTIC_DUP_SHADOW_LOG:
+                        logger.info(
+                            "Semantic dup candidate: '%s' distance=%.3f<=%.2f nearest='%s' "
+                            "drop_enabled=%s",
+                            (summary.title or summary.entity)[:60],
+                            nearest.distance,
+                            SEMANTIC_DUP_DISTANCE_THRESHOLD,
+                            (nearest.title or "")[:60],
+                            SEMANTIC_DUP_DROP_ENABLED,
+                        )
                     if SEMANTIC_DUP_DROP_ENABLED:
                         dropped += 1
                         continue
@@ -814,8 +850,17 @@ class TechPulseCrew:
                     summary.history_context = context
             retained.append(summary)
 
-        if dropped:
-            logger.info("Memory semantic dedup skipped %d near-duplicate summary item(s)", dropped)
+        self._semantic_dup_checked = checked
+        self._semantic_dup_would_drop = would_drop
+        self._semantic_dup_dropped = dropped
+
+        if would_drop:
+            logger.info(
+                "Semantic dedup: %d/%d near-duplicate candidate(s) at distance<=%.2f "
+                "(drop_enabled=%s, dropped=%d)",
+                would_drop, checked, SEMANTIC_DUP_DISTANCE_THRESHOLD,
+                SEMANTIC_DUP_DROP_ENABLED, dropped,
+            )
         return retained
 
     @staticmethod
