@@ -22,6 +22,23 @@ from scoring.heuristic_filter import HeuristicFilter
 
 logger = logging.getLogger(__name__)
 
+
+def _env_float(key: str) -> Optional[float]:
+    """Parse a float threshold override from env.
+
+    Treats unset, empty/whitespace, or non-numeric values as absent (returns
+    None) so a misconfigured env never crashes scoring; invalid values warn.
+    """
+    raw = os.getenv(key)
+    if raw is None or not raw.strip():
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("Invalid %s env value: %s; using config default", key, raw)
+        return None
+
+
 SCORE_CONFIG_PATH = Path(__file__).parent / "score_config.yaml"
 DOMAIN_LEXICON_PATH = Path(__file__).parent.parent / "sources" / "domain_lexicon.yaml"
 FLASH_MODEL = GEMINI_FLASH_MODEL
@@ -283,23 +300,21 @@ class Scorer:
             return ScoreOutcome(result=None, error_kind="api")
 
     def threshold(self, item_type: str = "default") -> float:
-        """Return score threshold for item_type. SCORE_THRESHOLD env var overrides default."""
+        """Return score threshold for item_type.
+
+        Env overrides per type: `SCORE_THRESHOLD` for default, and
+        `SCORE_THRESHOLD_<TYPE>` (e.g. SCORE_THRESHOLD_KOL) for others. When the
+        override is unset/empty/invalid, the score_config.yaml value is used.
+        """
         thresholds = self._config["thresholds"]
-        base = thresholds.get(item_type, thresholds["default"])
-        if item_type == "default":
-            return float(os.getenv("SCORE_THRESHOLD", str(base)))
-        return float(base)
+        base = float(thresholds.get(item_type, thresholds["default"]))
+        env_key = "SCORE_THRESHOLD" if item_type == "default" else f"SCORE_THRESHOLD_{item_type.upper()}"
+        override = _env_float(env_key)
+        return override if override is not None else base
 
     def _warn_if_threshold_too_low(self) -> None:
-        raw = os.getenv("SCORE_THRESHOLD")
-        if raw is None:
-            return
-        try:
-            threshold = float(raw)
-        except ValueError:
-            logger.warning("Invalid SCORE_THRESHOLD env value: %s", raw)
-            return
-        if threshold < 1.0:
+        threshold = _env_float("SCORE_THRESHOLD")
+        if threshold is not None and threshold < 1.0:
             logger.warning(
                 "SCORE_THRESHOLD=%.2f is very low and may allow low-quality items through.",
                 threshold,
@@ -357,6 +372,10 @@ class Scorer:
         unscored: list = []
         low_score_candidates: list = []
         used_low_score_fallback = False
+        # Observability: passed/scored counts per effective threshold bucket so
+        # threshold drift can be tracked from logs (default vs kol differ).
+        passed_by_type: Counter = Counter()
+        scored_by_type: Counter = Counter()
 
         for article in candidates:
             text = article.content or article.summary or ""
@@ -381,9 +400,11 @@ class Scorer:
             weighted_score = self._apply_source_weight(result.score, getattr(article, "source", ""))
             article.score = weighted_score
             article.score_status = "ok"
+            scored_by_type[effective_type] += 1
             if weighted_score >= thresh:
                 article.score_status = "scored"
                 passed.append(article)
+                passed_by_type[effective_type] += 1
             else:
                 article.score_status = "filtered_out"
                 low_score_candidates.append(article)
@@ -391,6 +412,14 @@ class Scorer:
                     "Filtered out '%s' (score=%.1f < %.1f)",
                     article.title[:60], weighted_score, thresh,
                 )
+
+        for etype in sorted(scored_by_type):
+            logger.info(
+                "Threshold summary: type=%s passed=%d/%d threshold=%.1f",
+                etype, passed_by_type[etype], scored_by_type[etype], self.threshold(etype),
+            )
+        if unscored_count:
+            logger.info("Threshold summary: unscored_fallback=%d", unscored_count)
 
         if low_score_candidates:
             top_low = sorted(low_score_candidates, key=lambda a: getattr(a, "score", 0.0), reverse=True)[:5]

@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **評分閾值可配置/可觀測（A5）**：`Scorer.threshold()` 泛化 env override（`SCORE_THRESHOLD` 為 default、`SCORE_THRESHOLD_<TYPE>` 如 `SCORE_THRESHOLD_KOL` 為其餘類型）；新增 `_env_float` 統一解析（未設／空字串／非法值皆回退 yaml 預設，不再因 `SCORE_THRESHOLD=` 崩潰）；`filter_articles` 依 effective_type（default／kol）分桶輸出 `Threshold summary` 通過率日誌供漂移調參；`tests/test_scorer_thresholds.py`；`.env.example` 修正預設註解 7.2→6.8 並補 `SCORE_THRESHOLD_KOL`。預設行為不變。
+- **Watchlist 覆蓋稽核（A6）**：`sources/watchlist_audit.py` + `scripts/watchlist_coverage.py`（唯讀，不改 yaml、不臆造 ticker）；報告各 tier 筆數、重複（同 tier）／跨 tier 衝突、tag 分佈、異常 tier 值；`--observed`（CSV ticker/symbol 或 JSON 三種形）／`--tickers` 提供實際觀測資料時列出「不在 watchlist 的候選」供人工確認；`--targets` JSON 計算各 tier 缺口；`tests/test_watchlist_audit.py`。
 - **資料表無障礙（B3）**：所有 `<th>` 加 `scope="col"`（共用 `DataTable`、`PortfolioEditorPrototype`、`FundamentalsCard` EPS Surprise 表、`EarningsReportMarkdown` GFM 表）；`PortfolioEditorPrototype`／`FundamentalsCard` 表格以 `aria-labelledby` 指向章節標題取得無障礙名稱；`components/PortfolioEditorPrototype.test.tsx` 斷言 table accessible name 與欄標題。視覺與行為不變。（B4 recharts 懶載／portfolio `Promise.all` 經查證不適用：recharts 已路由隔離於單一 `/calibration` chunk，portfolio 僅單一 async await，其餘載入皆同步。）
 - **Portal API 測試補齊（D3）**：`lib/api-routes.test.ts` 新增 `/news/digest`、`/news/deep`、`/news/deep/[itemId]`、`/news/themes`、`/archive/facets`、`/items/[id]` handler 測試（含 422 驗證、404、503 降級、pillar 過濾、facet 統計），覆蓋面 9 → 15 個 v1 handler；保留真實純轉換（themeCounts／buildFacets／serializeItem），僅 stub Firestore 載入。
 - **RSS/KOL 抓取重試**：`RSSFetcher._get_with_retry` 對暫時性錯誤（timeout／transport／5xx／429）重試，永久回應（304／其他 4xx／2xx）即時返回；尊重 `Retry-After`（上限 5s）；`RSS_MAX_ATTEMPTS`（預設 2，1 停用）；成功路徑與 304／fallback 行為不變；`tests/test_rss_retry.py`。
