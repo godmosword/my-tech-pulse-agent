@@ -1,0 +1,50 @@
+name: Scheduled pipeline run
+
+# Triggers the existing Cloud Run Job on a schedule. Disabled by default:
+# the job only runs when repo variable PIPELINE_SCHEDULE_ENABLED == 'true'
+# (manual workflow_dispatch always runs, regardless of the gate).
+#
+# GitHub schedules are best-effort (may be delayed 5-15 min) and are paused
+# after 60 days of repo inactivity. For reliable production scheduling prefer
+# Cloud Scheduler — see docs/SCHEDULED_RUNS.md.
+
+on:
+  schedule:
+    # Cron is UTC. Default 09:00 UTC weekdays = 17:00 Asia/Taipei (same weekday;
+    # no day rollover). Adjust to your delivery window. Note: day-of-week is
+    # evaluated in UTC. See docs/SCHEDULED_RUNS.md for the UTC↔Taipei table.
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  run-pipeline:
+    name: Execute Cloud Run Job
+    runs-on: ubuntu-latest
+    # Slightly above Cloud Run Job / PIPELINE_TIMEOUT_SECONDS (540s) so --wait
+    # never hangs the runner indefinitely.
+    timeout-minutes: 20
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.PIPELINE_SCHEDULE_ENABLED == 'true' }}
+    concurrency:
+      group: pipeline-run-${{ vars.CLOUD_RUN_SERVICE }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Execute Cloud Run Job
+        run: |
+          gcloud run jobs execute "${{ vars.CLOUD_RUN_SERVICE }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --wait

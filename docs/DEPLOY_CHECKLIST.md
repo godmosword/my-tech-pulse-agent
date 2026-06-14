@@ -191,6 +191,9 @@ python scripts/preflight.py
 
 手動觸發 Job 或等排程後，在日誌搜尋 `pipeline_run_summary`，確認例如：
 
+> 自動排程設定見 [`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)（Cloud Scheduler 建議 / GitHub Actions schedule 輔助；兩者擇一）。
+
+
 ```json
 {
   "summaries_count": 3,
