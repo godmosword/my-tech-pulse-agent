@@ -25,9 +25,9 @@
 ## 待啟用（依建議順序，由「高體感低風險」到「需成本決策」）
 
 ### 1. 語義去重 shadow log — `SEMANTIC_DUP_SHADOW_LOG`（A7）— 先開這個收資料
-- **現況**：`0`。
+- **現況**：**`1`，已啟用（2026-06-14，首班生效 06-15）**。觀測窗起算，~06-22 評估。
 - **作用**：逐筆 log「若開啟會丟哪一篇、distance 多少」。**它是第 2 步的前置觀測，不改任何去重決策。**
-- **前置**：索引 READY、`MEMORY_ENABLED=1`、memory 已累積（建議 ≥ 7 天）。
+- **前置**：索引 READY、`MEMORY_ENABLED=1`、memory 已累積（建議 ≥ 7 天）。— 皆已滿足。
 - **風險**：幾乎為零（僅增加 log 量）。
 - **回滾**：設 `0`。
 - **Runbook**：[`SEMANTIC_DEDUP_ROLLOUT.md`](SEMANTIC_DEDUP_ROLLOUT.md) §2
@@ -50,35 +50,30 @@
 - **風險**：在抽取前丟棄，較早介入；threshold 太低會誤併不同題材。
 - **回滾**：設 `0`。
 
-### 4. 財報 vendor 啟用 — `EARNINGS_VENDOR_MODE`（C3，Finnhub）
-- **現況**：`off`。`off → free → paid` 分階段。
+### ✅（已啟用，列此供回滾參考）財報 vendor — `EARNINGS_VENDOR_MODE`（C3，Finnhub）
+- **現況**：**`free`，production 已啟用**（`FINNHUB_API_KEY` 已配，驗證 2026-06-14 job env）。
 - **作用**：Finnhub 共識／日曆／股價／逐字稿 enrich 財報。
-- **前置**：設 `FINNHUB_API_KEY`；成本決策（free tier 額度）；先 `free` 驗證再考慮 `paid`。
-- **驗證**：`pipeline_run_summary.earnings_vendor_enriched_count` > 0 且穩定。
-- **風險**：額度耗盡 / 逾時拖慢 run（已有 `MAX_VENDOR_CALLS_PER_RUN`、timeout 上限）。
-- **回滾**：設 `off`。
-- **Runbook**：[`VENDOR_ENABLEMENT.md`](VENDOR_ENABLEMENT.md)
+- **注意**：只在**財報日**開火；無 watchlist filing 的日子 `earnings_vendor_enriched_count = 0` 屬正常（非關閉）。
+- **剩餘決策**：是否 `free → paid`（額度／涵蓋度需求），**不是**啟用。
+- **回滾**：設 `off`。**Runbook**：[`VENDOR_ENABLEMENT.md`](VENDOR_ENABLEMENT.md)
 
-### 5. 財報基本面 enrich — `EARNINGS_FUNDAMENTAL_MODE`（C3，FMP）
-- **現況**：`off`（= SEC-only）。`off → free → paid`。
+### ✅（已啟用）財報基本面 enrich — `EARNINGS_FUNDAMENTAL_MODE`（C3，FMP）
+- **現況**：**`free`，production 已啟用**（`FMP_API_KEY` 已配）。
 - **作用**：FMP 比率／現金流補 SEC 缺口（FCF、ROIC 等），標 SEC vs FMP `source_conflicts`。
-- **前置**：設 `FMP_API_KEY`；成本決策。
-- **驗證**：`pipeline_run_summary.earnings_fundamental_enriched_count` > 0。
+- **驗證**：`pipeline_run_summary.earnings_fundamental_enriched_count`（同樣財報日才 > 0）。
 - **已知限制**：`MAX_FMP_CALLS_PER_RUN` 因 provider 每筆重建而非全輪硬上限（TODOS follow-up）。
-- **回滾**：設 `off`。
-- **Runbook**：[`VENDOR_ENABLEMENT.md`](VENDOR_ENABLEMENT.md)
+- **剩餘決策**：`free → paid`。**回滾**：設 `off`。
 
-### 6. News takeaway — `NEWS_TAKEAWAY_MODE`
-- **現況**：`off`（啟用值為 `on`）。
+### ✅（已啟用）News takeaway — `NEWS_TAKEAWAY_MODE`
+- **現況**：**`on`，production 已啟用**。
 - **作用**：每篇新聞加一段 Flash 生成的 takeaway，Dashboard `NewsTakeawayBlock` 呈現。
-- **前置**：無硬性；確認 Flash 成本可接受。
-- **風險**：每篇多一次 Gemini 呼叫；解析失敗已有重試與 `NEWS_TAKEAWAY_MAX_OUTPUT_TOKENS` 防截斷。
 - **回滾**：設 `off`。
 
 ## 建議節奏
 
-排程（C1）已上線且每日成功，baseline 產出已經在跑。剩下的是讓每日產出「變更豐富」：
+排程（C1）每日成功；vendor（Finnhub free）、FMP（free）、news takeaway 皆**已啟用**。
+剩下真正待推的只有去重的第 2、3 步：
 
-1. **第 1 → 2 步**串起來：開 `SEMANTIC_DUP_SHADOW_LOG` 收 ≥ 7 天資料，達門檻（`would_drop / checked < 15%` 且抽查無誤判）再翻 `SEMANTIC_DUP_DROP_ENABLED`。
-2. **第 4 / 5 步**等你願意付 vendor 成本時，依 runbook 走 free → go/no-go → paid。
-3. 第 3、6 步視成本與觀測結果再決定。
+1. **第 1 → 2 步**：shadow log 已於 2026-06-14 開啟，收 ≥ 7 天資料後（~06-22）達門檻（`would_drop / checked < 15%` 且抽查無誤判）再翻 `SEMANTIC_DUP_DROP_ENABLED`。
+2. **第 3 步**（prefilter）排在第 2 步行為穩定之後。
+3. **vendor / FMP** 的剩餘決策是 `free → paid`（成本 vs 涵蓋度），非啟用；無急迫性。
