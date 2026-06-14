@@ -123,7 +123,7 @@ Runtime 使用 Job 預設服務帳號或自訂 SA，需具備：
 ```bash
 export GCP_PROJECT_ID="<your-project>"
 export GCP_REGION="asia-east1"
-export CLOUD_RUN_SERVICE="tech-pulse"   # Job 名稱
+export CLOUD_RUN_SERVICE="tech-pulse-job"   # Job 名稱（production 實際值）
 
 gcloud run jobs update "$CLOUD_RUN_SERVICE" \
   --region "$GCP_REGION" \
