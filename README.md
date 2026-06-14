@@ -167,6 +167,8 @@ Shared UI helpers live under `dashboard/lib/format-numbers.ts`, `login-path.ts`,
 ## Deployment
 
 **Vercel + GCP 設定清單**（env、驗證、backfill）：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md).
+許多功能以 shadow / 預設 off 上線；待啟用旗標的前置條件、風險與回滾集中在
+[`docs/ENABLEMENT_CHECKLIST.md`](docs/ENABLEMENT_CHECKLIST.md)。
 
 The pipeline is packaged for container deployment. Run `python scripts/preflight.py` in
 the same environment before the first production run, then start the one-shot command:
