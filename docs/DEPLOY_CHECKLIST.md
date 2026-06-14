@@ -267,7 +267,11 @@ python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 - [ ] `MEMORY_ENABLED=1`、`STATE_BACKEND=auto`、`TECH_PULSE_ENV=production`
 - [ ] `DIGEST_SNAPSHOT_ENABLED=1`
 - [ ] `DASHBOARD_REVALIDATE_URL` + `DASHBOARD_REVALIDATE_TOKEN`
-- [ ] Firestore IAM + 向量索引（若啟用 semantic dup drop）
+- [ ] Firestore IAM + 索引部署：`GCP_PROJECT_ID=<project> bash scripts/deploy_firestore_indexes.sh`
+      （部署 `firestore.indexes.json` 的複合 + 向量索引；向量索引為 semantic dup drop 前置。
+      假設 `FIRESTORE_COLLECTION_PREFIX=tech_pulse` 與預設資料庫 `(default)`。
+      註：`processed_articles`／`article_embeddings` 的 `expires_at` 目前**未**納入 Firestore TTL fieldOverride，
+      若要自動過期清理需由維護者另行決定並補入 artifact。）
 - [ ] （可選）`NEWSAPI_KEY`、`APIFY_API_KEY`
 
 **GCP Staging（可選）**
