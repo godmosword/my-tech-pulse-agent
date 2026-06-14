@@ -77,6 +77,7 @@ All notable changes to this project will be documented in this file.
 - **Phase 1 trend pipeline**：Phase 3 merge 遺失 `build_report_from_filing` 內 `build_earnings_trend` 掛載；已恢復（與 `fc10e03` 一致）。
 
 ### Docs
+- `README.md` 同步近期演進：排程（C1，`docs/SCHEDULED_RUNS.md` 兩路徑擇一、`PIPELINE_SCHEDULE_ENABLED`）、語義去重 shadow rollout（A7，`SEMANTIC_DUP_SHADOW_LOG`、`docs/SEMANTIC_DEDUP_ROLLOUT.md`）、per-type 評分閾值（A5，`SCORE_THRESHOLD` / `SCORE_THRESHOLD_<TYPE>`）、vendor 啟用 runbook（C3，`docs/VENDOR_ENABLEMENT.md` + 雙 enrich 指標）、Firestore 索引部署腳本（D4，`scripts/deploy_firestore_indexes.sh`）。
 - `README.md`、`TODOS.md`、`dashboard/README.md` 同步 Dashboard 六階段審查（共用模組、驗證指令、a11y follow-up）。
 - `README.md`、`TODOS.md`、`dashboard/README.md` 同步財報深度報告 v3（Finnhub、六段報告、待辦）。
 - `CHANGELOG.md`、`TODOS.md` 同步 Phase 4–6（訊號、回測、宏觀）。

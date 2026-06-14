@@ -54,7 +54,11 @@ SEC EDGAR RSS → XBRL headline facts → narrative (8-K text)
 
 See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
 [`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md), and
-[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) (API keys & env for v3).
+[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) (API keys & env for v3). Vendor
+enrichment (Finnhub / FMP) stays `off` by default — stage it with the phased
+go/no-go runbook in [`docs/VENDOR_ENABLEMENT.md`](docs/VENDOR_ENABLEMENT.md),
+verified via the additive `earnings_vendor_enriched_count` /
+`earnings_fundamental_enriched_count` metrics in `pipeline_run_summary`.
 
 ## Environment Variables
 
@@ -72,6 +76,8 @@ See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
 | `MIN_BASE_SCORE_THRESHOLD` | ❌ | Cheap pre-LLM heuristic gate (`0.35`) |
 | `MIN_LEXICON_SCORE` | ❌       | Domain lexicon score floor before Gemini scoring (`3.0`) |
 | `MAX_SCORING_ARTICLES` | ❌      | Max articles scored per run (`24`) |
+| `SCORE_THRESHOLD` | ❌ | Default Gemini score gate for the digest (falls back to `signal_config.yaml`) |
+| `SCORE_THRESHOLD_<TYPE>` | ❌ | Per-type override, e.g. `SCORE_THRESHOLD_KOL`; unset/invalid falls back to `SCORE_THRESHOLD` |
 | `MAX_UNSCORED_TAIL` | ❌ | Max scoring-failed articles merged into the delivery pool (`3`; same env as Telegram unscored tail budget) |
 | `MAX_EXTRACTION_ARTICLES` | ❌   | Max articles extracted per run (`8`) |
 | `TRANSLATION_AGENT_ENABLED` | ❌ | Flash backfill `zh_title` / `zh_summary` when extractor misses CJK (`1`) |
@@ -110,6 +116,7 @@ See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
 | `MEMORY_TOP_K`         | ❌       | Similar historical items checked per summary (`3`) |
 | `SEMANTIC_DUP_DISTANCE_THRESHOLD` | ❌ | Cosine distance threshold for near-duplicate detection (`0.12`) |
 | `SEMANTIC_DUP_DROP_ENABLED` | ❌  | Drop semantic duplicates when `1`; rollout default is context-only (`0`) |
+| `SEMANTIC_DUP_SHADOW_LOG` | ❌ | Log per-candidate "would-drop" decisions during the shadow rollout (`0`); see [`docs/SEMANTIC_DEDUP_ROLLOUT.md`](docs/SEMANTIC_DEDUP_ROLLOUT.md) |
 | `TELEGRAM_CHUNK_DELAY_MS` | ❌      | Delay between digest chunks to prevent rate limiting (`500`) |
 | `SEMANTIC_PREFILTER_ENABLED` | ❌   | Enable pre-extraction semantic dedup via 7-day embedding window (`0`) |
 | `SEMANTIC_PREFILTER_THRESHOLD` | ❌ | Cosine similarity threshold for pre-extraction dedup (`0.85`) |
@@ -197,6 +204,16 @@ unless you override that variable in GCP. If you prefer to deploy as a
 Cloud Run Service instead of a Job, swap `gcloud run jobs update` for
 `gcloud run deploy` in the workflow.
 
+### Scheduled runs
+
+Daily execution is driven by one of two interchangeable paths (pick one to avoid
+double runs): the `.github/workflows/schedule.yml` cron workflow (**disabled by
+default**; set repository variable `PIPELINE_SCHEDULE_ENABLED=true`, or use
+`workflow_dispatch` for manual one-off runs), or Cloud Scheduler →
+Cloud Run Job via `scripts/setup_cloud_scheduler.sh` (idempotent, supports
+`DRY_RUN`). UTC ↔ Asia/Taipei conversion, the enablement checklist, and
+monitoring guidance live in [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md).
+
 ### Production state on Firestore
 
 Local runs default to `output/dedup.sqlite`. Cloud Run uses Firestore when `STATE_BACKEND=auto`
@@ -224,8 +241,10 @@ Configure a Firestore TTL policy on the `expires_at` field of `tech_pulse_seen_i
 to let GCP expire old dedup records automatically.
 
 Content-hash deduplication also needs a composite Firestore index on
-`tech_pulse_seen_items` for `content_hash ASC, seen_at ASC`. Deploy
-`firestore.indexes.json`, or create it directly:
+`tech_pulse_seen_items` for `content_hash ASC, seen_at ASC`. Deploy every index
+in `firestore.indexes.json` at once with
+`PROJECT_ID=<gcp-project> ./scripts/deploy_firestore_indexes.sh` (wraps
+`firebase deploy --only firestore:indexes`), or create this one directly:
 
 ```bash
 gcloud firestore indexes composite create \
