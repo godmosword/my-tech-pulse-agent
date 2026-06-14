@@ -36,7 +36,7 @@ jobs:
       - name: Ruff lint
         run: ruff check .
 
-      - name: Pyright (sources, scoring)
+      - name: Pyright (core packages)
         run: pyright
 
       - name: Vulture dead code

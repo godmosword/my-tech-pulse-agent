@@ -28,7 +28,7 @@ def _metric(
         if row.get("val") is None:
             continue
         try:
-            if int(row.get("fy")) == fy and str(row.get("fp") or "").upper() == fp_u:
+            if int(row["fy"]) == fy and str(row.get("fp") or "").upper() == fp_u:
                 return float(row["val"])
         except (TypeError, ValueError):
             continue

@@ -234,7 +234,11 @@ class ExtractorAgent:
                 result.source_display_name = str(article.get("source_display_name", ""))
                 result.source_language = str(article.get("source_language", "en") or "en")
                 published_at = article.get("published_at")
-                result.published_at = published_at.isoformat() if hasattr(published_at, "isoformat") else str(published_at or "")
+                result.published_at = (
+                    published_at.isoformat()
+                    if published_at is not None and hasattr(published_at, "isoformat")
+                    else str(published_at or "")
+                )
                 result.source_text = text[: _extractor_input_char_limit()]
                 allowed = article.get("allowed_themes") or []
                 if isinstance(allowed, (list, tuple)):

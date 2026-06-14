@@ -11,7 +11,7 @@ from sources.sec_xbrl_fetcher import SecXbrlFetcher
 
 def _to_point(row: dict) -> QuarterPoint:
     return QuarterPoint(
-        fiscal_year=int(row.get("fy")),
+        fiscal_year=int(row["fy"]),
         fiscal_period=str(row.get("fp") or "").upper(),
         period_end=str(row.get("end")) if row.get("end") else None,
         value=float(row["val"]) if row.get("val") is not None else None,

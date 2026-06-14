@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable
 from typing import Any
 
 from llm.gemini_client import make_client
@@ -117,7 +118,7 @@ def _extract_first_embedding_values(response: object) -> list[float]:
 
 
 def _coerce_values(values: object) -> list[float]:
-    if values is None:
+    if not isinstance(values, Iterable):
         return []
     try:
         return [float(value) for value in values]

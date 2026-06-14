@@ -3,7 +3,10 @@
 import asyncio
 import logging
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from telegram import InlineKeyboardMarkup
 
 from agents.earnings_agent import EarningsOutput
 from agents.earnings_models import EarningsReport
@@ -171,6 +174,7 @@ class TelegramBot:
         Long card text is still chunk-safe via _smart_chunk_text — only the
         FIRST chunk receives the button (subsequent chunks are continuations).
         """
+        assert self._bot is not None  # callers guard `if not self._bot`
         total = len(messages)
         for i, msg in enumerate(messages):
             text = (msg.text or "").strip()
@@ -199,6 +203,7 @@ class TelegramBot:
 
     async def _async_send(self, text: str, *, chat_id: str | None = None) -> None:
         """Send message with smart chunking at theme boundaries to preserve formatting."""
+        assert self._bot is not None  # callers guard `if not self._bot`
         target_chat_id = chat_id or self._channel_id
         chunks = self._smart_chunk_text(text)
 
@@ -224,7 +229,7 @@ class TelegramBot:
                 raise
 
     @staticmethod
-    def _build_digest_reply_markup(msg) -> object | None:
+    def _build_digest_reply_markup(msg) -> "InlineKeyboardMarkup | None":
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup  # noqa: PLC0415
 
         rows: list[list] = []

@@ -93,7 +93,7 @@ def _active_signals(
 
     if len(sia_sales) >= 3:
         last3 = sia_sales[-3:]
-        yoys = [r.get("yoy_pct") for r in last3 if r.get("yoy_pct") is not None]
+        yoys = [r["yoy_pct"] for r in last3 if r.get("yoy_pct") is not None]
         if len(yoys) == 3:
             if all(float(y) > 0 for y in yoys) and float(yoys[-1]) > float(yoys[0]):
                 signals["半導體銷售YoY上升"] = (

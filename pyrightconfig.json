@@ -1,5 +1,5 @@
 {
-  "include": ["sources", "scoring"],
+  "include": ["sources", "scoring", "pipeline", "delivery", "llm", "backtest", "agents"],
   "exclude": ["dashboard", "tests", "**/__pycache__", ".venv", "venv"],
   "pythonVersion": "3.11",
   "typeCheckingMode": "basic",

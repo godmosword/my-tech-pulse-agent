@@ -78,7 +78,7 @@ def _xbrl_metric_for_period(
         if row.get("val") is None:
             continue
         try:
-            fy = int(row.get("fy"))
+            fy = int(row["fy"])
         except (TypeError, ValueError):
             continue
         if fy == fiscal_year and str(row.get("fp") or "").upper() == fp_u:

@@ -46,7 +46,7 @@ cd dashboard && npm run lint && npm run typecheck && npm run test
 
 對照標準：
 - **Lint**：`ruff check .` 零錯誤；`npm run lint`（ESLint）零錯誤、零警告
-- **Type check**：`pyright` 全綠（`sources` + `scoring`，`typeCheckingMode: basic`，見 `pyrightconfig.json`）；`npm run typecheck`（`tsc --noEmit`，strict）全綠
+- **Type check**：`pyright` 全綠（核心套件 `sources`/`scoring`/`pipeline`/`delivery`/`llm`/`backtest`/`agents`，`typeCheckingMode: basic`，見 `pyrightconfig.json`）；`npm run typecheck`（`tsc --noEmit`，strict）全綠
 - **Dead code**：`vulture` 全綠（含 `scripts/vulture_whitelist.py`）
 - **測試**：`pytest` 全數通過，核心套件 coverage ≥ 62%；`vitest run` 全數通過
 - 若無測試，列出建議補測試的關鍵路徑，不要自行大量新增
@@ -56,7 +56,7 @@ cd dashboard && npm run lint && npm run typecheck && npm run test
 任務視為完成須逐項對照並回報通過與否：
 
 1. **Lint 零錯誤、零警告** — `ruff check .`；`cd dashboard && npm run lint`
-2. **Type check 全綠** — `pyright`（Python `sources`/`scoring`）；`cd dashboard && npm run typecheck`（TypeScript strict）
+2. **Type check 全綠** — `pyright`（Python 核心套件 sources/scoring/pipeline/delivery/llm/backtest/agents）；`cd dashboard && npm run typecheck`（TypeScript strict）
 3. **既有測試全數通過，覆蓋率不低於基準** — `pytest -q --cov=... --cov-fail-under=62`；`cd dashboard && npm run test`
 4. **無未使用的 import / 變數 / 函式 / 檔案 / 相依套件** — 含 `vulture` 掃描
 5. **無重複邏輯**

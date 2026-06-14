@@ -40,6 +40,8 @@ def list_historical_earnings(
     if since_day is None:
         raise ValueError(f"Invalid since date: {since!r}")
     until_day = _parse_day(until) if until else date.today()
+    if until_day is None:
+        raise ValueError(f"Invalid until date: {until!r}")
 
     client = submissions or SecSubmissionsClient()
     padded = format_cik(cik)

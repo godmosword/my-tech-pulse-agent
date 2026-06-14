@@ -229,7 +229,7 @@ class EarningsPipelineRunner:
                 logger.debug("Skip filing without ticker: %s", filing.company)
                 continue
 
-            cik = filing.cik or self.cik_map.cik_for(ticker)
+            cik = self.cik_map.cik_for(ticker)
             if not cik:
                 logger.warning("No CIK for ticker %s (%s)", ticker, filing.company)
                 continue
