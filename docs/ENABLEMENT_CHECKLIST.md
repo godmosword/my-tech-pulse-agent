@@ -13,25 +13,26 @@
 | `EARNINGS_REPORTS_ENABLED` | `1` | 寫 `tech_pulse_earnings_reports` |
 | `DIGEST_SNAPSHOT_ENABLED` | `1` | 寫 `tech_pulse_digests` 快照供 Dashboard |
 
+## 已完成
+
+### ✅ 自動排程（C1）— 已上線，每日運行中
+- **現況**：Cloud Scheduler `tech-pulse-daily`（`20 7 * * *` Asia/Taipei，**ENABLED**）→ Cloud Run Job `tech-pulse-job:run`，已連續每日成功觸發（驗證 2026-06-14）。
+- **⚠️ 不要**設 `PIPELINE_SCHEDULE_ENABLED=true`：那是 `.github/workflows/schedule.yml` 的**第二條**路徑，與 Cloud Scheduler **互斥**；同開會雙跑、重複送 Telegram。
+- **⚠️ 不要**跑 `scripts/setup_cloud_scheduler.sh`：會建出第二個 job `tech-pulse-job-schedule`，同樣雙跑。
+- **回滾 / 停跑**：`gcloud scheduler jobs pause tech-pulse-daily --location=asia-east1`。
+- **Runbook**：[`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)（注意：文件 placeholder 為 `tech-pulse`，實際 job 名 `tech-pulse-job`）。
+
 ## 待啟用（依建議順序，由「高體感低風險」到「需成本決策」）
 
-### 1. 自動排程 — `PIPELINE_SCHEDULE_ENABLED`（C1）⭐ 體感最大
-- **現況**：GitHub repo variable 未設 → `.github/workflows/schedule.yml` cron 停用，pipeline 不會自己跑。
-- **作用**：每天自動執行，不必手動 dispatch。**這是把所有隱形工作變成「每天看得到產出」的關鍵一步。**
-- **前置**：兩路徑**擇一**（cron workflow **或** Cloud Scheduler），避免雙跑。確認 WIF / Cloud Run Job 正常。
-- **風險**：兩者同開 → 重複執行、重複送 Telegram。`schedule.yml` 已有 concurrency 防同檔重疊，但防不了跨路徑。
-- **回滾**：移除 variable 或設 `false`（手動 `workflow_dispatch` 不受限）。
-- **Runbook**：[`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)
-
-### 2. 語義去重 shadow log — `SEMANTIC_DUP_SHADOW_LOG`（A7）— 先開這個收資料
+### 1. 語義去重 shadow log — `SEMANTIC_DUP_SHADOW_LOG`（A7）— 先開這個收資料
 - **現況**：`0`。
-- **作用**：逐筆 log「若開啟會丟哪一篇、distance 多少」。**它是第 3 步的前置觀測，不改任何去重決策。**
+- **作用**：逐筆 log「若開啟會丟哪一篇、distance 多少」。**它是第 2 步的前置觀測，不改任何去重決策。**
 - **前置**：索引 READY、`MEMORY_ENABLED=1`、memory 已累積（建議 ≥ 7 天）。
 - **風險**：幾乎為零（僅增加 log 量）。
 - **回滾**：設 `0`。
 - **Runbook**：[`SEMANTIC_DEDUP_ROLLOUT.md`](SEMANTIC_DEDUP_ROLLOUT.md) §2
 
-### 3. 語義去重翻旗 — `SEMANTIC_DUP_DROP_ENABLED`（A7）— shadow 最成熟
+### 2. 語義去重翻旗 — `SEMANTIC_DUP_DROP_ENABLED`（A7）— shadow 最成熟
 - **現況**：`0`（只 archive＋觀測，不丟）。
 - **作用**：真的丟棄跨 run 近重複（`distance <= SEMANTIC_DUP_DISTANCE_THRESHOLD`，預設 0.12）。
 - **前置**（runbook §3，**全部成立**才翻）：
@@ -42,14 +43,14 @@
 - **回滾**：設 `0` 立即停丟（gate 永久保留）；誤判偏高則調高 `SEMANTIC_DUP_DISTANCE_THRESHOLD`（更嚴）後重回 shadow。
 - **Runbook**：[`SEMANTIC_DEDUP_ROLLOUT.md`](SEMANTIC_DEDUP_ROLLOUT.md) §4
 
-### 4. 預抽取語義去重 — `SEMANTIC_PREFILTER_ENABLED`
+### 3. 預抽取語義去重 — `SEMANTIC_PREFILTER_ENABLED`
 - **現況**：未設 / `0`。
 - **作用**：抽取前對同批近重複先去重（`SEMANTIC_PREFILTER_THRESHOLD`，預設 0.85），省 extractor 呼叫成本。
-- **前置**：建議先確認第 3 步行為穩定，避免兩層去重交互難判讀。
+- **前置**：建議先確認第 2 步行為穩定，避免兩層去重交互難判讀。
 - **風險**：在抽取前丟棄，較早介入；threshold 太低會誤併不同題材。
 - **回滾**：設 `0`。
 
-### 5. 財報 vendor 啟用 — `EARNINGS_VENDOR_MODE`（C3，Finnhub）
+### 4. 財報 vendor 啟用 — `EARNINGS_VENDOR_MODE`（C3，Finnhub）
 - **現況**：`off`。`off → free → paid` 分階段。
 - **作用**：Finnhub 共識／日曆／股價／逐字稿 enrich 財報。
 - **前置**：設 `FINNHUB_API_KEY`；成本決策（free tier 額度）；先 `free` 驗證再考慮 `paid`。
@@ -58,7 +59,7 @@
 - **回滾**：設 `off`。
 - **Runbook**：[`VENDOR_ENABLEMENT.md`](VENDOR_ENABLEMENT.md)
 
-### 6. 財報基本面 enrich — `EARNINGS_FUNDAMENTAL_MODE`（C3，FMP）
+### 5. 財報基本面 enrich — `EARNINGS_FUNDAMENTAL_MODE`（C3，FMP）
 - **現況**：`off`（= SEC-only）。`off → free → paid`。
 - **作用**：FMP 比率／現金流補 SEC 缺口（FCF、ROIC 等），標 SEC vs FMP `source_conflicts`。
 - **前置**：設 `FMP_API_KEY`；成本決策。
@@ -67,7 +68,7 @@
 - **回滾**：設 `off`。
 - **Runbook**：[`VENDOR_ENABLEMENT.md`](VENDOR_ENABLEMENT.md)
 
-### 7. News takeaway — `NEWS_TAKEAWAY_MODE`
+### 6. News takeaway — `NEWS_TAKEAWAY_MODE`
 - **現況**：`off`（啟用值為 `on`）。
 - **作用**：每篇新聞加一段 Flash 生成的 takeaway，Dashboard `NewsTakeawayBlock` 呈現。
 - **前置**：無硬性；確認 Flash 成本可接受。
@@ -76,7 +77,8 @@
 
 ## 建議節奏
 
-1. **先做第 1 步**（排程）——立刻把「每天自動產出」變成可見事實，與其他旗標無關，風險最低。
-2. **第 2 → 3 步**串起來：開 shadow log 收 ≥ 7 天資料，達門檻再翻去重旗。
-3. **第 5 / 6 步**等你願意付 vendor 成本時，依 runbook 走 free → go/no-go → paid。
-4. 第 4、7 步視成本與觀測結果再決定。
+排程（C1）已上線且每日成功，baseline 產出已經在跑。剩下的是讓每日產出「變更豐富」：
+
+1. **第 1 → 2 步**串起來：開 `SEMANTIC_DUP_SHADOW_LOG` 收 ≥ 7 天資料，達門檻（`would_drop / checked < 15%` 且抽查無誤判）再翻 `SEMANTIC_DUP_DROP_ENABLED`。
+2. **第 4 / 5 步**等你願意付 vendor 成本時，依 runbook 走 free → go/no-go → paid。
+3. 第 3、6 步視成本與觀測結果再決定。
