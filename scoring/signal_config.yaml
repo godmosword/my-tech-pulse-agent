@@ -1,4 +1,7 @@
 # Investment Signal 權重與閾值。可日後回測調參。
+# version：訊號定義版本。改 weights/normalization/因子集合時請 bump；
+# track record 只比較同版本紀錄（避免混用不同因子集導致蘋果比橘子）。
+version: v1
 weights:
   fundamental_momentum: 0.35
   surprise: 0.25

@@ -1,0 +1,16 @@
+{
+  "_comment": "Point-in-time investable-universe snapshots for survivorship-aware backtesting. Append a new entry (do not edit past ones) whenever the watchlist materially changes; backtest.universe resolves the latest snapshot at or before a decision date. Snapshots accumulate forward from creation; periods before the first snapshot are flagged survivorship-biased.",
+  "snapshots": [
+    {
+      "as_of": "2026-06-15",
+      "source": "earnings_watchlist.yaml seed snapshot",
+      "tickers": [
+        "AAPL", "ACLS", "ADI", "AMAT", "AMD", "AMKR", "AMZN", "ANET", "ARM",
+        "ASML", "ASX", "AVGO", "CDNS", "COHR", "CRM", "CRWD", "CSCO", "DELL",
+        "ENTG", "FN", "GOOGL", "HPE", "INTC", "KLAC", "LITE", "LRCX", "META",
+        "MRVL", "MSFT", "MU", "NET", "NOW", "NVDA", "NVTS", "ORCL", "PLTR",
+        "QCOM", "RMBS", "SMCI", "SNOW", "SNPS", "TRUE", "TSM", "TXN", "WOLF"
+      ]
+    }
+  ]
+}

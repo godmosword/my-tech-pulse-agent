@@ -1,7 +1,13 @@
 import { BacktestCalibrationPanel } from "@/components/BacktestCalibrationPanel";
 import { BackfillCode, BackfillHint } from "@/components/data/BackfillHint";
 import { DensePageShell } from "@/components/data/DensePageShell";
-import { hasInsufficientSample, loadBacktestSummary, loadLiveEvalSummary } from "@/lib/backtest-data";
+import { TrackRecordPanel } from "@/components/TrackRecordPanel";
+import {
+  hasInsufficientSample,
+  loadBacktestSummary,
+  loadLiveEvalSummary,
+  loadTrackRecord,
+} from "@/lib/backtest-data";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +19,7 @@ export const metadata = {
 export default function CalibrationPage() {
   const backtest = loadBacktestSummary();
   const live = loadLiveEvalSummary();
+  const trackRecord = loadTrackRecord();
   const warn = hasInsufficientSample(backtest) || hasInsufficientSample(live?.summary);
 
   return (
@@ -57,6 +64,8 @@ python scripts/backtest_signal.py --dry-run`}</BackfillCode>
           title={`Live 前向校驗（n=${live.n_evaluated ?? 0} / 紀錄 ${live.n_logged ?? 0}）`}
         />
       )}
+
+      {trackRecord && <TrackRecordPanel data={trackRecord} />}
     </DensePageShell>
   );
 }

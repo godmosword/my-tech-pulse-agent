@@ -60,6 +60,61 @@ export function loadLiveEvalSummary(): LiveEvalSummary | null {
   }
 }
 
+export type EvidenceLevel = "insufficient" | "weak" | "moderate" | "strong";
+
+export type TrackBucket = {
+  n: number;
+  n_effective: number;
+  distinct_tickers: number;
+  mean_excess_pct: number;
+  mean_excess_ci: [number, number] | null;
+  directional_n: number;
+  hit_rate: number | null;
+  hit_rate_ci: [number, number] | null;
+  evidence_level: EvidenceLevel;
+};
+
+export type TrackHorizon = {
+  overall: TrackBucket | null;
+  bullish: TrackBucket | null;
+  bearish: TrackBucket | null;
+  ic_spearman: number | null;
+  ic_n: number;
+};
+
+export type TrackRecord = {
+  as_of?: string;
+  signal_version?: string;
+  n_logged?: number;
+  n_evaluated?: number;
+  maturity_breakdown?: Record<string, number>;
+  survivorship?: {
+    covered: number;
+    total: number;
+    coverage_pct: number | null;
+    biased: boolean;
+    note_zh?: string;
+  };
+  track_record?: {
+    signal_version?: string | null;
+    horizons?: number[];
+    n_records?: number;
+    by_horizon?: Record<string, TrackHorizon>;
+    multiple_comparisons?: { buckets_tested: number; note: string };
+    disclaimer_zh?: string;
+  };
+};
+
+export function loadTrackRecord(): TrackRecord | null {
+  const p = path.join(repoRootFromDashboard(), "backtest", "results", "track_record.json");
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf-8")) as TrackRecord;
+  } catch {
+    return null;
+  }
+}
+
 export function hasInsufficientSample(summary: BacktestSummary | null | undefined): boolean {
   return Boolean(summary?.sample_warnings && summary.sample_warnings.length > 0);
 }

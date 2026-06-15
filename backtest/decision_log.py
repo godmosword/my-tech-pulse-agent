@@ -11,14 +11,38 @@ from typing import Any
 from agents.earnings_models import EarningsReport
 from backtest.metrics import evaluate, forward_return
 from backtest.pit_data import first_trading_day_after
+from scoring.signal_engine import load_signal_config
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_LOG_PATH = Path(__file__).resolve().parent / "decision_log.jsonl"
+DEFAULT_BENCHMARK = "SOXX"
 
 
 def _log_path(path: Path | None) -> Path:
     return path or DEFAULT_LOG_PATH
+
+
+def _signal_version() -> str:
+    try:
+        return str(load_signal_config().get("version") or "v1")
+    except Exception:  # noqa: BLE001 - config read must never block logging
+        return "v1"
+
+
+def _factor_payload(sig: Any) -> tuple[list[str], dict[str, Any]]:
+    """Available factor names (sorted) + per-factor score/availability snapshot."""
+    available: list[str] = []
+    detail: dict[str, Any] = {}
+    for f in getattr(sig, "factors", []) or []:
+        name = getattr(f, "name", None)
+        if not name:
+            continue
+        is_avail = bool(getattr(f, "available", False))
+        detail[name] = {"score": getattr(f, "score", None), "available": is_avail}
+        if is_avail and getattr(f, "score", None) is not None:
+            available.append(name)
+    return sorted(available), detail
 
 
 def log_live_signal(
@@ -44,6 +68,7 @@ def log_live_signal(
     if not decision_date and report.market_context and report.market_context.earnings_date:
         decision_date = str(report.market_context.earnings_date)[:10]
 
+    factor_set, factors_detail = _factor_payload(sig)
     row = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "ticker": report.ticker,
@@ -54,6 +79,13 @@ def log_live_signal(
         "rating": sig.rating,
         "conviction": sig.conviction,
         "decision_date": decision_date,
+        # Phase-0 evidence governance: pin the signal definition so the track
+        # record only ever compares like-for-like (same factor set / version).
+        "signal_version": _signal_version(),
+        "factor_set": factor_set,
+        "factors": factors_detail,
+        "benchmark": DEFAULT_BENCHMARK,
+        "universe_asof": "live",
     }
 
     path = _log_path(log_path)
