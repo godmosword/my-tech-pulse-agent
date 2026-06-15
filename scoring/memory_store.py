@@ -209,6 +209,7 @@ class FirestoreMemoryService:
                 "why_it_matters": (getattr(summary, "why_it_matters", "") or "").strip(),
                 "takeaway": _takeaway_payload(summary),
                 "portfolio_impact": _portfolio_impact_payload(summary),
+                "market_context": _model_payload(getattr(summary, "market_context", None)),
                 "source_url": summary.source_url,
                 "source_name": summary.source_name,
                 "published_at": _parse_datetime(getattr(summary, "published_at", "")),
@@ -402,15 +403,18 @@ def make_memory_service() -> MemoryService:
         return DisabledMemoryService()
 
 
-def _portfolio_impact_payload(summary: ArticleSummary) -> dict[str, Any] | None:
-    impact = getattr(summary, "portfolio_impact", None)
-    if impact is None:
+def _model_payload(value: Any) -> dict[str, Any] | None:
+    if value is None:
         return None
-    if hasattr(impact, "model_dump"):
-        return impact.model_dump()
-    if isinstance(impact, dict):
-        return impact
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    if isinstance(value, dict):
+        return value
     return None
+
+
+def _portfolio_impact_payload(summary: ArticleSummary) -> dict[str, Any] | None:
+    return _model_payload(getattr(summary, "portfolio_impact", None))
 
 
 def _takeaway_payload(summary: ArticleSummary) -> dict[str, Any] | None:

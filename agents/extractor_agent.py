@@ -8,6 +8,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from agents.decision_context_builder import MarketContext
 from agents.news_takeaway_models import NewsTakeaway
 from scoring.portfolio_impact import PortfolioImpact
 
@@ -147,6 +148,7 @@ class ArticleSummary(BaseModel):
     allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
     takeaway: Optional[NewsTakeaway] = None  # optional one-line investment takeaway (NEWS_TAKEAWAY_MODE)
     portfolio_impact: Optional[PortfolioImpact] = None  # P1: relevance to user's holdings
+    market_context: Optional[MarketContext] = None  # P2: price/valuation flags (gated)
 
 
 class ExtractorAgent:

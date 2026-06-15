@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **決策簡報收尾（投資升級計劃 P2–P4 完成）**：把 P4 簡報補齊為計劃的四段式並接上權威 posture。
+  - **單一真實來源 artifact**：`scoring/invest_brief.py`（純組裝，含**權威 posture＋跨 run cooldown**：evidence 只軟化語氣、同標的 4 日內不重複交易性提醒）＋ `scripts/build_invest_brief.py`（讀 Firestore 近 3 日 items 的 `portfolio_impact`、portfolio thesis、催化劑、Phase 0 `evidence_level`、graded records、前次 artifact 的 alerted_tickers）→ `backtest/results/invest_brief.json`。`grade_decisions.py` 另寫 `graded_records.json` 供 thesis 證據連結。
+  - **Dashboard 四段式簡報**：Invest 頁新增「部位脈動（集中度＋相關性/供應鏈風險旗標）」「催化劑看板」「持倉論點追蹤」三區，`DecisionBriefSection` 改優先讀 artifact 的 material_items（權威 posture，含 `risk_up`、reason、反證、下次檢查），無 artifact 時回退 live 排序；`lib/invest-brief.ts`、`components/InvestBriefSections.tsx`。
+  - **P2 接線（gated，預設 off）**：`pipeline/crew.py._apply_decision_context`（`DECISION_CONTEXT_ENABLED`，僅對 impact ≥ `DECISION_CONTEXT_MIN_IMPACT` 且持有/watchlist 名稱抓 Finnhub candle、上限 `DECISION_CONTEXT_MAX_CALLS`、SOXX 基準一次），`agents.decision_context_builder.build_market_context` 計算 `market_context_flags`；`ArticleSummary.market_context` + memory payload。預設關閉，不影響交付路徑。
+  - **保守 Telegram 提醒（opt-in）**：`delivery/invest_alert.py`（`INVEST_ALERT_ENABLED`）僅推 `risk_up` 與近 3 日催化劑，**不推每日買賣榜**；由 brief builder best-effort 呼叫。
+  - 測試：`tests/test_invest_brief.py`、`test_invest_alert.py`。全 additive。
 - **部位感知決策層（投資升級計劃 P1–P4）**：把每日新聞從「描述」轉成「對你帳本的決策」。
   - **P1 部位重要性**：`scoring/portfolio_impact.py`（純 Python 核心，非復用 TS）對每條新聞算 `impact_score = relevance × exposure × relation × freshness × confidence`，逐 component 輸出；三路命中 direct／supply_chain（10-K 關係穿透）／cluster（相關性叢集）／theme，**最強關聯計一次 + 曝險遞減**避免熱門名霸榜；entity 經 `company_aliases` 解析。接入 `pipeline/crew.py._apply_portfolio_impact`、additive 寫 memory payload，`ArticleSummary.portfolio_impact` 欄位。
   - **P2 決策脈絡**：`agents/decision_context_builder.py` 純函式 `market_context_flags`（`near_52w_high`／`above_200dma`／`post_event_excess_move`，**不宣稱 priced-in**）＋ point-in-time 估值分位（標註不得混入 Phase 0 戰績）。

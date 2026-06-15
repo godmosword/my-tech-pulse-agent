@@ -5,6 +5,12 @@ import type { ReactNode } from "react";
 import { DensePageShell } from "@/components/data/DensePageShell";
 import { DecisionBriefSection } from "@/components/DecisionBriefSection";
 import { HoldingNewsSection } from "@/components/HoldingNewsSection";
+import {
+  CatalystWatchSection,
+  PortfolioPulseSection,
+  ThesisUpdatesSection,
+} from "@/components/InvestBriefSections";
+import { loadInvestBrief } from "@/lib/invest-brief";
 import { DataTable, type DataColumn } from "@/components/data/DataTable";
 import { RatingBadge } from "@/components/data/RatingBadge";
 import { SourceTag } from "@/components/data/SourceTag";
@@ -40,8 +46,8 @@ function SectionBand({
   children,
 }: {
   title: string;
-  moreHref: string;
-  moreLabel: string;
+  moreHref?: string;
+  moreLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -50,12 +56,14 @@ function SectionBand({
         <h2 className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
           {title}
         </h2>
-        <Link
-          href={moreHref}
-          className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-accent hover:underline"
-        >
-          {moreLabel}
-        </Link>
+        {moreHref && moreLabel && (
+          <Link
+            href={moreHref}
+            className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-accent hover:underline"
+          >
+            {moreLabel}
+          </Link>
+        )}
       </div>
       {children}
     </section>
@@ -456,6 +464,7 @@ function CalibrationSection() {
 }
 
 export default function InvestPage() {
+  const brief = loadInvestBrief();
   return (
     <DensePageShell
       kicker="Invest Hub"
@@ -470,6 +479,18 @@ export default function InvestPage() {
         moreLabel="訊號戰績 →"
       >
         <DecisionBriefSection />
+      </SectionBand>
+
+      <SectionBand title="部位脈動（集中度與相關性風險）">
+        <PortfolioPulseSection brief={brief} />
+      </SectionBand>
+
+      <SectionBand title="催化劑看板（未來兩週）">
+        <CatalystWatchSection brief={brief} />
+      </SectionBand>
+
+      <SectionBand title="持倉論點追蹤">
+        <ThesisUpdatesSection brief={brief} />
       </SectionBand>
 
       <SectionBand title="我的持倉概況" moreHref="/portfolio" moreLabel="查看持倉 →">

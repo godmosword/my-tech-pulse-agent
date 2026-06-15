@@ -115,6 +115,10 @@ def run(*, as_of: str, signal_version: str, out: Path, dry_run: bool) -> dict:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Per-record graded data for downstream thesis evidence-linking (no re-fetch).
+    (out.parent / "graded_records.json").write_text(
+        json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     logger.info(
         "Wrote %s (logged=%d evaluated=%d version=%s)",
         out,

@@ -309,6 +309,8 @@ class TechPulseCrew:
             if summaries:
                 summaries = self._apply_portfolio_impact(summaries)
             if summaries:
+                summaries = self._apply_decision_context(summaries)
+            if summaries:
                 summaries = self._claim_deliverable_summaries(summaries, instant_scored_articles)
 
             should_synthesize = (
@@ -839,6 +841,58 @@ class TechPulseCrew:
                 logger.warning(
                     "Portfolio impact skipped for %s: %s", summary.title[:80], exc
                 )
+        return summaries
+
+    def _apply_decision_context(
+        self, summaries: list[ArticleSummary]
+    ) -> list[ArticleSummary]:
+        """P2: attach market-context flags to material/held names (gated, default off)."""
+        flag = os.getenv("DECISION_CONTEXT_ENABLED", "0").strip().lower()
+        if flag not in {"1", "true", "yes", "on"}:
+            return summaries
+        api_key = os.getenv("FINNHUB_API_KEY", "")
+        if not api_key:
+            return summaries
+        try:
+            from agents.decision_context_builder import (  # noqa: PLC0415
+                build_market_context,
+                closes_from_candle,
+            )
+            from sources.finnhub_provider import FinnhubProvider  # noqa: PLC0415
+            from sources.portfolio import Portfolio  # noqa: PLC0415
+            from sources.watchlist import EarningsWatchlist  # noqa: PLC0415
+
+            fh = FinnhubProvider(api_key)
+            held = set(Portfolio.load().tickers()) | set(EarningsWatchlist.load().tickers())
+            bench = closes_from_candle(fh.candle("SOXX", days_back=250))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Decision context setup skipped: %s", exc)
+            return summaries
+
+        cap = int(os.getenv("DECISION_CONTEXT_MAX_CALLS", "12"))
+        threshold = float(os.getenv("DECISION_CONTEXT_MIN_IMPACT", "0.3"))
+        material = sorted(
+            (
+                s
+                for s in summaries
+                if s.portfolio_impact and s.portfolio_impact.score >= threshold
+            ),
+            key=lambda s: -(s.portfolio_impact.score if s.portfolio_impact else 0.0),
+        )
+        calls = 0
+        for summary in material:
+            if calls >= cap:
+                break
+            primary = (summary.tickers or [None])[0]
+            if not primary or primary.upper() not in held:
+                continue
+            try:
+                summary.market_context = build_market_context(
+                    fh, primary, bench_closes=bench
+                )
+                calls += 1
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Market context skipped for %s: %s", primary, exc)
         return summaries
 
     def _apply_memory_context(self, summaries: list[ArticleSummary]) -> list[ArticleSummary]:

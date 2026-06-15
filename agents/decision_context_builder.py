@@ -30,6 +30,31 @@ class MarketContext(BaseModel):
     point_in_time: bool = True
 
 
+def closes_from_candle(candle: Optional[dict]) -> list[float]:
+    """Extract the close series from a Finnhub /stock/candle response."""
+    if not candle:
+        return []
+    return [float(x) for x in (candle.get("c") or []) if x is not None]
+
+
+def build_market_context(
+    finnhub: object,
+    symbol: str,
+    *,
+    bench_closes: Optional[list[float]] = None,
+    days_back: int = 250,
+) -> MarketContext:
+    """Network-backed wrapper: fetch a candle, then compute pure flags.
+
+    Gated to material/held names by the caller; the heavy logic lives in
+    ``compute_market_context_flags`` so it stays unit-testable without network.
+    """
+    candle = finnhub.candle(symbol, days_back=days_back)  # type: ignore[attr-defined]
+    return compute_market_context_flags(
+        closes_from_candle(candle), bench_closes=bench_closes
+    )
+
+
 def _mean(vals: list[float]) -> Optional[float]:
     return sum(vals) / len(vals) if vals else None
 
