@@ -1,0 +1,57 @@
+name: Backfill search tokens
+
+# One-off / on-demand Firestore backfill for dashboard keyword search.
+# Runs the existing script on the production Cloud Run Job image (same Firestore SA as pipeline).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Dry run (report only, no writes)
+        type: boolean
+        default: true
+      limit:
+        description: Max documents to scan (empty = all)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  backfill:
+    name: search_tokens backfill (Cloud Run Job)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Execute backfill on Cloud Run Job
+        env:
+          JOB: ${{ vars.CLOUD_RUN_SERVICE }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          ARGS=(scripts/backfill_search_tokens.py)
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+          if [ -n "${{ inputs.limit }}" ]; then
+            ARGS+=(--limit "${{ inputs.limit }}")
+          fi
+          ARGS_CSV=$(IFS=,; echo "${ARGS[*]}")
+          echo "Executing: python ${ARGS[*]}"
+          gcloud run jobs execute "$JOB" \
+            --region "$REGION" \
+            --project "$PROJECT" \
+            --args="$ARGS_CSV" \
+            --wait
