@@ -34,8 +34,10 @@ vi.mock("firebase-admin/firestore", () => ({
   }),
 }));
 
+const listLatestItems = vi.fn();
 vi.mock("./firestore", () => ({
   getApp: () => ({}),
+  listLatestItems: (...args: unknown[]) => listLatestItems(...args),
 }));
 
 const listEarningsReports = vi.fn();
@@ -49,30 +51,37 @@ describe("search-firestore", () => {
     chainable();
     getMock.mockResolvedValue({ docs: [] });
     listEarningsReports.mockResolvedValue([]);
+    listLatestItems.mockResolvedValue([]);
   });
 
   it("queries ticker array-contains and earnings ticker match", async () => {
-    getMock.mockResolvedValueOnce({
-      docs: [
-        {
-          id: "item-1",
-          data: () => ({
-            id: "item-1",
-            title: "NVDA update",
-            zh_title: "NVDA 更新",
-            summary: "",
-            source_url: "",
-            source_name: "",
-            entity: "",
-            category: "ai",
-            kind: "instant_summary",
-            score: 1,
-            score_status: "ok",
-            tickers: ["NVDA"],
-            delivered_at: "2026-05-18T10:00:00.000Z",
-          }),
-        },
-      ],
+    getMock.mockImplementation(async () => {
+      const lastWhere = whereMock.mock.calls.at(-1);
+      if (lastWhere?.[0] === "tickers") {
+        return {
+          docs: [
+            {
+              id: "item-1",
+              data: () => ({
+                id: "item-1",
+                title: "NVDA update",
+                zh_title: "NVDA 更新",
+                summary: "",
+                source_url: "",
+                source_name: "",
+                entity: "",
+                category: "ai",
+                kind: "instant_summary",
+                score: 1,
+                score_status: "ok",
+                tickers: ["NVDA"],
+                delivered_at: "2026-05-18T10:00:00.000Z",
+              }),
+            },
+          ],
+        };
+      }
+      return { docs: [] };
     });
     listEarningsReports.mockResolvedValueOnce([
       {
@@ -95,5 +104,41 @@ describe("search-firestore", () => {
     });
     expect(results.news[0]?.href).toBe("/item/item-1");
     expect(results.earnings[0]?.href).toBe("/earnings/NVDA");
+  });
+
+  it("falls back to recent in-memory scan when Firestore queries miss", async () => {
+    listLatestItems.mockResolvedValueOnce([
+      {
+        id: "fallback-1",
+        title: "Market wrap",
+        zh_title: "",
+        summary: "TSMC capacity expansion drives supply chain",
+        zh_summary: "",
+        zh_body: "",
+        source_url: "",
+        source_name: "",
+        entity: "",
+        category: "ai",
+        kind: "instant_summary",
+        score: 1,
+        score_status: "ok",
+        hook: "",
+        tickers: [],
+        what_happened: "",
+        why_it_matters: "",
+        takeaway: null,
+        published_at_iso: null,
+        delivered_at_iso: "2026-05-18T10:00:00.000Z",
+        themes: [],
+      },
+    ]);
+
+    const { searchPortal } = await import("./search-firestore");
+    const results = await searchPortal("tsmc");
+
+    expect(listLatestItems).toHaveBeenCalledWith({ limit: 400 });
+    expect(results.news).toHaveLength(1);
+    expect(results.news[0]?.id).toBe("fallback-1");
+    expect(results.news[0]?.href).toBe("/item/fallback-1");
   });
 });

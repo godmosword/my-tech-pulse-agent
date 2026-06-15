@@ -101,7 +101,11 @@ def search_tokens_for_payload(
             payload.get("entity"),
             payload.get("hook"),
         ],
-        extra_texts=[payload.get("zh_summary")],
+        extra_texts=[
+            payload.get("zh_summary"),
+            payload.get("summary"),
+            (str(payload.get("zh_body") or ""))[:500],
+        ],
         tickers=payload.get("tickers") or [],
         max_tokens=max_tokens,
     )

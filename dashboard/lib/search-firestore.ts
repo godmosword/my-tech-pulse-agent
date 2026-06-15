@@ -3,14 +3,21 @@ import "server-only";
 import { getFirestore } from "firebase-admin/firestore";
 
 import { listEarningsReports } from "./earnings-firestore";
-import { getApp } from "./firestore";
+import { getApp, listLatestItems } from "./firestore";
 import {
   normalizeSearchQuery,
   titlePrefixBounds,
   type NormalizedSearchQuery,
 } from "./search-query";
 import { tokenizeQuery, tokenMatchScore } from "./search-tokens";
+import {
+  renderableMatchesQuery,
+  tokensFromRenderable,
+} from "./search-text-match";
 import { hasCjk, MemoryItemSchema, toIsoString, displayTitle } from "./types";
+import type { RenderableItem } from "./types";
+
+const RECENT_SCAN_LIMIT = 400;
 
 const COLLECTION_PREFIX =
   process.env.FIRESTORE_COLLECTION_PREFIX?.trim() || "tech_pulse";
@@ -49,6 +56,41 @@ function db() {
 
 function prefixEnd(prefix: string): string {
   return `${prefix}\uf8ff`;
+}
+
+function renderableToNewsHit(item: RenderableItem): SearchNewsHit {
+  return {
+    id: item.id,
+    title: displayTitle(item),
+    href: `/item/${encodeURIComponent(item.id)}`,
+    tickers: (item.tickers ?? []).map((t) => t.trim().toUpperCase()).filter(Boolean),
+    delivered_at: item.delivered_at_iso,
+  };
+}
+
+async function searchNewsRecentFallback(
+  query: string,
+  limit: number,
+  excludeIds: Set<string>,
+): Promise<SearchNewsHit[]> {
+  const items = await listLatestItems({ limit: RECENT_SCAN_LIMIT });
+  const queryTokens = tokenizeQuery(query);
+  const ranked: { hit: SearchNewsHit; score: number; at: number }[] = [];
+
+  for (const item of items) {
+    if (excludeIds.has(item.id)) continue;
+    if (!renderableMatchesQuery(item, query)) continue;
+    const hit = renderableToNewsHit(item);
+    const score = tokenMatchScore(queryTokens, tokensFromRenderable(item));
+    ranked.push({
+      hit,
+      score: score > 0 ? score : 1,
+      at: item.delivered_at_iso ? Date.parse(item.delivered_at_iso) : 0,
+    });
+  }
+
+  ranked.sort((a, b) => b.score - a.score || b.at - a.at);
+  return ranked.slice(0, limit).map((row) => row.hit);
 }
 
 function toNewsHit(
@@ -136,9 +178,11 @@ async function searchNewsByTokens(
     });
   }
 
-  // More matched tokens first; break ties by recency.
   ranked.sort((a, b) => b.score - a.score || b.at - a.at);
-  return ranked.slice(0, limit).map((r) => r.hit);
+  return ranked
+    .filter((row) => row.score > 0)
+    .slice(0, limit)
+    .map((r) => r.hit);
 }
 
 function mergeNewsHits(
@@ -181,7 +225,16 @@ async function searchNews(
   }
 
   const batches = await Promise.all(tasks);
-  return mergeNewsHits(batches, limit);
+  let merged = mergeNewsHits(batches, limit);
+  if (merged.length < limit) {
+    const extra = await searchNewsRecentFallback(
+      normalized.q,
+      limit - merged.length,
+      new Set(merged.map((hit) => hit.id)),
+    );
+    merged = mergeNewsHits([merged, extra], limit);
+  }
+  return merged;
 }
 
 async function searchEarningsByTicker(

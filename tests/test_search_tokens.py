@@ -90,6 +90,18 @@ def test_payload_uses_identity_fields():
     assert "供應" in tokens  # from hook
 
 
+def test_payload_includes_summary_and_zh_body_extra_tokens():
+    payload = {
+        "title": "Daily wrap",
+        "summary": "TSMC fab utilization rises",
+        "zh_body": "台積電產能利用率提升帶動供應鏈",
+        "tickers": [],
+    }
+    tokens = search_tokens_for_payload(payload)
+    assert "tsmc" in tokens
+    assert "台積" in tokens  # from zh_body bigram
+
+
 def test_tokenize_query_limit():
     long_query = " ".join(f"w{i}" for i in range(50))
     assert len(tokenize_query(long_query)) == 30
