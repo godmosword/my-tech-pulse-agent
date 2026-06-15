@@ -1,0 +1,9 @@
+# P3 — forward catalyst calendar (manual events that the data feeds don't carry:
+# product launches, conferences, lockup expiries, analyst days, macro prints).
+# Earnings dates come from the Finnhub calendar and are merged at read time.
+# Each event: ticker (or "MACRO"), date (YYYY-MM-DD), type, note.
+events:
+  - { ticker: NVDA, date: 2026-06-22, type: conference, note: "GTC 主題演講" }
+  - { ticker: AMD, date: 2026-06-18, type: product, note: "MI 系列加速器發表" }
+  - { ticker: MACRO, date: 2026-06-18, type: macro, note: "FOMC 利率決議" }
+  - { ticker: TSM, date: 2026-07-10, type: data, note: "月營收公布" }

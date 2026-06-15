@@ -208,6 +208,7 @@ class FirestoreMemoryService:
                 "what_happened": (getattr(summary, "what_happened", "") or "").strip(),
                 "why_it_matters": (getattr(summary, "why_it_matters", "") or "").strip(),
                 "takeaway": _takeaway_payload(summary),
+                "portfolio_impact": _portfolio_impact_payload(summary),
                 "source_url": summary.source_url,
                 "source_name": summary.source_name,
                 "published_at": _parse_datetime(getattr(summary, "published_at", "")),
@@ -399,6 +400,17 @@ def make_memory_service() -> MemoryService:
     except Exception as exc:
         logger.warning("Firestore memory unavailable; continuing without memory: %s", exc)
         return DisabledMemoryService()
+
+
+def _portfolio_impact_payload(summary: ArticleSummary) -> dict[str, Any] | None:
+    impact = getattr(summary, "portfolio_impact", None)
+    if impact is None:
+        return None
+    if hasattr(impact, "model_dump"):
+        return impact.model_dump()
+    if isinstance(impact, dict):
+        return impact
+    return None
 
 
 def _takeaway_payload(summary: ArticleSummary) -> dict[str, Any] | None:

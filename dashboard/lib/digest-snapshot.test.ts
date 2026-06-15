@@ -28,6 +28,7 @@ function item(
     what_happened: "",
     why_it_matters: "",
     takeaway: null,
+    portfolio_impact: null,
     published_at_iso: null,
     delivered_at_iso: "2026-05-18T10:00:00.000Z",
     themes: [],

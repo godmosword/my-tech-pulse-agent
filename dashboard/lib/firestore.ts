@@ -86,6 +86,7 @@ function toRenderable(id: string, raw: unknown): RenderableItem | null {
           confidence: item.takeaway.confidence ?? "medium",
         }
       : null,
+    portfolio_impact: item.portfolio_impact ?? null,
     published_at_iso: toIsoString(item.published_at),
     delivered_at_iso: toIsoString(item.delivered_at),
     themes,

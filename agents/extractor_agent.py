@@ -9,6 +9,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from agents.news_takeaway_models import NewsTakeaway
+from scoring.portfolio_impact import PortfolioImpact
 
 from llm.gemini_client import GEMINI_MODEL, generate_json, make_client
 from llm.localization import (
@@ -145,6 +146,7 @@ class ArticleSummary(BaseModel):
     tickers: list[str] = Field(default_factory=list)  # public stock tickers explicitly named in article
     allowed_themes: list[str] = Field(default_factory=list)  # theme whitelist propagated from KOL registry
     takeaway: Optional[NewsTakeaway] = None  # optional one-line investment takeaway (NEWS_TAKEAWAY_MODE)
+    portfolio_impact: Optional[PortfolioImpact] = None  # P1: relevance to user's holdings
 
 
 class ExtractorAgent:

@@ -28,6 +28,7 @@ function sampleItem(id: string, deliveredAt: string, category = "ai"): Renderabl
     what_happened: "",
     why_it_matters: "",
     takeaway: null,
+    portfolio_impact: null,
     published_at_iso: null,
     delivered_at_iso: deliveredAt,
     themes: [],

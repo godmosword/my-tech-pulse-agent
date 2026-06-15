@@ -31,6 +31,8 @@ class Position(BaseModel):
     ticker: str
     shares: float
     avg_cost: float | None = None
+    thesis: str = ""  # P3: why held (one line) — drives thesis evidence-linking
+    watch: list[str] = Field(default_factory=list)  # P3: what to watch for
 
 
 class Portfolio(BaseModel):
@@ -55,7 +57,17 @@ class Portfolio(BaseModel):
                 continue
             avg_raw = row.get("avg_cost")
             avg_cost = float(avg_raw) if avg_raw is not None else None
-            positions.append(Position(ticker=ticker, shares=shares, avg_cost=avg_cost))
+            watch_raw = row.get("watch") or []
+            watch = [str(w) for w in watch_raw] if isinstance(watch_raw, list) else []
+            positions.append(
+                Position(
+                    ticker=ticker,
+                    shares=shares,
+                    avg_cost=avg_cost,
+                    thesis=str(row.get("thesis") or ""),
+                    watch=watch,
+                )
+            )
         target = {
             str(k): float(v)
             for k, v in (data.get("target_allocation") or {}).items()

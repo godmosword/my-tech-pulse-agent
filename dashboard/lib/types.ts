@@ -33,6 +33,29 @@ const NewsTakeawaySchema = z.object({
 });
 export type NewsTakeaway = z.infer<typeof NewsTakeawaySchema>;
 
+// P1: position-aware impact (mirrors scoring/portfolio_impact.py PortfolioImpact).
+const AffectedPositionSchema = z.object({
+  ticker: z.string().default(""),
+  kind: z.enum(["direct", "supply_chain", "cluster", "theme"]).default("theme"),
+  note_zh: z.string().default(""),
+});
+const PortfolioImpactSchema = z.object({
+  score: z.number().default(0),
+  components: z
+    .object({
+      relevance: z.number().default(0),
+      exposure_weight: z.number().default(0),
+      relation_weight: z.number().default(0),
+      freshness: z.number().default(0),
+      confidence: z.number().default(0),
+    })
+    .nullish(),
+  affected_positions: z.array(AffectedPositionSchema).default([]),
+  exposure_basis: z.enum(["cost", "market"]).default("cost"),
+  rationale_zh: z.string().default(""),
+});
+export type PortfolioImpact = z.infer<typeof PortfolioImpactSchema>;
+
 const TimestampLikeSchema = z
   .union([
     z.string(),
@@ -66,6 +89,7 @@ export const MemoryItemSchema = z.object({
   what_happened: z.string().default("").optional(),
   why_it_matters: z.string().default("").optional(),
   takeaway: NewsTakeawaySchema.nullish(),
+  portfolio_impact: PortfolioImpactSchema.nullish(),
   published_at: TimestampLikeSchema,
   delivered_at: TimestampLikeSchema,
 });
@@ -90,6 +114,7 @@ export interface RenderableItem {
   what_happened: string;
   why_it_matters: string;
   takeaway: NewsTakeaway | null;
+  portfolio_impact: PortfolioImpact | null;
   published_at_iso: string | null;
   delivered_at_iso: string | null;
   themes: string[];

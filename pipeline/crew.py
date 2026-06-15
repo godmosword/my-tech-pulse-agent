@@ -307,6 +307,8 @@ class TechPulseCrew:
             if summaries:
                 summaries = self._apply_memory_context(summaries)
             if summaries:
+                summaries = self._apply_portfolio_impact(summaries)
+            if summaries:
                 summaries = self._claim_deliverable_summaries(summaries, instant_scored_articles)
 
             should_synthesize = (
@@ -795,6 +797,49 @@ class TechPulseCrew:
                 logger.warning("News takeaway skipped for %s: %s", summary.title[:80], exc)
             enriched.append(summary)
         return enriched
+
+    def _apply_portfolio_impact(
+        self, summaries: list[ArticleSummary]
+    ) -> list[ArticleSummary]:
+        """P1: attach position-aware impact score to each summary (additive, read-only)."""
+        try:
+            from scoring.portfolio_impact import score_impact  # noqa: PLC0415
+            from sources.portfolio import Portfolio, theme_for  # noqa: PLC0415
+            from sources.watchlist import EarningsWatchlist  # noqa: PLC0415
+
+            portfolio = Portfolio.load()
+            if not portfolio.positions:
+                return summaries
+            watchlist = EarningsWatchlist.load()
+            positions = [
+                (p.ticker, (p.shares or 0.0) * (p.avg_cost or 0.0))
+                for p in portfolio.positions
+            ]
+            held_themes = {theme_for(p.ticker, watchlist) for p in portfolio.positions}
+        except Exception as exc:  # noqa: BLE001 - never block delivery on impact setup
+            logger.warning("Portfolio impact setup skipped: %s", exc)
+            return summaries
+
+        for summary in summaries:
+            try:
+                primary = (summary.tickers or [None])[0]
+                theme = theme_for(primary, watchlist) if primary else ""
+                summary.portfolio_impact = score_impact(
+                    tickers=summary.tickers,
+                    entity=summary.entity,
+                    theme=theme,
+                    confidence=summary.confidence,
+                    news_score=summary.score,
+                    cross_ref=summary.cross_ref,
+                    published_at=summary.published_at,
+                    positions=positions,
+                    held_themes=held_themes,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Portfolio impact skipped for %s: %s", summary.title[:80], exc
+                )
+        return summaries
 
     def _apply_memory_context(self, summaries: list[ArticleSummary]) -> list[ArticleSummary]:
         """Attach retrieval-memory context and optionally drop semantic duplicates.

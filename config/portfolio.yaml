@@ -1,9 +1,18 @@
 # 持倉與目標配置。positions 為唯一真實來源；可手動編輯或由 IBKR 匯入腳本覆寫。
 base_currency: USD
 as_of: "2026-05-28"
+# thesis / watch 為 optional（P3）：thesis = 持有理由一句；watch = 要盯的事項清單。
 positions:
-  - { ticker: NVDA, shares: 100, avg_cost: 110.0 }
-  - { ticker: AVGO, shares: 50, avg_cost: 1200.0 }
+  - ticker: NVDA
+    shares: 100
+    avg_cost: 110.0
+    thesis: "資料中心 AI 加速器需求領先，毛利結構強"
+    watch: ["資料中心營收年增", "競品 MI 系列搶單", "出口管制"]
+  - ticker: AVGO
+    shares: 50
+    avg_cost: 1200.0
+    thesis: "客製化 ASIC 與網路晶片受惠 AI 叢集擴張"
+    watch: ["客製 AI 晶片接單", "VMware 整合"]
   - { ticker: MU, shares: 200, avg_cost: 95.0 }
   - { ticker: TSM, shares: 80, avg_cost: 180.0 }
   - { ticker: MRVL, shares: 150, avg_cost: 70.0 }

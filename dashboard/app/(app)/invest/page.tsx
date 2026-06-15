@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { DensePageShell } from "@/components/data/DensePageShell";
+import { DecisionBriefSection } from "@/components/DecisionBriefSection";
 import { HoldingNewsSection } from "@/components/HoldingNewsSection";
 import { DataTable, type DataColumn } from "@/components/data/DataTable";
 import { RatingBadge } from "@/components/data/RatingBadge";
@@ -463,6 +464,14 @@ export default function InvestPage() {
       backHref="/"
       backLabel="返回 Today"
     >
+      <SectionBand
+        title="今天對你的部位重要的事"
+        moreHref="/calibration"
+        moreLabel="訊號戰績 →"
+      >
+        <DecisionBriefSection />
+      </SectionBand>
+
       <SectionBand title="我的持倉概況" moreHref="/portfolio" moreLabel="查看持倉 →">
         <PortfolioSection />
       </SectionBand>
