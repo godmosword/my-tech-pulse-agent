@@ -56,12 +56,19 @@ jobs:
         continue-on-error: true
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-          FIRESTORE_COLLECTION_PREFIX: ${{ vars.FIRESTORE_COLLECTION_PREFIX }}
+          FIRESTORE_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GOOGLE_CLOUD_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          FIRESTORE_COLLECTION_PREFIX: ${{ vars.FIRESTORE_COLLECTION_PREFIX || 'tech_pulse' }}
         run: python scripts/grade_decisions.py
 
       - name: Build invest brief
         env:
-          FIRESTORE_COLLECTION_PREFIX: ${{ vars.FIRESTORE_COLLECTION_PREFIX }}
+          # WIF credentials don't carry a default project; pass it explicitly so
+          # firestore.Client() can resolve, otherwise the brief silently omits
+          # material items.
+          FIRESTORE_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GOOGLE_CLOUD_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          FIRESTORE_COLLECTION_PREFIX: ${{ vars.FIRESTORE_COLLECTION_PREFIX || 'tech_pulse' }}
         run: python scripts/build_invest_brief.py
 
       - name: Commit artifacts if changed
