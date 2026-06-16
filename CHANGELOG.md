@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **投資 artifacts 每日刷新（排程）**：`.github/workflows/refresh-invest-artifacts.yml` 在每日 pipeline 後（`00:00 UTC` = 08:00 台北）＋手動 `workflow_dispatch` 重算 `track_record.json`／`invest_brief.json`（`grade_decisions.py` best-effort + `build_invest_brief.py`，用既有 WIF 讀 Firestore），僅在有變更時 commit 回 `main`，讓 Vercel 端 dashboard 取得新資料。**預設停用**（須 repo var `INVEST_ARTIFACTS_ENABLED='true'`）；`ci.yml` 加 `paths-ignore: backtest/results/**` 避免純資料 commit 觸發 Cloud Run 重建。runbook 見 `docs/SCHEDULED_RUNS.md`。
 - **決策簡報收尾（投資升級計劃 P2–P4 完成）**：把 P4 簡報補齊為計劃的四段式並接上權威 posture。
   - **單一真實來源 artifact**：`scoring/invest_brief.py`（純組裝，含**權威 posture＋跨 run cooldown**：evidence 只軟化語氣、同標的 4 日內不重複交易性提醒）＋ `scripts/build_invest_brief.py`（讀 Firestore 近 3 日 items 的 `portfolio_impact`、portfolio thesis、催化劑、Phase 0 `evidence_level`、graded records、前次 artifact 的 alerted_tickers）→ `backtest/results/invest_brief.json`。`grade_decisions.py` 另寫 `graded_records.json` 供 thesis 證據連結。
   - **Dashboard 四段式簡報**：Invest 頁新增「部位脈動（集中度＋相關性/供應鏈風險旗標）」「催化劑看板」「持倉論點追蹤」三區，`DecisionBriefSection` 改優先讀 artifact 的 material_items（權威 posture，含 `risk_up`、reason、反證、下次檢查），無 artifact 時回退 live 排序；`lib/invest-brief.ts`、`components/InvestBriefSections.tsx`。

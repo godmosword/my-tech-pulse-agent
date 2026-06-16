@@ -1,0 +1,80 @@
+name: Refresh invest artifacts
+
+# Regenerates the dashboard's investment artifacts after the daily pipeline and
+# commits them so Vercel (which doesn't run the Python pipeline) serves fresh
+# data: backtest/results/track_record.json (Phase-0 evidence) and
+# backtest/results/invest_brief.json (the 4-part decision brief).
+#
+# Disabled by default: scheduled runs only fire when repo variable
+# INVEST_ARTIFACTS_ENABLED == 'true'. Manual workflow_dispatch always runs.
+# Cron is UTC; 00:00 UTC = 08:00 Asia/Taipei, ~40 min after the Cloud Scheduler
+# pipeline (23:20 UTC). See docs/SCHEDULED_RUNS.md.
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  refresh:
+    name: Build + commit invest artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.INVEST_ARTIFACTS_ENABLED == 'true' }}
+    concurrency:
+      group: invest-artifacts
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      # Forward-return grading needs Finnhub + the live decision log; best-effort
+      # so a missing key / empty log never blocks the brief refresh.
+      - name: Grade decisions (track record)
+        continue-on-error: true
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          FIRESTORE_COLLECTION_PREFIX: ${{ vars.FIRESTORE_COLLECTION_PREFIX }}
+        run: python scripts/grade_decisions.py
+
+      - name: Build invest brief
+        env:
+          FIRESTORE_COLLECTION_PREFIX: ${{ vars.FIRESTORE_COLLECTION_PREFIX }}
+        run: python scripts/build_invest_brief.py
+
+      - name: Commit artifacts if changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # graded_records.json is intermediate data; only publish the two the
+          # dashboard reads.
+          git add backtest/results/track_record.json backtest/results/invest_brief.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No artifact changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(invest): refresh dashboard artifacts"
+          git push

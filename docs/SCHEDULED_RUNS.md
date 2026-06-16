@@ -75,3 +75,17 @@ Workflow：`.github/workflows/schedule.yml`（重用既有 `WIF_PROVIDER`/`WIF_S
 - [ ] 確認 Cloud Run execution 狀態 `Succeeded`：`gcloud run jobs executions list --job <job> --region <region>`。
 - [ ] 確認 `pipeline_run_summary` 日誌與交付（Telegram/Dashboard）正常。
 - [ ] 確認下一次排程時間符合預期時段。
+
+---
+
+## Dashboard 投資 artifacts 刷新（`refresh-invest-artifacts.yml`）
+
+Vercel 不跑 Python pipeline，因此 `/calibration` 戰績與 `/invest` 決策簡報所讀的
+`backtest/results/track_record.json`、`invest_brief.json` 需由排程**重算後 commit 回 repo**，
+Vercel 才會在下次部署看到新資料。
+
+- **觸發**：每日 `00:00 UTC`（= 08:00 Asia/Taipei，約在 pipeline 之後 40 分）＋手動 `workflow_dispatch`。
+- **預設停用**：排程僅在 repo variable `INVEST_ARTIFACTS_ENABLED == 'true'` 時執行；手動觸發不受限。
+- **流程**：`grade_decisions.py`（best-effort，需 secret `FINNHUB_API_KEY`；缺則略過戰績）→ `build_invest_brief.py`（讀 Firestore，用既有 WIF）→ 僅在 JSON 有變更時 commit + push `main`。
+- **避免重複部署**：`ci.yml` 已 `paths-ignore: backtest/results/**`，純資料 commit 不觸發 Cloud Run 重建；Vercel 仍會部署以刷新 dashboard。
+- **注意**：若 `main` 有分支保護擋住 Actions bot 直接 push，需允許該 bot 或改用具寫入權的 PAT。

@@ -3,6 +3,11 @@ name: CI and Deploy
 on:
   push:
     branches: [main]
+    # Skip the rebuild/redeploy when a commit only refreshes dashboard data
+    # artifacts (see refresh-invest-artifacts.yml). Commits that also touch code
+    # still trigger CI normally.
+    paths-ignore:
+      - 'backtest/results/**'
   workflow_dispatch:
 
 permissions:
