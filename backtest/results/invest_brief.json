@@ -55,7 +55,42 @@
       }
     ]
   },
-  "material_items": [],
+  "material_items": [
+    {
+      "id": "d44b574ed0a95161cb49d4626a900c8ee10fa455b7c640a6c9720ce43022f679",
+      "title": "Meta’s new ‘AI Mode’ on Facebook pulls from public info across its platforms",
+      "impact_score": 6.5,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 6.50、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-23",
+      "affected_tickers": [
+        "META"
+      ],
+      "market_flags": [
+        "AI integration",
+        "User engagement"
+      ]
+    },
+    {
+      "id": "e9226317b5dc65df239c01dcad93e07f51b8c1bdbbabdd0464d49d3ebab510b3",
+      "title": "Anthropic模型遭美禁用",
+      "impact_score": 6.0,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 6.00、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-23",
+      "affected_tickers": [
+        "GOOGL"
+      ],
+      "market_flags": [
+        "regulatory_action",
+        "industry_pushback"
+      ]
+    }
+  ],
   "catalyst_watch": [
     {
       "ticker": "MACRO",
