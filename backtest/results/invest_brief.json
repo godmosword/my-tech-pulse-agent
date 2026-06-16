@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-06-16",
+  "evidence_level": "insufficient",
+  "portfolio_pulse": {
+    "top_holdings": [
+      {
+        "ticker": "AVGO",
+        "weight": 0.5222
+      },
+      {
+        "ticker": "MU",
+        "weight": 0.1654
+      },
+      {
+        "ticker": "TSM",
+        "weight": 0.1253
+      },
+      {
+        "ticker": "NVDA",
+        "weight": 0.0957
+      },
+      {
+        "ticker": "MRVL",
+        "weight": 0.0914
+      }
+    ],
+    "concentration_top_pct": 0.5222,
+    "risk_flags": [
+      {
+        "kind": "supply_chain",
+        "severity": "warn",
+        "tickers": [
+          "NVDA",
+          "TSM"
+        ],
+        "message_zh": "NVDA 與 TSM 互為 10-K 供應鏈對手方，雙重曝險"
+      },
+      {
+        "kind": "correlation_cluster",
+        "severity": "warn",
+        "tickers": [
+          "AVGO",
+          "NVDA"
+        ],
+        "message_zh": "持倉 AVGO、NVDA 落在同一相關性叢集（平均相關 82%），分散度偏低"
+      },
+      {
+        "kind": "correlation_cluster",
+        "severity": "warn",
+        "tickers": [
+          "MU",
+          "TSM"
+        ],
+        "message_zh": "持倉 MU、TSM 落在同一相關性叢集（平均相關 75%），分散度偏低"
+      }
+    ]
+  },
+  "material_items": [],
+  "catalyst_watch": [
+    {
+      "ticker": "MACRO",
+      "date": "2026-06-18",
+      "type": "macro",
+      "note": "FOMC 利率決議"
+    },
+    {
+      "ticker": "NVDA",
+      "date": "2026-06-22",
+      "type": "conference",
+      "note": "GTC 主題演講"
+    }
+  ],
+  "thesis_updates": [
+    {
+      "ticker": "NVDA",
+      "thesis": "資料中心 AI 加速器需求領先，毛利結構強",
+      "supporting": [],
+      "contradicting": [],
+      "upcoming": [
+        "2026-06-18 · FOMC 利率決議",
+        "2026-06-22 · GTC 主題演講"
+      ]
+    },
+    {
+      "ticker": "AVGO",
+      "thesis": "客製化 ASIC 與網路晶片受惠 AI 叢集擴張",
+      "supporting": [],
+      "contradicting": [],
+      "upcoming": [
+        "2026-06-18 · FOMC 利率決議"
+      ]
+    }
+  ],
+  "alerted_tickers": {}
+}
