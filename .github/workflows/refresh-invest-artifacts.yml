@@ -70,8 +70,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # graded_records.json is intermediate data; only publish the two the
-          # dashboard reads.
-          git add backtest/results/track_record.json backtest/results/invest_brief.json 2>/dev/null || true
+          # dashboard reads. Add each independently so a missing one (e.g. when
+          # grading is skipped) doesn't prevent staging the other.
+          for f in track_record.json invest_brief.json; do
+            if [ -f "backtest/results/$f" ]; then
+              git add "backtest/results/$f"
+            fi
+          done
           if git diff --cached --quiet; then
             echo "No artifact changes to commit."
             exit 0
