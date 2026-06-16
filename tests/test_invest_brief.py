@@ -91,6 +91,27 @@ def test_thesis_updates_only_for_held_with_thesis():
     assert len(nvda.supporting) == 1
 
 
+def test_rejects_foreign_out_of_range_impact():
+    # A foreign/LLM writer put a 0-10 score on a non-held ticker; must be dropped.
+    items = [
+        {"id": "bad", "title": "Meta AI", "impact_score": 6.5,
+         "affected_tickers": ["META"], "affected_kinds": ["direct"]},
+        _item("good", 0.5, ["NVDA"]),
+    ]
+    brief = build_invest_brief(
+        items=items, positions=POSITIONS, catalysts=[], graded_records=[], as_of=AS_OF
+    )
+    assert [m.id for m in brief.material_items] == ["good"]
+
+
+def test_rejects_impact_on_non_held_ticker():
+    items = [_item("x", 0.5, ["META"])]  # valid score, but META not held
+    brief = build_invest_brief(
+        items=items, positions=POSITIONS, catalysts=[], graded_records=[], as_of=AS_OF
+    )
+    assert brief.material_items == []
+
+
 def test_catalyst_watch_included():
     cats = upcoming_catalysts(as_of=AS_OF, window_days=30, tickers={"NVDA"})
     brief = build_invest_brief(

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **決策簡報防呆：拒絕污染的 `portfolio_impact`**：production Firestore 上有來源不明的 LLM 寫入者在同一 `portfolio_impact` 欄位塞了 0–10 分、`exposure_basis=market`、且把**未持有**標的（META/GOOGL）標成 `direct` 的幻覺資料。消費端加守門：`scoring/invest_brief.py._is_trusted_impact`（僅信任 `score ∈ (0,1]` 且 `affected ⊆ 持倉`，`MAX_TRUSTED_IMPACT=1.0`）過濾 material items；dashboard `lib/portfolio-brief.ts.isTrustedImpact` 對 live-fallback 同樣擋掉 score>1。重生 `invest_brief.json`（material 0，過濾掉 META/GOOGL；pulse/催化劑/論點不受影響）。`tests/test_invest_brief.py`、`dashboard/lib/portfolio-brief.test.ts` 補測。（根因：疑似平行 agent 的 LLM 版 portfolio_impact，待溯源關閉。）
+
 ### Added
 - **投資 artifacts 每日刷新（排程）**：`.github/workflows/refresh-invest-artifacts.yml` 在每日 pipeline 後（`00:00 UTC` = 08:00 台北）＋手動 `workflow_dispatch` 重算 `track_record.json`／`invest_brief.json`（`grade_decisions.py` best-effort + `build_invest_brief.py`，用既有 WIF 讀 Firestore），僅在有變更時 commit 回 `main`，讓 Vercel 端 dashboard 取得新資料。**預設停用**（須 repo var `INVEST_ARTIFACTS_ENABLED='true'`）；`ci.yml` 加 `paths-ignore: backtest/results/**` 避免純資料 commit 觸發 Cloud Run 重建。runbook 見 `docs/SCHEDULED_RUNS.md`。
 - **決策簡報收尾（投資升級計劃 P2–P4 完成）**：把 P4 簡報補齊為計劃的四段式並接上權威 posture。

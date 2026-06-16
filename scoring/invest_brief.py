@@ -30,6 +30,10 @@ from scoring.thesis_tracker import ThesisEvidence, link_thesis_evidence
 COOLDOWN_DAYS = 4
 MATERIAL_LIMIT = 6
 ALERT_POSTURES = frozenset({"review", "risk_up"})
+# Defensive: the deterministic P1 score is always in (0, 1] and only ever marks
+# tickers actually held. Reject anything outside that — e.g. a foreign/LLM writer
+# that put a 0–10 score or a non-held ticker on the same `portfolio_impact` field.
+MAX_TRUSTED_IMPACT = 1.0
 
 
 class RiskFlag(BaseModel):
@@ -162,6 +166,19 @@ def _recent_alert_days(
     return best
 
 
+def _is_trusted_impact(item: dict[str, Any], held: set[str]) -> bool:
+    """Only trust impact that matches the deterministic P1 schema.
+
+    Guards the brief against a foreign writer on the shared `portfolio_impact`
+    field (out-of-range score, or a ticker that isn't actually held).
+    """
+    score = float(item.get("impact_score") or 0)
+    if not 0 < score <= MAX_TRUSTED_IMPACT:
+        return False
+    affected = [str(a).upper() for a in (item.get("affected_tickers") or [])]
+    return any(t in held for t in affected)
+
+
 def build_invest_brief(
     *,
     items: list[dict[str, Any]],
@@ -178,8 +195,9 @@ def build_invest_brief(
 
     pulse = _portfolio_pulse(positions)
 
+    held = {str(t).upper() for t, _value, _thesis, _watch in positions}
     ranked = sorted(
-        (it for it in items if float(it.get("impact_score") or 0) > 0),
+        (it for it in items if _is_trusted_impact(it, held)),
         key=lambda it: -float(it.get("impact_score") or 0),
     )[:MATERIAL_LIMIT]
 

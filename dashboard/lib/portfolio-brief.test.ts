@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { impactPosture, rankItemsByImpact } from "./portfolio-brief";
+import { impactPosture, isTrustedImpact, rankItemsByImpact } from "./portfolio-brief";
 import type { RenderableItem } from "./types";
 
 function item(id: string, score: number | null): RenderableItem {
@@ -56,5 +56,16 @@ describe("rankItemsByImpact", () => {
   it("respects the limit", () => {
     const items = [item("a", 0.5), item("b", 0.4), item("c", 0.3)];
     expect(rankItemsByImpact(items, 2)).toHaveLength(2);
+  });
+
+  it("drops items with score > 1 (foreign 0-10 writer guard)", () => {
+    const items = [item("out", 6.5), item("in", 0.5)];
+    expect(rankItemsByImpact(items).map((i) => i.id)).toEqual(["in"]);
+  });
+
+  it("isTrustedImpact rejects out-of-range and non-positive scores", () => {
+    expect(isTrustedImpact(item("x", 6.5))).toBe(false);
+    expect(isTrustedImpact(item("y", 0.5))).toBe(true);
+    expect(isTrustedImpact(item("z", 0))).toBe(false);
   });
 });

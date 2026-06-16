@@ -32,13 +32,23 @@ export function impactScore(item: RenderableItem): number {
   return item.portfolio_impact?.score ?? 0;
 }
 
+/**
+ * Guards against a foreign 0-10 writer polluting the shared portfolio_impact.score
+ * field — only the deterministic 0-1 range is valid here (mirrors the Python
+ * MAX_TRUSTED_IMPACT guard in scoring/invest_brief.py).
+ */
+export function isTrustedImpact(item: RenderableItem): boolean {
+  const s = impactScore(item);
+  return s > 0 && s <= 1;
+}
+
 /** Items that touch the book, strongest impact first. */
 export function rankItemsByImpact(
   items: RenderableItem[],
   limit = 6,
 ): RenderableItem[] {
   return items
-    .filter((item) => impactScore(item) > 0)
+    .filter(isTrustedImpact)
     .sort((a, b) => impactScore(b) - impactScore(a))
     .slice(0, limit);
 }
