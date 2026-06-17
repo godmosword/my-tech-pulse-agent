@@ -216,6 +216,16 @@ Cloud Run Job via `scripts/setup_cloud_scheduler.sh` (idempotent, supports
 `DRY_RUN`). UTC ↔ Asia/Taipei conversion, the enablement checklist, and
 monitoring guidance live in [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md).
 
+A second daily workflow, `.github/workflows/refresh-invest-artifacts.yml`
+(`00:00 UTC`, plus `workflow_dispatch`), recomputes the dashboard's investment
+artifacts (`backtest/results/track_record.json`, `invest_brief.json`) from
+Firestore over the existing WIF identity and commits them back to `main` only
+when changed, so Vercel serves fresh data without a Cloud Run rebuild (`ci.yml`
+ignores `backtest/results/**`). Gated by repository variable
+`INVEST_ARTIFACTS_ENABLED=true` (**enabled in production**). The `grade_decisions`
+step is best-effort: without `FINNHUB_API_KEY` it skips forward returns and the
+brief is still rebuilt.
+
 ### Production state on Firestore
 
 Local runs default to `output/dedup.sqlite`. Cloud Run uses Firestore when `STATE_BACKEND=auto`
