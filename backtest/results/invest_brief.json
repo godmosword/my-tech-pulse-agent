@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-16",
+  "generated_at": "2026-06-17",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -55,7 +55,48 @@
       }
     ]
   },
-  "material_items": [],
+  "material_items": [
+    {
+      "id": "8133977569c8e55664d6926b2b2e35ddc2ff27ce5708520523ebc41a4152fc6f",
+      "title": "AMD收購新創Mext以AI解決記憶體短缺",
+      "impact_score": 0.4202,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.42、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-24",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
+      ],
+      "market_flags": [
+        "acquisition",
+        "AI",
+        "memory"
+      ]
+    },
+    {
+      "id": "0f018bc30512728c06f8aa5c28440c8bca46bb1299c18e3267e2758891f8a88b",
+      "title": "Qualcomm wants to be the chip inside whatever replaces your smartphone, and it just announced two products toward that end",
+      "impact_score": 0.1708,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.17、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-24",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
+      ],
+      "market_flags": []
+    }
+  ],
   "catalyst_watch": [
     {
       "ticker": "MACRO",
