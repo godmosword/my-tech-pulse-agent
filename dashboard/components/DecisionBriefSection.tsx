@@ -1,51 +1,12 @@
-import Link from "next/link";
-
+import { MaterialMoveRow } from "@/components/data/MaterialMoveRow";
 import { MaterialMovesFromBrief } from "@/components/InvestBriefSections";
 import { listLatestItems } from "@/lib/firestore";
 import { loadInvestBrief } from "@/lib/invest-brief";
-import {
-  IMPACT_POSTURE_CLASS,
-  IMPACT_POSTURE_LABEL,
-  impactPosture,
-  impactScore,
-  rankItemsByImpact,
-} from "@/lib/portfolio-brief";
-import { displayTitle, type RenderableItem } from "@/lib/types";
+import { materialMoveFromItem } from "@/lib/material-move";
+import { rankItemsByImpact } from "@/lib/portfolio-brief";
 
 const LOOKBACK_DAYS = 3;
 const BRIEF_LIMIT = 6;
-
-function BriefRow({ item }: { item: RenderableItem }) {
-  const impact = item.portfolio_impact;
-  const posture = impactPosture(impactScore(item));
-  const affected = (impact?.affected_positions ?? []).map((a) => a.ticker);
-  return (
-    <li className="border-b border-rule py-2 last:border-b-0">
-      <div className="flex items-baseline justify-between gap-3">
-        <Link
-          href={`/item/${encodeURIComponent(item.id)}`}
-          className="font-sans text-body text-ink hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          {displayTitle(item)}
-        </Link>
-        <span
-          className={`shrink-0 font-sans text-meta font-semibold ${IMPACT_POSTURE_CLASS[posture]}`}
-        >
-          {IMPACT_POSTURE_LABEL[posture]}
-        </span>
-      </div>
-      <p className="mt-1 font-sans text-meta text-ink-soft">
-        {impact?.rationale_zh}
-        {affected.length > 0 && (
-          <span className="text-ink-faint">
-            {" "}
-            · 影響 {affected.join("、")}
-          </span>
-        )}
-      </p>
-    </li>
-  );
-}
 
 export async function DecisionBriefSection() {
   // Prefer the artifact: it carries authoritative posture (evidence + cooldown).
@@ -74,7 +35,7 @@ export async function DecisionBriefSection() {
     <div>
       <ul>
         {ranked.map((item) => (
-          <BriefRow key={item.id} item={item} />
+          <MaterialMoveRow key={item.id} view={materialMoveFromItem(item)} />
         ))}
       </ul>
       <p className="mt-2 font-sans text-meta text-ink-faint">

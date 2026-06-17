@@ -1,8 +1,7 @@
-import {
-  POSTURE_CLASS,
-  type BriefItem,
-  type InvestBrief,
-} from "@/lib/invest-brief";
+import { MaterialMoveRow } from "@/components/data/MaterialMoveRow";
+import { MetricHint } from "@/components/MetricHint";
+import { materialMoveFromBrief } from "@/lib/material-move";
+import { type BriefItem, type InvestBrief } from "@/lib/invest-brief";
 
 function pct(value: number): string {
   return `${(value * 100).toFixed(0)}%`;
@@ -13,34 +12,12 @@ export function MaterialMovesFromBrief({ items }: { items: BriefItem[] }) {
     <div>
       <ul>
         {items.map((it) => (
-          <li key={it.id} className="border-b border-rule py-2 last:border-b-0">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="font-sans text-body text-ink">{it.title}</span>
-              <span
-                className={`shrink-0 font-sans text-meta font-semibold ${POSTURE_CLASS[it.posture]}`}
-              >
-                {it.label_zh}
-              </span>
-            </div>
-            <p className="mt-1 font-sans text-meta text-ink-soft">
-              {it.reason_zh}
-              {it.affected_tickers.length > 0 && (
-                <span className="text-ink-faint"> · 影響 {it.affected_tickers.join("、")}</span>
-              )}
-            </p>
-            {it.market_flags.length > 0 && (
-              <p className="font-sans text-meta text-ink-faint">
-                市場狀態：{it.market_flags.join("、")}
-              </p>
-            )}
-            <p className="font-sans text-meta text-ink-faint">
-              反證：{it.falsification_zh} · 下次檢查 {it.next_check}
-            </p>
-          </li>
+          <MaterialMoveRow key={it.id} view={materialMoveFromBrief(it)} />
         ))}
       </ul>
-      <p className="mt-2 font-sans text-meta text-ink-faint">
-        依「對你持倉的衝擊」排序；分級為注意度，預設保守、非投資建議。
+      <p className="mt-2 flex items-center gap-1 font-sans text-meta text-ink-faint">
+        <span>依「對你持倉的衝擊」排序；分級為注意度，預設保守、非投資建議。</span>
+        <MetricHint metric="posture" />
       </p>
     </div>
   );

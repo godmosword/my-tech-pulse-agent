@@ -1,3 +1,6 @@
+import { MetricHint } from "@/components/MetricHint";
+import type { MetricKey } from "@/lib/metric-glossary";
+
 import { Delta } from "./Delta";
 import { SourceTag } from "./SourceTag";
 
@@ -11,6 +14,8 @@ type Props = {
   source?: string;
   manual?: boolean;
   degraded?: boolean;
+  /** Optional plain-language hint for jargon metrics (renders an ⓘ popover). */
+  hint?: MetricKey;
 };
 
 export function StatCard({
@@ -23,12 +28,14 @@ export function StatCard({
   source,
   manual,
   degraded,
+  hint,
 }: Props) {
   return (
     <div className="section-band flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2">
-        <p className="font-sans text-meta font-semibold uppercase tracking-[0.08em] text-ink-faint">
+        <p className="flex items-center gap-1 font-sans text-meta font-semibold uppercase tracking-[0.08em] text-ink-faint">
           {kicker}
+          {hint && <MetricHint metric={hint} />}
         </p>
         {(asOf || source) && (
           <SourceTag source={source} asOf={asOf} manual={manual} degraded={degraded} />

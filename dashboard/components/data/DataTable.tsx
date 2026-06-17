@@ -33,9 +33,11 @@ export function DataTable<T>({ columns, rows, rowKey, rowClassName }: Props<T>) 
           <div key={rowKey(row, idx)} className="data-table-card">
             {columns.map((col) => (
               <div key={col.key} className="data-table-card-row">
-                <span className="data-table-card-label">{col.mobileLabel ?? col.header}</span>
+                <span className="data-table-card-label shrink-0">
+                  {col.mobileLabel ?? col.header}
+                </span>
                 <span
-                  className={`text-right ${col.numeric ? "data-num" : ""} ${
+                  className={`min-w-0 break-words text-right ${col.numeric ? "data-num" : ""} ${
                     col.align === "right" ? "text-ink" : ""
                   }`}
                 >

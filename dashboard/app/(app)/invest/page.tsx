@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { DensePageShell } from "@/components/data/DensePageShell";
 import { DecisionBriefSection } from "@/components/DecisionBriefSection";
 import { HoldingNewsSection } from "@/components/HoldingNewsSection";
+import { InvestHubNav, type HubSection } from "@/components/InvestHubNav";
+import { MetricHint } from "@/components/MetricHint";
 import {
   CatalystWatchSection,
   PortfolioPulseSection,
@@ -41,17 +43,19 @@ function themeLabel(theme: string): string {
 
 function SectionBand({
   title,
+  id,
   moreHref,
   moreLabel,
   children,
 }: {
   title: string;
+  id?: string;
   moreHref?: string;
   moreLabel?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="section-band mt-8">
+    <section id={id} className="section-band mt-8 scroll-mt-24">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
           {title}
@@ -230,13 +234,15 @@ async function SignalsSection() {
 
   return (
     <>
-      {trustCaption && (
-        <p className="mb-3 font-sans text-meta text-ink-faint">{trustCaption}</p>
-      )}
+      <p className="mb-3 flex flex-wrap items-center gap-1 font-sans text-meta text-ink-faint">
+        {trustCaption && <span>{trustCaption}</span>}
+        <span>評級含資料完整度</span>
+        <MetricHint metric="conviction" />
+      </p>
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <p className="mb-2 font-sans text-meta font-semibold uppercase tracking-wide text-ink-faint">
-            Top 買進
+            分數較高
           </p>
           {buys.length ? (
             <DataTable columns={columns} rows={buys} rowKey={(r) => r.report_id} />
@@ -246,7 +252,7 @@ async function SignalsSection() {
         </div>
         <div>
           <p className="mb-2 font-sans text-meta font-semibold uppercase tracking-wide text-ink-faint">
-            Top 迴避
+            分數較低
           </p>
           {avoids.length ? (
             <DataTable columns={columns} rows={avoids} rowKey={(r) => r.report_id} />
@@ -439,16 +445,19 @@ function CalibrationSection() {
           kicker={`命中率（${h} 日）`}
           value={hit != null ? `${(hit * 100).toFixed(0)}%` : "—"}
           footnote={`n=${hitN}`}
+          hint="hit_rate"
         />
         <StatCard
           kicker={`IC Spearman（${h} 日）`}
           value={ic != null ? ic.toFixed(3) : "—"}
           footnote={`n=${icN}`}
+          hint="ic"
         />
         <StatCard
           kicker="分位價差"
           value={fmtPctSigned(spread)}
           footnote={`樣本 ${summary.n_records ?? "—"} 筆`}
+          hint="quantile_spread"
         />
       </div>
     );
@@ -463,17 +472,28 @@ function CalibrationSection() {
   }
 }
 
+const DEEP_SECTIONS: HubSection[] = [
+  { id: "thesis", label: "論點" },
+  { id: "portfolio", label: "持倉" },
+  { id: "signals", label: "訊號" },
+  { id: "earnings", label: "財報" },
+  { id: "macro", label: "宏觀" },
+  { id: "calibration", label: "校驗" },
+];
+
 export default function InvestPage() {
   const brief = loadInvestBrief();
   return (
     <DensePageShell
-      kicker="Invest Hub"
+      kicker="投資中樞"
       title="投資中樞"
-      description="持倉、訊號、財報、宏觀與校驗的一頁摘要。各區塊連至完整細節頁。非投資建議。"
+      description="先看「決策摘要」掌握今天對你部位的重點，再按需展開深入分析。各區塊連至完整細節頁。非投資建議。"
       backHref="/"
       backLabel="返回 Today"
     >
+      {/* 決策摘要 — 進頁先看到的三塊 */}
       <SectionBand
+        id="decision"
         title="今天對你的部位重要的事"
         moreHref="/calibration"
         moreLabel="訊號戰績 →"
@@ -481,40 +501,66 @@ export default function InvestPage() {
         <DecisionBriefSection />
       </SectionBand>
 
-      <SectionBand title="部位脈動（集中度與相關性風險）">
+      <SectionBand id="pulse" title="部位脈動（集中度與相關性風險）">
         <PortfolioPulseSection brief={brief} />
       </SectionBand>
 
-      <SectionBand title="催化劑看板（未來兩週）">
+      <SectionBand id="catalyst" title="催化劑看板（未來兩週）">
         <CatalystWatchSection brief={brief} />
       </SectionBand>
 
-      <SectionBand title="持倉論點追蹤">
+      {/* 深入分析 — 頁內 anchor 導覽 + 各細節區塊 */}
+      <InvestHubNav sections={DEEP_SECTIONS} />
+
+      <SectionBand id="thesis" title="持倉論點追蹤">
         <ThesisUpdatesSection brief={brief} />
       </SectionBand>
 
-      <SectionBand title="我的持倉概況" moreHref="/portfolio" moreLabel="查看持倉 →">
+      <SectionBand
+        id="portfolio"
+        title="我的持倉概況"
+        moreHref="/portfolio"
+        moreLabel="查看持倉 →"
+      >
         <PortfolioSection />
       </SectionBand>
 
-      <SectionBand title="與我持倉相關的新聞" moreHref="/" moreLabel="Today 全文 →">
-        <HoldingNewsSection />
-      </SectionBand>
-
-      <SectionBand title="本期訊號" moreHref="/signals" moreLabel="完整排行 →">
+      <SectionBand id="signals" title="本期訊號" moreHref="/signals" moreLabel="完整排行 →">
         <SignalsSection />
       </SectionBand>
 
-      <SectionBand title="近期財報" moreHref="/earnings" moreLabel="財報全覽 →">
+      <SectionBand id="earnings" title="近期財報" moreHref="/earnings" moreLabel="財報全覽 →">
         <EarningsSection />
       </SectionBand>
 
-      <SectionBand title="宏觀與供應鏈傾向" moreHref="/macro" moreLabel="宏觀詳情 →">
+      <SectionBand
+        id="macro"
+        title="宏觀與供應鏈傾向"
+        moreHref="/macro"
+        moreLabel="宏觀詳情 →"
+      >
         <MacroSection />
       </SectionBand>
 
-      <SectionBand title="訊號校驗摘要" moreHref="/calibration" moreLabel="校驗詳情 →">
+      <SectionBand
+        id="calibration"
+        title="訊號校驗摘要"
+        moreHref="/calibration"
+        moreLabel="校驗詳情 →"
+      >
         <CalibrationSection />
+      </SectionBand>
+
+      {/* 閱讀（降權）— 與「今天重要的事」可能重疊，預設收合，需要時展開或回 Today */}
+      <SectionBand title="與我持倉相關的新聞" moreHref="/" moreLabel="Today 全文 →">
+        <details>
+          <summary className="cursor-pointer font-sans text-meta text-ink-faint hover:text-accent">
+            展開持倉相關短評（決策摘要已涵蓋重點）
+          </summary>
+          <div className="mt-3">
+            <HoldingNewsSection />
+          </div>
+        </details>
       </SectionBand>
     </DensePageShell>
   );
