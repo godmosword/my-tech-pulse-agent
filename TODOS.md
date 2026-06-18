@@ -62,7 +62,7 @@
 - [x] **XBRL**：`SecXbrlFetcher.quarter_series_for_spec` / `normalize_quarter_series`
 - [x] **Builder**：`agents/trend_builder.py`；`tests/test_quarter_series.py`
 - [x] **Pipeline**：`build_report_from_filing` 填入 trend（Phase 3 merge 遺失已補回）
-- [ ] **Dashboard UI（Phase 2）**：`/earnings/[ticker]` 或 report 頁顯示多季 trend 圖表
+- [x] **Dashboard UI（Phase 2）**：多季 trend 圖表（`EarningsTrendChart`，recharts，動態載入）顯示於 `/earnings/report/[reportId]`；`getEarningsReport` detail-only 序列化 `trend`（列表/API payload 不變）
 
 ## Dashboard 持倉層（2026-05-28）
 
@@ -71,7 +71,7 @@
 - [x] **`/portfolio`** 頁、Nav「持倉」、`GET /api/v1/portfolio`
 - [x] **Earnings API** `portfolio_tier` 標記
 - [x] **測試**：`tests/test_portfolio_store.py`、`dashboard/lib/portfolio-metrics.test.ts`
-- [ ] **UI 延伸**：`portfolio_tier` 在更多 earnings 列表／首頁露出；SiC tag 篩選
+- [~] **UI 延伸**：`portfolio_tier`（持倉／觀察 badge，共用 `PortfolioTierBadge`）已在首頁「今日財報」露出；earnings 列表（分頁載入需 client 端 tier）與 SiC tag 篩選（需先把 watchlist tags join 進 row）待後續
 
 ## 財報 — Phase 3 價格反應（2026-05-28）
 
@@ -89,7 +89,7 @@
 - [x] **Dashboard**：`/earnings/[ticker]` 估值比率 + EPS surprise 迷你表
 - [x] **測試** `tests/test_fmp_fundamentals.py`（7 cases）
 - [ ] **Production env**：Cloud Run 設 `FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`（分階段啟用見 [`docs/VENDOR_ENABLEMENT.md`](docs/VENDOR_ENABLEMENT.md)）
-- [ ] **FMP 全域 per-run cap**：`_try_fundamental_enrich` 每筆新建 `FundamentalProvider()`，`MAX_FMP_CALLS_PER_RUN` 計數隨之歸零，故 cap 僅限單筆內、非全輪。改為整輪重用同一 provider 實例以使 cap 成為真正全輪上限
+- [x] **FMP 全域 per-run cap**：改為在 `EarningsPipelineRunner.run()` local scope 建單一 `FundamentalProvider`，傳入 full + broad 兩處 `_try_fundamental_enrich`，使 `MAX_FMP_CALLS_PER_RUN` 成真正全輪上限（測試 `test_try_fundamental_enrich_shares_provider_cap`）
 
 ## 財報 — Phase 4 投資訊號（2026-05-21）
 
@@ -143,8 +143,8 @@
 ## 進行中 / 下一步
 
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）
-- [ ] **EarningsAgent 類別**：`agents/earnings_agent.py` 僅 smoke test 引用 — 刪除或保留待決
-- [ ] **API route 測試延伸**：其餘 `/api/v1/news/*`、`items/[id]`、`archive/facets` 等 handler vitest
+- [x] **EarningsAgent 類別**：**保留**（judge baseline）—— 仍由 `smoke_test.py` + `agents/__init__` + vulture 白名單引用；生產路徑僅 v3 agents，刪除擾動多檔無實益
+- [x] **API route 測試延伸**：`api-routes.test.ts` 已覆蓋 `/api/v1/news/digest`、`news/deep`、`news/deep/[itemId]`、`items/[id]`、`archive/facets` 等 handler vitest
 - [x] **Slice 1 Portal News API**：`/api/v1/news/*` + [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md)
 - [x] **Slice 2 Earnings API**：`/api/v1/earnings/upcoming`、`/{symbol}/insight`、`/watchlist`；watchlist 併 Q-Silicon mega-cap
 - [ ] **主 repo 瘦身**：依 [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md) §主 repo 作業清單
@@ -182,7 +182,7 @@
 - [x] **Canonical digest snapshot**：pipeline 寫入 `tech_pulse_digests/{id}`；Dashboard 首頁優先讀 snapshot
 - [ ] **Semantic prefilter rollout**：staging 已可透過 `TECH_PULSE_ENV=staging` 啟用
 - [ ] **Semantic dup drop**：`SEMANTIC_DUP_DROP_ENABLED=1` 需 Firestore vector index
-- [ ] **Dashboard a11y／效能（低優先）**：Archive 篩選 `aria-current`、DataTable `scope`、skip link；`/calibration` Recharts `next/dynamic`；Archive 手機篩選位置（列表下方）；首頁 digest 與 `@rail` 重複 fetch（可 `React.cache()`）
+- [~] **Dashboard a11y／效能（低優先）**：[x] `/calibration` Recharts `next/dynamic`（First Load 209→109 kB）；[x] 首頁 digest 與 `@rail` 重複 fetch → `React.cache()` 去重；待辦：Archive 篩選 `aria-current`、DataTable `scope`、skip link、Archive 手機篩選位置
 - [ ] **Dashboard**：全文搜尋、RSS/Atom 對外訂閱（earnings 專欄基礎頁已完成）
 - [ ] **DIGEST_FORMAT v2**：維持 experimental；production 仍鎖 `v1`
 
