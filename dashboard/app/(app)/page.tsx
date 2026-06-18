@@ -13,7 +13,9 @@ import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker } from "@/components/Kicker";
 import { ThemeSection } from "@/components/ThemeSection";
+import { PortfolioTierBadge } from "@/components/data/PortfolioTierBadge";
 import { listEarningsSince } from "@/lib/earnings-firestore";
+import { withPortfolioTierOnReports } from "@/lib/portfolio-server";
 
 /** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
 export const dynamic = "force-dynamic";
@@ -34,8 +36,8 @@ export default async function HomePage() {
 
   const { items, snapshots, usingStaleFallback, todayStart } =
     await loadTodayDigestData();
-  const todayEarnings = await listEarningsSince(todayStart, { limit: 6 }).catch(
-    () => [],
+  const todayEarnings = withPortfolioTierOnReports(
+    await listEarningsSince(todayStart, { limit: 6 }).catch(() => []),
   );
   const view = resolveDigestView(items, snapshots);
   const latestDelivered = latestDeliveredIso(items);
@@ -86,12 +88,15 @@ export default async function HomePage() {
           <ul className="divide-y divide-rule">
             {todayEarnings.map((e) => (
               <li key={e.report_id} className="py-4">
-                <Link
-                  href={`/earnings/report/${encodeURIComponent(e.report_id)}`}
-                  className="font-serif text-dek text-ink hover:text-accent hover:underline"
-                >
-                  {e.ticker} · {e.quarter_label}
-                </Link>
+                <span className="flex flex-wrap items-baseline gap-2">
+                  <Link
+                    href={`/earnings/report/${encodeURIComponent(e.report_id)}`}
+                    className="font-serif text-dek text-ink hover:text-accent hover:underline"
+                  >
+                    {e.ticker} · {e.quarter_label}
+                  </Link>
+                  <PortfolioTierBadge tier={e.portfolio_tier} />
+                </span>
                 {e.investment_takeaway_zh && (
                   <p className="mt-2 font-sans text-body text-ink-soft line-clamp-2">
                     {e.investment_takeaway_zh}

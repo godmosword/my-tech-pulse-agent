@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { startOfTodayTaipeiUtc } from "./api-query";
 import { parseDigestSnapshot } from "./digest-snapshot";
 import type { DigestSnapshotDoc } from "./digest-snapshot";
@@ -25,8 +27,12 @@ export interface TodayDigestLoadResult {
  * Degrades to empty arrays on Firestore failure (matches AttentionTriage).
  * When falling back to stale items, skips today's snapshots so theme hints
  * stay consistent with the displayed pool.
+ *
+ * Exported uncached for unit tests; the request-scoped `loadTodayDigestData`
+ * below memoizes it so the home page and its `@rail` parallel route share a
+ * single Firestore read per request instead of fetching twice.
  */
-export async function loadTodayDigestData(): Promise<TodayDigestLoadResult> {
+export async function loadTodayDigestDataUncached(): Promise<TodayDigestLoadResult> {
   const todayStart = startOfTodayTaipeiUtc();
   try {
     let items = await listLatestItems({
@@ -56,6 +62,13 @@ export async function loadTodayDigestData(): Promise<TodayDigestLoadResult> {
     };
   }
 }
+
+/**
+ * Request-scoped memoized loader. React `cache()` dedupes calls within a single
+ * server request, so `app/(app)/page.tsx` and `app/(app)/@rail/page.tsx` (which
+ * both need today's items) hit Firestore once instead of twice.
+ */
+export const loadTodayDigestData = cache(loadTodayDigestDataUncached);
 
 export function latestDeliveredIso(items: RenderableItem[]): string | null {
   return (

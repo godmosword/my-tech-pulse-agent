@@ -6,6 +6,7 @@ import { BackLink } from "@/components/BackLink";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { EarningsReportEmpty } from "@/components/earnings/EarningsReportEmpty";
 import { EarningsReportMarkdown } from "@/components/earnings/EarningsReportMarkdown";
+import { EarningsTrendChart } from "@/components/earnings/EarningsTrendChartDynamic";
 import { SurpriseBadge } from "@/components/earnings/SurpriseBadge";
 import { getEarningsReport } from "@/lib/earnings-firestore";
 import { hasRenderableMarkdown } from "@/lib/earnings-report-markdown";
@@ -79,6 +80,16 @@ export default async function EarningsReportPage({ params }: Props) {
         <EarningsReportMarkdown content={markdown!.trim()} />
       ) : (
         <EarningsReportEmpty ticker={row.ticker} />
+      )}
+
+      {row.trend && (
+        <section className="mt-10">
+          <h2 className="font-sans text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft">
+            多季趨勢（近 {row.trend.quarters_covered} 季）
+          </h2>
+          <Hairline className="mt-3 mb-4" />
+          <EarningsTrendChart trend={row.trend} />
+        </section>
       )}
 
       {row.source_url && (

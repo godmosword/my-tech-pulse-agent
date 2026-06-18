@@ -6,6 +6,7 @@ import { useState } from "react";
 import { DataTable, type DataColumn } from "@/components/data/DataTable";
 import { RatingBadge } from "@/components/data/RatingBadge";
 import type { PortfolioTier } from "@/lib/portfolio-metrics";
+import { PortfolioTierBadge } from "@/components/data/PortfolioTierBadge";
 
 const FACTOR_LABELS: Record<string, string> = {
   fundamental_momentum: "動能",
@@ -31,21 +32,7 @@ type Props = {
 };
 
 function tierBadge(pt: PortfolioTier) {
-  if (pt === "holding") {
-    return (
-      <span className="rounded bg-accent/15 px-1.5 py-0.5 font-sans text-meta text-accent">
-        持倉
-      </span>
-    );
-  }
-  if (pt === "watchlist") {
-    return (
-      <span className="rounded border border-rule px-1.5 py-0.5 font-sans text-meta text-ink-faint">
-        觀察
-      </span>
-    );
-  }
-  return null;
+  return <PortfolioTierBadge tier={pt} />;
 }
 
 function FactorMiniBars({

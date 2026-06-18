@@ -4,7 +4,7 @@ import { fmtPctSigned } from "@/lib/format-numbers";
 import {
   BacktestCalibrationChart,
   BacktestQuantileChart,
-} from "@/components/data/BacktestCharts";
+} from "@/components/data/BacktestChartsDynamic";
 import { DataTable, type DataColumn } from "@/components/data/DataTable";
 import { SourceTag } from "@/components/data/SourceTag";
 import { StatCard } from "@/components/data/StatCard";

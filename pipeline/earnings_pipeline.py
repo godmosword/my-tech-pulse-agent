@@ -6,7 +6,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from agents.earnings_analyzer import EarningsAnalyzer
 from agents.earnings_fact_guard import apply_fact_guard_v2
@@ -27,6 +27,9 @@ from sources.sec_xbrl_fetcher import SecXbrlFetcher
 from sources.ticker_cik_map import TickerCikMap
 from sources.vendor_earnings_provider import VendorEarningsProvider
 from sources.watchlist import EarningsWatchlist
+
+if TYPE_CHECKING:
+    from sources.fundamental_provider import FundamentalProvider
 
 logger = logging.getLogger(__name__)
 
@@ -78,15 +81,15 @@ def _try_attach_price_reaction(
 
 def _try_fundamental_enrich(
     report: EarningsReport,
+    provider: FundamentalProvider,
 ) -> tuple[EarningsReport, dict | None]:
-    from sources.fundamental_provider import (
-        FundamentalProvider,
-        attach_fmp_fields_to_report,
-    )
+    """Enrich one report via a shared provider so MAX_FMP_CALLS_PER_RUN caps the
+    whole run, not a single report (the provider's call counter is per-instance)."""
+    from sources.fundamental_provider import attach_fmp_fields_to_report
 
     fundamentals: dict = {}
     try:
-        fundamentals = FundamentalProvider().enrich_for_report(report) or {}
+        fundamentals = provider.enrich_for_report(report) or {}
     except Exception:
         logger.warning("FMP enrich failed for %s", report.ticker, exc_info=True)
         fundamentals = {}
@@ -220,6 +223,12 @@ class EarningsPipelineRunner:
         telegram_reports: list[EarningsReport] = []
         sec_calls = 0
 
+        # One provider for the whole run so MAX_FMP_CALLS_PER_RUN is a true
+        # per-run cap (was reset every report when constructed per call).
+        from sources.fundamental_provider import FundamentalProvider
+
+        fundamental_provider = FundamentalProvider()
+
         for filing in filings:
             if sec_calls >= MAX_SEC_API_CALLS_PER_RUN:
                 logger.warning("SEC API cap reached (%d)", MAX_SEC_API_CALLS_PER_RUN)
@@ -279,7 +288,7 @@ class EarningsPipelineRunner:
                     vendor_market=vendor_result.market_context,
                 )
                 report = _try_attach_price_reaction(report, self.vendor.finnhub)
-                report, fundamentals = _try_fundamental_enrich(report)
+                report, fundamentals = _try_fundamental_enrich(report, fundamental_provider)
                 if fundamentals:
                     stats.fundamental_enriched_count += 1
                 report = enrich_earnings_v3(
@@ -320,7 +329,7 @@ class EarningsPipelineRunner:
                     vendor_estimates=None,
                     vendor_market=None,
                 )
-                report, fundamentals = _try_fundamental_enrich(report)
+                report, fundamentals = _try_fundamental_enrich(report, fundamental_provider)
                 if fundamentals:
                     stats.fundamental_enriched_count += 1
                 report = enrich_earnings_v3(

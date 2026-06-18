@@ -194,7 +194,7 @@ def test_try_fundamental_enrich_returns_none_when_empty(monkeypatch):
         "sources.fundamental_provider.FundamentalProvider.enrich_for_report",
         lambda self, report: {},
     )
-    _, fundamentals = ep._try_fundamental_enrich(_report())
+    _, fundamentals = ep._try_fundamental_enrich(_report(), FundamentalProvider())
     assert fundamentals is None
 
 
@@ -210,5 +210,35 @@ def test_try_fundamental_enrich_returns_dict_when_present(monkeypatch):
         "sources.fundamental_provider.attach_fmp_fields_to_report",
         lambda report, fundamentals: report,
     )
-    _, fundamentals = ep._try_fundamental_enrich(_report())
+    _, fundamentals = ep._try_fundamental_enrich(_report(), FundamentalProvider())
     assert fundamentals == {"fcf": 1.0}
+
+
+def test_try_fundamental_enrich_shares_provider_cap(monkeypatch):
+    """A single shared provider makes MAX_FMP_CALLS_PER_RUN a true per-run cap:
+    once the budget is spent, later reports in the same run are not enriched."""
+    from pipeline import earnings_pipeline as ep
+
+    monkeypatch.setattr(
+        "sources.fundamental_provider.attach_fmp_fields_to_report",
+        lambda report, fundamentals: report,
+    )
+
+    class CapProvider:
+        def __init__(self, max_calls: int) -> None:
+            self.max_calls = max_calls
+            self.calls = 0
+
+        def enrich_for_report(self, report) -> dict:
+            if self.calls >= self.max_calls:
+                return {}
+            self.calls += 1
+            return {"fcf": 1.0}
+
+    provider = CapProvider(max_calls=1)
+    _, first = ep._try_fundamental_enrich(_report(), provider)
+    _, second = ep._try_fundamental_enrich(_report(), provider)
+
+    assert first == {"fcf": 1.0}
+    assert second is None  # capped across reports because the provider is shared
+    assert provider.calls == 1

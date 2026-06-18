@@ -84,6 +84,84 @@ export interface InvestmentSignalRow {
   as_of?: string | null;
 }
 
+// Multi-quarter trend (mirrors agents/earnings_v3_models.py EarningsTrend).
+// Parsed detail-only (see getEarningsReport) so list/API payloads stay lean.
+export interface QuarterPointRow {
+  fiscal_year: number | null;
+  fiscal_period: string;
+  period_end: string | null;
+  value: number | null;
+}
+
+export interface MetricTrendRow {
+  metric: string;
+  label_zh: string;
+  points: QuarterPointRow[];
+  yoy_pct: number | null;
+  qoq_pct: number | null;
+  direction: string;
+}
+
+export interface EarningsTrendRow {
+  trends: MetricTrendRow[];
+  quarters_covered: number;
+}
+
+function parseQuarterPoint(raw: unknown): QuarterPointRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  return {
+    fiscal_year: typeof r.fiscal_year === "number" ? r.fiscal_year : null,
+    fiscal_period: String(r.fiscal_period || ""),
+    period_end: typeof r.period_end === "string" ? r.period_end : null,
+    value:
+      typeof r.value === "number" && Number.isFinite(r.value) ? r.value : null,
+  };
+}
+
+function parseMetricTrend(raw: unknown): MetricTrendRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const metric = String(r.metric || "");
+  if (!metric) return null;
+  const points = Array.isArray(r.points)
+    ? r.points
+        .map(parseQuarterPoint)
+        .filter((p): p is QuarterPointRow => p !== null)
+    : [];
+  return {
+    metric,
+    label_zh: String(r.label_zh || ""),
+    points,
+    yoy_pct:
+      typeof r.yoy_pct === "number" && Number.isFinite(r.yoy_pct)
+        ? r.yoy_pct
+        : null,
+    qoq_pct:
+      typeof r.qoq_pct === "number" && Number.isFinite(r.qoq_pct)
+        ? r.qoq_pct
+        : null,
+    direction: String(r.direction || "資料不足"),
+  };
+}
+
+/** Safe-parse the raw Firestore `trend` field; null when absent or empty. */
+export function parseEarningsTrend(raw: unknown): EarningsTrendRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const trends = Array.isArray(r.trends)
+    ? r.trends
+        .map(parseMetricTrend)
+        .filter((t): t is MetricTrendRow => t !== null)
+    : [];
+  if (trends.length === 0) return null;
+  return {
+    trends,
+    quarters_covered:
+      typeof r.quarters_covered === "number" ? r.quarters_covered : 0,
+  };
+}
+
 export interface EarningsReportRow {
   report_id: string;
   ticker: string;
@@ -114,6 +192,8 @@ export interface EarningsReportRow {
   surprise_history?: SurprisePointRow[];
   financial_health?: FinancialHealthRow | null;
   investment_signal?: InvestmentSignalRow | null;
+  /** Multi-quarter trend; populated detail-only by getEarningsReport. */
+  trend?: EarningsTrendRow | null;
 }
 
 function metricFromHeadline(
@@ -392,7 +472,10 @@ export async function getEarningsReport(
 ): Promise<EarningsReportRow | null> {
   const doc = await db().collection(EARNINGS_COLLECTION).doc(reportId).get();
   if (!doc.exists) return null;
-  return toRow(doc.id, (doc.data() || {}) as Record<string, unknown>);
+  const raw = (doc.data() || {}) as Record<string, unknown>;
+  const row = toRow(doc.id, raw);
+  // Trend is attached detail-only so list/API rows stay lean.
+  return row ? { ...row, trend: parseEarningsTrend(raw.trend) } : null;
 }
 
 /** Upcoming watchlist earnings (vendor calendar stub returns empty until keys wired). */
