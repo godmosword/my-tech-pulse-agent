@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-17",
+  "generated_at": "2026-06-18",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -57,6 +57,26 @@
   },
   "material_items": [
     {
+      "id": "18b411762024297038c5eb18dbccf82af163205668237b6bc3d20c21c3123c8a",
+      "title": "輝達投資Coherent擴產 磷化銦晶圓產能將增四倍",
+      "impact_score": 0.5685,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.57、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-25",
+      "affected_tickers": [
+        "NVDA",
+        "MRVL",
+        "AVGO"
+      ],
+      "market_flags": [
+        "capacity_expansion",
+        "strategic_investment",
+        "government_funding"
+      ]
+    },
+    {
       "id": "8133977569c8e55664d6926b2b2e35ddc2ff27ce5708520523ebc41a4152fc6f",
       "title": "AMD收購新創Mext以AI解決記憶體短缺",
       "impact_score": 0.4202,
@@ -64,7 +84,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.42、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-24",
+      "next_check": "2026-06-25",
       "affected_tickers": [
         "NVDA",
         "AVGO",
@@ -86,7 +106,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.17、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-24",
+      "next_check": "2026-06-25",
       "affected_tickers": [
         "NVDA",
         "AVGO",
