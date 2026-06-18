@@ -74,7 +74,7 @@ export function EarningsList({ initialItems, initialNextCursor, pageSize }: Prop
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <Link
                 href={`/earnings/${encodeURIComponent(row.ticker)}`}
-                className="font-serif text-xl font-semibold text-ink hover:text-accent"
+                className="font-serif text-dek font-semibold text-ink hover:text-accent"
               >
                 {row.ticker}
               </Link>

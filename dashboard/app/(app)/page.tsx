@@ -53,7 +53,7 @@ export default async function HomePage() {
           usingStaleFallback={usingStaleFallback}
         />
         <div className="border-y border-rule py-12 text-center">
-          <p className="font-serif text-[22px] text-ink">尚無可顯示的精選內容</p>
+          <p className="font-serif text-editorial-headline text-ink">尚無可顯示的精選內容</p>
           <p className="mt-3 font-sans text-body text-ink-soft">
             已 delivery 的項目可能分數過低或未通過品質閾值。可先瀏覽{" "}
             <Link
@@ -88,7 +88,7 @@ export default async function HomePage() {
               <li key={e.report_id} className="py-4">
                 <Link
                   href={`/earnings/report/${encodeURIComponent(e.report_id)}`}
-                  className="font-serif text-xl text-ink hover:text-accent hover:underline"
+                  className="font-serif text-dek text-ink hover:text-accent hover:underline"
                 >
                   {e.ticker} · {e.quarter_label}
                 </Link>
@@ -135,7 +135,7 @@ export default async function HomePage() {
 function EmptyState() {
   return (
     <div className="border-y border-rule py-16 text-center">
-      <p className="font-serif text-[22px] text-ink">今日尚無上線內容</p>
+      <p className="font-serif text-editorial-headline text-ink">今日尚無上線內容</p>
       <p className="mt-3 font-sans text-body text-ink-soft">
         每日 pipeline 完成後，新稿會自動出現在此。您也可以先瀏覽{" "}
         <Link href="/archive" className="text-accent underline-offset-4 hover:underline">

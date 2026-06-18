@@ -21,7 +21,7 @@ export async function ThemeSection({ theme, items, authenticated }: Props) {
     <section className="pt-10">
       <header className="mb-2 space-y-2">
         <Kicker>主題</Kicker>
-        <h2 className="font-serif text-editorial-headline text-ink">
+        <h2 className="font-serif text-headline text-ink">
           {theme}
         </h2>
       </header>

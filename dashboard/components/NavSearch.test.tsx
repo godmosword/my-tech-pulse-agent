@@ -54,7 +54,7 @@ describe("NavSearch", () => {
     await waitFor(
       () => {
         expect(fetchMock).toHaveBeenCalledWith(
-          "/api/v1/search?q=NVDA",
+          "/api/search?q=NVDA",
           expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
       },

@@ -121,7 +121,7 @@ export default async function HealthPage() {
                   <div className="min-w-0 flex-1 space-y-1">
                     <Link
                       href={`/item/${encodeURIComponent(row.id)}`}
-                      className="font-serif text-[18px] leading-snug text-ink hover:text-accent"
+                      className="font-serif text-dek leading-snug text-ink hover:text-accent"
                     >
                       {displayTitle(row)}
                     </Link>

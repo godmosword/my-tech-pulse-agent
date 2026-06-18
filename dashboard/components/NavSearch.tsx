@@ -79,7 +79,7 @@ export function NavSearch({ variant, onClose }: Props) {
     void (async () => {
       try {
         const params = new URLSearchParams({ q: debouncedQuery });
-        const res = await fetch(`/api/v1/search?${params.toString()}`, {
+        const res = await fetch(`/api/search?${params.toString()}`, {
           signal: controller.signal,
         });
         if (!res.ok) {

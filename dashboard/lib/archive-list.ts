@@ -79,6 +79,17 @@ export function bucketArchiveByDay(items: ArchiveListItem[]): ArchiveDayBucket[]
     .map(([dayIso, dayItems]) => ({ dayIso, items: dayItems }));
 }
 
+/**
+ * Server-safe seed for the archive list's first render. Lives here (not in the
+ * `"use client"` ArchiveList) so the server page can call it without tripping
+ * Next's "can't call a client function from the server" boundary error.
+ */
+export function toInitialArchiveBuckets(
+  items: ArchiveListItem[],
+): ArchiveDayBucket[] {
+  return bucketArchiveByDay(items);
+}
+
 export function mergeArchiveBuckets(
   existing: ArchiveDayBucket[],
   moreItems: ArchiveListItem[],

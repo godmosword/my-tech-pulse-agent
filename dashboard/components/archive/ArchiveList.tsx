@@ -11,7 +11,6 @@ import type { FilterState } from "@/lib/archive-filters";
 import {
   archiveItemFromApi,
   archiveKickerSegments,
-  bucketArchiveByDay,
   mergeArchiveBuckets,
   type ArchiveDayBucket,
   type ArchiveListItem,
@@ -82,7 +81,7 @@ export function ArchiveList({
       <div className="space-y-12">
         {buckets.map(({ dayIso, items: dayItems }) => (
           <section key={dayIso} className="space-y-4">
-            <h2 className="font-serif text-[22px] leading-tight tracking-[-0.018em] text-ink sm:text-[26px]">
+            <h2 className="font-serif text-editorial-headline text-ink">
               {formatEditorialDate(dayIso) || "Undated"}
             </h2>
             <Hairline />
@@ -108,11 +107,11 @@ export function ArchiveList({
                           ))}
                         </Kicker>
                       )}
-                      <h3 className="font-serif text-[17px] leading-snug text-ink sm:text-[19px]">
+                      <h3 className="font-serif text-dek leading-snug text-ink">
                         {item.title}
                       </h3>
                       {item.subline && (
-                        <p className="font-sans text-[15px] leading-snug text-ink-soft">
+                        <p className="font-sans text-meta leading-snug text-ink-soft">
                           {item.subline}
                         </p>
                       )}
@@ -127,10 +126,4 @@ export function ArchiveList({
       <LoadMoreButton hasMore={Boolean(nextCursor)} onLoadMore={onLoadMore} />
     </>
   );
-}
-
-export function toInitialArchiveBuckets(
-  items: ArchiveListItem[],
-): ArchiveDayBucket[] {
-  return bucketArchiveByDay(items);
 }

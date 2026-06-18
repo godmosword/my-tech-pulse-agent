@@ -46,7 +46,7 @@ export function DeepInsightCard({
             </>
           )}
         </Kicker>
-        <h3 className="font-serif text-[26px] leading-snug tracking-[-0.018em] text-ink sm:text-[30px]">
+        <h3 className="font-serif text-editorial-headline text-ink">
           <Link
             href={`/item/${encodeURIComponent(item.id)}`}
             className="bg-[linear-gradient(to_right,var(--color-accent),var(--color-accent))] bg-[length:0%_1px] bg-left-bottom bg-no-repeat transition-[background-size,color] duration-300 ease-out hover:bg-[length:100%_1px] hover:text-accent"
@@ -66,7 +66,7 @@ export function DeepInsightCard({
               <p className="font-sans text-dek text-ink">{item.zh_summary}</p>
             )}
             {bodyZh && (
-              <p className="text-justify-cjk whitespace-pre-line font-serif text-[17px] leading-[1.65] text-ink">
+              <p className="text-justify-cjk whitespace-pre-line font-serif text-dek leading-[1.65] text-ink">
                 {bodyZh}
               </p>
             )}
@@ -84,7 +84,7 @@ export function DeepInsightCard({
         <div className="max-w-column space-y-3">
           {teaser && (
             <div className="relative">
-              <p className="text-justify-cjk whitespace-pre-line font-serif text-[17px] leading-[1.65] text-ink">
+              <p className="text-justify-cjk whitespace-pre-line font-serif text-dek leading-[1.65] text-ink">
                 {teaser}
               </p>
               {hasGatedLongContent(item) && (
@@ -109,7 +109,7 @@ export function DeepInsightCard({
             rel="noreferrer"
             className="inline-flex items-center font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-accent underline-offset-4 hover:underline"
           >
-            阅读原文
+            閱讀原文
           </a>
         )}
         <span
@@ -144,7 +144,7 @@ function Section({ label, body }: { label: string; body: string }) {
       <dt className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
         {label}
       </dt>
-      <dd className="text-justify-cjk whitespace-pre-line font-serif text-[17px] leading-[1.65] text-ink">
+      <dd className="text-justify-cjk whitespace-pre-line font-serif text-dek leading-[1.65] text-ink">
         {body}
       </dd>
     </div>

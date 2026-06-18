@@ -7,11 +7,11 @@ import {
   parseFilterState,
 } from "@/lib/archive-filters";
 import { listFilteredItemsLegacy } from "@/lib/items-list-page";
+import { ArchiveList } from "@/components/archive/ArchiveList";
 import {
-  ArchiveList,
+  archiveItemFromRenderable,
   toInitialArchiveBuckets,
-} from "@/components/archive/ArchiveList";
-import { archiveItemFromRenderable } from "@/lib/archive-list";
+} from "@/lib/archive-list";
 import { BackLink } from "@/components/BackLink";
 import { Hairline } from "@/components/Hairline";
 import { Kicker } from "@/components/Kicker";

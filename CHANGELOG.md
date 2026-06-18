@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **導覽搜尋失效（401）**：`NavSearch` 原打 `/api/v1/search`，但 `/api/v1/*` 走 `withApiAuth`（需 Bearer/reader cookie），在 `DASHBOARD_PUBLIC_READ=false` 下匿名瀏覽器一律 401 → 搜尋永遠「失敗」。新增**站內專用** `app/api/search/route.ts`（不在 `/api/v1` 底下，受 Basic Auth middleware 納管／公開讀放行，只回標題/連結公開層），`NavSearch` 改打 `/api/search`；v1 端維持給外部程式化用。實測 NVDA/輝達/AI/財報皆正常回傳。`NavSearch.test.tsx` 同步更新 URL。
+- **`/archive` 內頁 server 崩潰**：純函式 `toInitialArchiveBuckets` 被放在 `"use client"` 的 `ArchiveList` 裡，server 頁 import 後呼叫 → Next「不能從 server 呼叫 client 函式」runtime error，整頁掛掉。將該函式移至 server-safe 的 `lib/archive-list.ts`，server 頁與 client 元件各自引用；移除 `ArchiveList` 內已無用的 `bucketArchiveByDay` import。
+- **前端字級一致性**：把散落的臨時字級（`text-[26px]/sm:text-[30px]`、`text-[22/17/19/15px]`、`text-xl/[18px]`）統一收斂到既有語義 token（`editorial-headline`／`headline`／`dek`／`meta`）。修正層級倒置：`DeepInsightCard` 標題原 30px 比區段標題還大 → 改 `editorial-headline`；`ThemeSection` 主題區段標題提到 `text-headline`(28px)，明確大於項目標題(≤26px)，讓 Today 動態有「區段 > 項目 > 內文」清楚階層；`ArchiveList`／`EarningsList`／`health`／home 空狀態與今日財報連結一併對齊。（`DeepInsightCard` 順手修正簡體「阅读原文」→「閱讀原文」。）純表現層，未改資料與 API。
 - **決策簡報防呆：拒絕污染的 `portfolio_impact`**：production Firestore 上有來源不明的 LLM 寫入者在同一 `portfolio_impact` 欄位塞了 0–10 分、`exposure_basis=market`、且把**未持有**標的（META/GOOGL）標成 `direct` 的幻覺資料。消費端加守門：`scoring/invest_brief.py._is_trusted_impact`（僅信任 `score ∈ (0,1]` 且 `affected ⊆ 持倉`，`MAX_TRUSTED_IMPACT=1.0`）過濾 material items；dashboard `lib/portfolio-brief.ts.isTrustedImpact` 對 live-fallback 同樣擋掉 score>1。重生 `invest_brief.json`（material 0，過濾掉 META/GOOGL；pulse/催化劑/論點不受影響）。`tests/test_invest_brief.py`、`dashboard/lib/portfolio-brief.test.ts` 補測。（**溯源結論**：非經常性、非 GCP 排程——為 06-15 一次性的平行 agent run 以未提交的 LLM 版 P1 直寫 Firestore；06-16 起部署的確定性碼已取代之，無持續程序需關閉。殘留的 4 筆 06-15 舊 doc 已被守門中和，並會隨 TTL 自動過期。）
 
 ### Added
