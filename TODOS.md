@@ -4,6 +4,7 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **Agent 編排（Cursor）**：bootstrap agent-orchestration（`/agent-plan`、`/agent-action`）+ `docs/AGENT-DOMAIN.md`（tech-pulse Domain）
 - [x] **Dashboard 登入 CTA + 日期時區統一**：`LoginToReadCta`、`format-datetime`（Asia/Taipei zh-TW）
 - [x] **Dashboard 導覽搜尋**：NavRail／行動版 combobox + `GET /api/v1/search`（token 比對 + ticker 精確 + 標題前綴 + 最近 400 篇 fallback；`search_tokens` backfill 見 `scripts/backfill_search_tokens.py`）
 - [x] **Dashboard 列表載入更多分頁**：archive／earnings／signals cursor 分頁 API + `LoadMoreButton`；archive 篩選變更重置 cursor

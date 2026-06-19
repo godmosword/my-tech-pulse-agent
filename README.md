@@ -327,4 +327,4 @@ tech-pulse/
 └── tests/                Smoke tests + LLM-as-judge
 ```
 
-See [CLAUDE.md](CLAUDE.md) for full design constraints and schema contracts. Track open work in [TODOS.md](TODOS.md); release notes in [CHANGELOG.md](CHANGELOG.md). Contributor/agent workflow: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+See [CLAUDE.md](CLAUDE.md) for full design constraints and schema contracts. Track open work in [TODOS.md](TODOS.md); release notes in [CHANGELOG.md](CHANGELOG.md). Contributor/agent workflow: [docs/WORKFLOW.md](docs/WORKFLOW.md). Agent 編排：`docs/AGENT-WORKFLOW.md` · Domain：`docs/AGENT-DOMAIN.md`（Cursor：`/agent-plan`、`/agent-action`）。

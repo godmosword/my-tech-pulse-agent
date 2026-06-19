@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Agent 編排（Cursor）**：自 investment-ai-agent 可攜模板 bootstrap（`.cursor/commands/agent-plan.md`、`agent-action.md`、`.cursor/rules/agent-orchestration.mdc`、`docs/AGENT-WORKFLOW.md`）；填寫 tech-pulse 專用 [`docs/AGENT-DOMAIN.md`](docs/AGENT-DOMAIN.md)（Bootstrap、pipeline 核准紅線、驗證矩陣、Ship 政策）。`README.md`／`CLAUDE.md`／`docs/WORKFLOW.md` 加導航。
+
 ### Fixed
 - **FMP 每輪呼叫上限失效**：`_try_fundamental_enrich` 原本每筆報告 new 一個 `FundamentalProvider`，使 `MAX_FMP_CALLS_PER_RUN` 計數每筆歸零、cap 名存實亡。改為在 `EarningsPipelineRunner.run()` 建單一 provider 傳入 full + broad 兩條路徑，cap 成真正全輪上限（預設 `EARNINGS_FUNDAMENTAL_MODE=off` 行為不變；測試 `test_try_fundamental_enrich_shares_provider_cap`）。
 - **`/calibration` 首屏 bundle 過重**：recharts 圖表改以 `next/dynamic`（client wrapper `BacktestChartsDynamic`，`ssr:false`）載入，`/calibration` First Load JS 由 ~209 kB 降至 ~109 kB；首頁 digest 與 `@rail` 平行路由原各讀一次 Firestore，改用 `React.cache()` 在單一請求內去重。

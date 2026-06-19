@@ -78,3 +78,11 @@ cd dashboard && npm run lint && npm run typecheck && npm run test
 ## 8. 持續改進
 - 每當發現 agent 重複犯的錯誤，把對應規則補進本檔案或新增對應 lint rule。
 - 本檔案是專案規範的單一真實來源，隨專案演進持續更新。
+
+## 9. Agent 編排（Cursor）
+
+複雜任務可用 slash 指令進入 Leader 編排模式（Meta 流程 + 本 repo Domain 紅線／驗證矩陣）：
+
+- 編排流程：[`docs/AGENT-WORKFLOW.md`](docs/AGENT-WORKFLOW.md)
+- 專案 Domain（Bootstrap、紅線、驗證、Ship）：[`docs/AGENT-DOMAIN.md`](docs/AGENT-DOMAIN.md)
+- 指令：`/agent-plan`（Plan + 雙審）、`/agent-action`（依 Approved Plan 派工）
