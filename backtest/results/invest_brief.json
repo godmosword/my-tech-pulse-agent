@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-18",
+  "generated_at": "2026-06-19",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -64,7 +64,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.57、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-25",
+      "next_check": "2026-06-26",
       "affected_tickers": [
         "NVDA",
         "MRVL",
@@ -77,6 +77,24 @@
       ]
     },
     {
+      "id": "7ec11594bac00d42dcd3504894eda21a9d02b3d1ebf21d46b098262feaf84420",
+      "title": "Amazon hopes to challenge Nvidia more directly by selling its AI chips",
+      "impact_score": 0.5108,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.51、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-26",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO"
+      ],
+      "market_flags": [
+        "AI_infrastructure",
+        "market_expansion"
+      ]
+    },
+    {
       "id": "8133977569c8e55664d6926b2b2e35ddc2ff27ce5708520523ebc41a4152fc6f",
       "title": "AMD收購新創Mext以AI解決記憶體短缺",
       "impact_score": 0.4202,
@@ -84,7 +102,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.42、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-25",
+      "next_check": "2026-06-26",
       "affected_tickers": [
         "NVDA",
         "AVGO",
@@ -106,7 +124,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.17、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-25",
+      "next_check": "2026-06-26",
       "affected_tickers": [
         "NVDA",
         "AVGO",
@@ -118,12 +136,6 @@
     }
   ],
   "catalyst_watch": [
-    {
-      "ticker": "MACRO",
-      "date": "2026-06-18",
-      "type": "macro",
-      "note": "FOMC 利率決議"
-    },
     {
       "ticker": "NVDA",
       "date": "2026-06-22",
@@ -138,7 +150,6 @@
       "supporting": [],
       "contradicting": [],
       "upcoming": [
-        "2026-06-18 · FOMC 利率決議",
         "2026-06-22 · GTC 主題演講"
       ]
     },
@@ -147,9 +158,7 @@
       "thesis": "客製化 ASIC 與網路晶片受惠 AI 叢集擴張",
       "supporting": [],
       "contradicting": [],
-      "upcoming": [
-        "2026-06-18 · FOMC 利率決議"
-      ]
+      "upcoming": []
     }
   ],
   "alerted_tickers": {}
