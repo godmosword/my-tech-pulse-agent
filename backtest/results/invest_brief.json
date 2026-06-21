@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-20",
+  "generated_at": "2026-06-21",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -57,26 +57,6 @@
   },
   "material_items": [
     {
-      "id": "18b411762024297038c5eb18dbccf82af163205668237b6bc3d20c21c3123c8a",
-      "title": "輝達投資Coherent擴產 磷化銦晶圓產能將增四倍",
-      "impact_score": 0.5685,
-      "posture": "monitor",
-      "label_zh": "需要注意",
-      "reason_zh": "部位衝擊 0.57、證據等級 insufficient。此為注意度分級，非投資建議。",
-      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-27",
-      "affected_tickers": [
-        "NVDA",
-        "MRVL",
-        "AVGO"
-      ],
-      "market_flags": [
-        "capacity_expansion",
-        "strategic_investment",
-        "government_funding"
-      ]
-    },
-    {
       "id": "7ec11594bac00d42dcd3504894eda21a9d02b3d1ebf21d46b098262feaf84420",
       "title": "Amazon hopes to challenge Nvidia more directly by selling its AI chips",
       "impact_score": 0.5108,
@@ -84,7 +64,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.51、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-27",
+      "next_check": "2026-06-28",
       "affected_tickers": [
         "NVDA",
         "AVGO"
