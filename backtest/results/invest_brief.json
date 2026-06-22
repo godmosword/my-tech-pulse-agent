@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-21",
+  "generated_at": "2026-06-22",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -57,21 +57,24 @@
   },
   "material_items": [
     {
-      "id": "7ec11594bac00d42dcd3504894eda21a9d02b3d1ebf21d46b098262feaf84420",
-      "title": "Amazon hopes to challenge Nvidia more directly by selling its AI chips",
-      "impact_score": 0.5108,
+      "id": "4395fd7898f8529a9e2e916dbdda743a753dd07de77221dde61bd1094f7bafc7",
+      "title": "NVIDIA開源驅動NVK支援DLSS",
+      "impact_score": 0.6442,
       "posture": "monitor",
       "label_zh": "需要注意",
-      "reason_zh": "部位衝擊 0.51、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "reason_zh": "部位衝擊 0.64、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-28",
+      "next_check": "2026-06-29",
       "affected_tickers": [
         "NVDA",
-        "AVGO"
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
       ],
       "market_flags": [
-        "AI_infrastructure",
-        "market_expansion"
+        "open_source_integration",
+        "linux_gaming"
       ]
     }
   ],
