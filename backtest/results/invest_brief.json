@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-22",
+  "generated_at": "2026-06-23",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -64,7 +64,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.64、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-06-29",
+      "next_check": "2026-06-30",
       "affected_tickers": [
         "NVDA",
         "AVGO",
@@ -76,25 +76,97 @@
         "open_source_integration",
         "linux_gaming"
       ]
-    }
-  ],
-  "catalyst_watch": [
+    },
     {
-      "ticker": "NVDA",
-      "date": "2026-06-22",
-      "type": "conference",
-      "note": "GTC 主題演講"
+      "id": "0d1234bdee0b89754e8cbb8074b6701fcc0ef207922f39dbe7c2b9011ef8170f",
+      "title": "Nvidia推資料中心節水技術",
+      "impact_score": 0.5966,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.60、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-30",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
+      ],
+      "market_flags": [
+        "ESG",
+        "Data Center Cooling"
+      ]
+    },
+    {
+      "id": "a6a4d0b9b1c8c70f21470529594b36d21a5fa10a5a3daa10f848f8ecac1ccc3e",
+      "title": "AMD 恢復 Ryzen 9000 消費級處理器記憶體加密功能",
+      "impact_score": 0.4955,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.50、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-30",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
+      ],
+      "market_flags": []
+    },
+    {
+      "id": "972115220a4b8e855f5b174ab0a84025a044be22751f0c0096867a797fc0cfe9",
+      "title": "AI晶片商Groq獲6.5億美元融資",
+      "impact_score": 0.4177,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.42、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-30",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
+      ],
+      "market_flags": [
+        "funding_round",
+        "executive_changes"
+      ]
+    },
+    {
+      "id": "f84057c4d99c5379e00b09b408443d2bad8721ccfa6073cfa1dab336d10652d1",
+      "title": "Nvidia gets all agentic about supercomputing for scientific research",
+      "impact_score": 0.2186,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.22、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-06-30",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
+      ],
+      "market_flags": [
+        "product_announcement",
+        "ai_infrastructure"
+      ]
     }
   ],
+  "catalyst_watch": [],
   "thesis_updates": [
     {
       "ticker": "NVDA",
       "thesis": "資料中心 AI 加速器需求領先，毛利結構強",
       "supporting": [],
       "contradicting": [],
-      "upcoming": [
-        "2026-06-22 · GTC 主題演講"
-      ]
+      "upcoming": []
     },
     {
       "ticker": "AVGO",
