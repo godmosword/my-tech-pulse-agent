@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-26",
+  "generated_at": "2026-06-27",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -64,7 +64,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.76、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-07-03",
+      "next_check": "2026-07-04",
       "affected_tickers": [
         "AVGO",
         "NVDA",
@@ -85,7 +85,7 @@
       "label_zh": "無需動作",
       "reason_zh": "部位衝擊 0.09、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-07-26",
+      "next_check": "2026-07-27",
       "affected_tickers": [
         "NVDA"
       ],
