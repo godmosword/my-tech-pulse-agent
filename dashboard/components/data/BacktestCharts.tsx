@@ -13,18 +13,14 @@ import {
 
 import type { BacktestSummary } from "@/lib/backtest-data";
 import { fmtPctSigned } from "@/lib/format-numbers";
-
-// Theme-aware tooltip styling. CSS vars flip with light/dark; explicit text
-// colors keep labels/values readable on the dark paper-tint background.
-const TOOLTIP_CONTENT_STYLE = {
-  background: "var(--color-paper-tint)",
-  border: "1px solid var(--color-rule)",
-  borderRadius: 8,
-  fontSize: 13,
-  color: "var(--color-ink)",
-} as const;
-const TOOLTIP_LABEL_STYLE = { color: "var(--color-ink-soft)" } as const;
-const TOOLTIP_ITEM_STYLE = { color: "var(--color-ink)" } as const;
+import { useReducedMotion } from "@/lib/use-reduced-motion";
+import {
+  AXIS_TICK,
+  GRID_STROKE,
+  TOOLTIP_CONTENT_STYLE,
+  TOOLTIP_ITEM_STYLE,
+  TOOLTIP_LABEL_STYLE,
+} from "./chart-theme";
 
 type Props = {
   summary: BacktestSummary;
@@ -34,6 +30,7 @@ type Props = {
 };
 
 export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summary" | "horizonKey">) {
+  const reduced = useReducedMotion();
   const data = [
     { name: "Top 1/3", value: topMean },
     { name: "Bottom 1/3", value: bottomMean },
@@ -47,15 +44,15 @@ export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summ
     >
       <ResponsiveContainer width="100%" height="100%" aria-hidden>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="var(--color-rule)" vertical={false} />
+          <CartesianGrid stroke={GRID_STROKE} vertical={false} />
           <XAxis
             dataKey="name"
-            tick={{ fill: "var(--color-ink-faint)", fontSize: 12 }}
-            axisLine={{ stroke: "var(--color-rule)" }}
+            tick={AXIS_TICK}
+            axisLine={{ stroke: GRID_STROKE }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: "var(--color-ink-faint)", fontSize: 11 }}
+            tick={AXIS_TICK}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => `${v}%`}
@@ -66,7 +63,7 @@ export function BacktestQuantileChart({ topMean, bottomMean }: Omit<Props, "summ
             labelStyle={TOOLTIP_LABEL_STYLE}
             itemStyle={TOOLTIP_ITEM_STYLE}
           />
-          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={!reduced}>
             {data.map((entry) => (
               <Cell
                 key={entry.name}
@@ -94,6 +91,7 @@ export function BacktestCalibrationChart({
   summary,
   horizonKey,
 }: Pick<Props, "summary" | "horizonKey">) {
+  const reduced = useReducedMotion();
   const buckets = summary.by_rating?.[horizonKey] ?? {};
   const data = RATING_ORDER.filter((r) => buckets[r]).map((rating) => ({
     rating,
@@ -119,11 +117,11 @@ export function BacktestCalibrationChart({
       >
         <ResponsiveContainer width="100%" height="100%" aria-hidden>
           <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
-            <CartesianGrid stroke="var(--color-rule)" vertical={false} />
+            <CartesianGrid stroke={GRID_STROKE} vertical={false} />
             <XAxis
               dataKey="rating"
-              tick={{ fill: "var(--color-ink-faint)", fontSize: 11 }}
-              axisLine={{ stroke: "var(--color-rule)" }}
+              tick={AXIS_TICK}
+              axisLine={{ stroke: GRID_STROKE }}
               tickLine={false}
               interval={0}
               angle={-20}
@@ -131,7 +129,7 @@ export function BacktestCalibrationChart({
               height={48}
             />
             <YAxis
-              tick={{ fill: "var(--color-ink-faint)", fontSize: 11 }}
+              tick={AXIS_TICK}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `${v}%`}
@@ -145,7 +143,7 @@ export function BacktestCalibrationChart({
               labelStyle={TOOLTIP_LABEL_STYLE}
               itemStyle={TOOLTIP_ITEM_STYLE}
             />
-            <Bar dataKey="mean" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="mean" radius={[4, 4, 0, 0]} isAnimationActive={!reduced}>
               {data.map((entry) => (
                 <Cell
                   key={entry.rating}

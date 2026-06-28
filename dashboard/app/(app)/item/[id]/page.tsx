@@ -126,7 +126,7 @@ export default async function ItemPage({
       {zhAbstract ? (
         <div className="space-y-2">
           <Kicker>中文摘要</Kicker>
-          <p className="whitespace-pre-line font-sans text-editorial-body text-ink">
+          <p className="editorial-dropcap whitespace-pre-line font-sans text-editorial-body text-ink">
             {zhAbstract}
           </p>
         </div>

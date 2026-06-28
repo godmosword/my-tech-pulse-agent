@@ -61,6 +61,20 @@ const config: Config = {
           DEFAULT: "var(--color-info)",
           bg: "var(--color-info-bg)",
         },
+        chart: {
+          1: "var(--chart-1)",
+          2: "var(--chart-2)",
+          3: "var(--chart-3)",
+          4: "var(--chart-4)",
+        },
+      },
+      transitionTimingFunction: {
+        editorial: "var(--ease-out)",
+      },
+      transitionDuration: {
+        fast: "var(--motion-fast)",
+        base: "var(--motion-base)",
+        slow: "var(--motion-slow)",
       },
       fontSize: {
         // UI chrome (nav, labels, meta) — sized closer to article dek/body (17–18px).

@@ -50,7 +50,7 @@ export function FundamentalsCard({ ratios, surpriseHistory, financialHealth }: P
             </h2>
             <span className="font-sans text-meta text-ink-faint">來源 {ratios.source ?? "fmp"}</span>
             {approx && (
-              <span className="rounded border border-amber-500/40 px-2 py-0.5 font-sans text-meta text-amber-700 dark:text-amber-300">
+              <span className="rounded border border-warn/40 px-2 py-0.5 font-sans text-meta text-warn">
                 近似對齊
               </span>
             )}
@@ -125,7 +125,7 @@ export function FundamentalsCard({ ratios, surpriseHistory, financialHealth }: P
       )}
 
       {financialHealth?.source_conflicts && financialHealth.source_conflicts.length > 0 && (
-        <p className="mt-4 font-sans text-meta text-amber-700 dark:text-amber-400">
+        <p className="mt-4 font-sans text-meta text-warn">
           SEC 與 FMP 現金流數據不一致：{financialHealth.source_conflicts.join(" · ")}
         </p>
       )}

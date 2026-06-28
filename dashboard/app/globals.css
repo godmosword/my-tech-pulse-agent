@@ -27,6 +27,33 @@
   --color-neg-bg: #f4e9e8;
   --color-warn-bg: #f5eede;
   --color-info-bg: #e8eef2;
+
+  /* Chart palette — single source for all data viz (recharts + inline SVG).
+   * Mapped to the semantic hues so charts stay in the warm-paper harmony. */
+  --chart-1: var(--color-info);
+  --chart-2: var(--color-pos);
+  --chart-3: var(--color-warn);
+  --chart-4: var(--color-accent);
+
+  /* Motion — opt-in, token-driven so durations stay consistent and a single
+   * reduced-motion rule below can neutralise every animation at once. */
+  --motion-fast: 160ms;
+  --motion-base: 320ms;
+  --motion-slow: 560ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Respect users who ask for less motion — neutralise transitions/animations
+ * globally rather than guarding each call site. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* System dark — only applies when the user hasn't picked a manual mode.
@@ -120,6 +147,38 @@ summary:focus-visible {
   /* Avoid breaking inside Latin words inside a CJK run. */
   word-break: keep-all;
   overflow-wrap: break-word;
+  /* Tuck opening punctuation into the margin at line starts where supported. */
+  hanging-punctuation: first allow-end;
+}
+
+/* Editorial drop cap — the publication flourish on a lead paragraph only.
+ * Uses the serif face and floats the first glyph across ~3 lines. Works for
+ * both Latin and CJK first characters; it is a progressive enhancement. */
+.editorial-dropcap::first-letter {
+  float: left;
+  font-family: var(--font-serif), var(--font-serif-cjk), serif;
+  font-size: 3.1em;
+  line-height: 0.82;
+  font-weight: 600;
+  margin: 0.06em 0.1em 0 0;
+  color: var(--color-accent);
+}
+
+/* Reveal-on-scroll — only hide by default when JS is present (`.js` set in
+ * layout.tsx before paint), so non-JS readers always see content. The hook in
+ * lib/use-reveal.ts sets data-revealed once the element scrolls into view.
+ * Under prefers-reduced-motion the global rule above collapses the transition. */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--motion-base) var(--ease-out),
+    transform var(--motion-base) var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.js .reveal[data-revealed="true"] {
+  opacity: 1;
+  transform: none;
 }
 
 /* Dense data mode — portfolio / signals / macro / backtest only. */

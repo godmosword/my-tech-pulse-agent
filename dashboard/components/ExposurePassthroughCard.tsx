@@ -8,8 +8,8 @@ export function ExposurePassthroughCard({ exposures }: Props) {
   if (!exposures.length) return null;
 
   return (
-    <section className="mt-8 rounded border border-amber-500/40 bg-amber-500/5 p-4">
-      <h2 className="font-sans text-meta uppercase tracking-widest text-amber-700 dark:text-amber-400">
+    <section className="mt-8 rounded border border-warn/40 bg-warn-bg p-4">
+      <h2 className="font-sans text-meta uppercase tracking-widest text-warn">
         曝險穿透
       </h2>
       <ul className="mt-3 space-y-2">
@@ -17,7 +17,7 @@ export function ExposurePassthroughCard({ exposures }: Props) {
           <li
             key={`${e.kind}-${i}`}
             className={`font-sans text-body ${
-              e.severity === "warn" ? "text-amber-800 dark:text-amber-300" : "text-ink-soft"
+              e.severity === "warn" ? "text-warn" : "text-ink-soft"
             }`}
           >
             {e.message_zh}

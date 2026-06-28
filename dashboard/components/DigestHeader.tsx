@@ -35,7 +35,7 @@ export function DigestHeader({
           今日 pipeline 尚未上線；以下為最近一次 delivery 的內容。
         </p>
       )}
-      <h1 className="font-serif text-editorial-title text-ink sm:text-hero">
+      <h1 className="text-balance font-serif text-editorial-title leading-[1.05] tracking-[-0.025em] text-ink sm:text-hero lg:text-[clamp(40px,5vw,56px)]">
         The week in technology, capital and silicon.
       </h1>
       <p className="font-sans text-meta uppercase tracking-[0.08em] text-ink-faint">

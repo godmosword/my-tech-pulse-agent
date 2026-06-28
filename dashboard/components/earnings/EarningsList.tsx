@@ -4,8 +4,18 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { LoadMoreButton } from "@/components/LoadMoreButton";
+import { Sparkline } from "@/components/data/Sparkline";
 import type { EarningsReportRow } from "@/lib/earnings-firestore";
 import { formatDashboardDateTime } from "@/lib/format-datetime";
+
+/** EPS actuals oldest→newest from the newest-first surprise history (FMP order). */
+function epsActualSeries(row: EarningsReportRow): number[] {
+  const history = row.surprise_history ?? [];
+  return history
+    .map((p) => p.eps_actual)
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v))
+    .reverse();
+}
 
 type Props = {
   initialItems: EarningsReportRow[];
@@ -100,13 +110,28 @@ export function EarningsList({ initialItems, initialNextCursor, pageSize }: Prop
                 </span>
               )}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {metricBadge(row.headline_metrics, "revenue")}
               {metricBadge(row.headline_metrics, "eps_diluted")}
               {metricBadge(row.headline_metrics, "eps_basic")}
               <span className="font-sans text-meta text-ink-faint">
                 {row.confidence}
               </span>
+              {(() => {
+                const eps = epsActualSeries(row);
+                return eps.length >= 2 ? (
+                  <span className="ml-auto flex items-center gap-1.5 text-ink-faint">
+                    <span className="font-sans text-meta uppercase tracking-widest">
+                      EPS
+                    </span>
+                    <Sparkline
+                      values={eps}
+                      color="var(--chart-4)"
+                      ariaLabel={`${row.ticker} 近 ${eps.length} 季 EPS 走勢`}
+                    />
+                  </span>
+                ) : null;
+              })()}
             </div>
             {row.investment_takeaway_zh && (
               <p className="mt-3 font-sans text-body text-ink">

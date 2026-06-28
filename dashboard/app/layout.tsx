@@ -63,7 +63,10 @@ export const viewport: Viewport = {
 // Runs synchronously in <head> before the first paint so the manual theme
 // choice is applied without a flash. `data-theme="light|dark"` forces the
 // palette in globals.css; absence falls back to prefers-color-scheme.
+// The `js` class gates reveal-on-scroll animations: without JS the class is
+// absent, so `.reveal` content stays fully visible (no hidden-by-default trap).
 const themeBootstrap = `
+document.documentElement.classList.add("js");
 try {
   var v = localStorage.getItem("tech-pulse-theme");
   if (v === "light" || v === "dark") {

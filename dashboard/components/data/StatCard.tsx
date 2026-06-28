@@ -1,8 +1,16 @@
 import { MetricHint } from "@/components/MetricHint";
 import type { MetricKey } from "@/lib/metric-glossary";
 
+import { CountUp } from "./CountUp";
 import { Delta } from "./Delta";
 import { SourceTag } from "./SourceTag";
+
+/** Decimal places in a number's default string form, for stable count-up text. */
+function decimalsOf(n: number): number {
+  const s = String(n);
+  const dot = s.indexOf(".");
+  return dot === -1 ? 0 : s.length - dot - 1;
+}
 
 type Props = {
   kicker: string;
@@ -42,7 +50,11 @@ export function StatCard({
         )}
       </div>
       <p className="stat-hero min-w-0 text-ink">
-        {value}
+        {typeof value === "number" ? (
+          <CountUp value={value} format={(n) => n.toFixed(decimalsOf(value))} />
+        ) : (
+          value
+        )}
         {unit && (
           <span className="ml-1 font-sans text-lg font-normal text-ink-soft">{unit}</span>
         )}

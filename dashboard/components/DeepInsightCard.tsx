@@ -49,7 +49,7 @@ export function DeepInsightCard({
         <h3 className="font-serif text-editorial-headline text-ink">
           <Link
             href={`/item/${encodeURIComponent(item.id)}`}
-            className="bg-[linear-gradient(to_right,var(--color-accent),var(--color-accent))] bg-[length:0%_1px] bg-left-bottom bg-no-repeat transition-[background-size,color] duration-300 ease-out hover:bg-[length:100%_1px] hover:text-accent"
+            className="bg-[linear-gradient(to_right,var(--color-accent),var(--color-accent))] bg-[length:0%_1px] bg-left-bottom bg-no-repeat transition-[background-size,color] duration-base ease-editorial hover:bg-[length:100%_1px] hover:text-accent"
           >
             {headline}
           </Link>
@@ -66,14 +66,14 @@ export function DeepInsightCard({
               <p className="font-sans text-dek text-ink">{item.zh_summary}</p>
             )}
             {bodyZh && (
-              <p className="text-justify-cjk whitespace-pre-line font-serif text-dek leading-[1.65] text-ink">
+              <p className="editorial-dropcap text-justify-cjk whitespace-pre-line font-serif text-dek leading-[1.65] text-ink">
                 {bodyZh}
               </p>
             )}
           </div>
         ) : (
           <dl className="max-w-column">
-            <Section label="核心洞見" body={parts.insight} />
+            <Section label="核心洞見" body={parts.insight} dropcap />
             {parts.tech_rationale && <Fleuron />}
             <Section label="底層邏輯" body={parts.tech_rationale} />
             {parts.implication && <Fleuron />}
@@ -137,14 +137,26 @@ function Fleuron() {
   );
 }
 
-function Section({ label, body }: { label: string; body: string }) {
+function Section({
+  label,
+  body,
+  dropcap = false,
+}: {
+  label: string;
+  body: string;
+  dropcap?: boolean;
+}) {
   if (!body) return null;
   return (
     <div className="space-y-2">
       <dt className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft">
         {label}
       </dt>
-      <dd className="text-justify-cjk whitespace-pre-line font-serif text-dek leading-[1.65] text-ink">
+      <dd
+        className={`text-justify-cjk whitespace-pre-line font-serif text-dek leading-[1.65] text-ink${
+          dropcap ? " editorial-dropcap" : ""
+        }`}
+      >
         {body}
       </dd>
     </div>

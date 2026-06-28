@@ -16,14 +16,14 @@ import type {
   QuarterPointRow,
 } from "@/lib/earnings-firestore";
 import { fmtNum, fmtPctSigned } from "@/lib/format-numbers";
-
-const TOOLTIP_CONTENT_STYLE = {
-  background: "var(--color-paper-tint)",
-  border: "1px solid var(--color-rule)",
-  borderRadius: 8,
-  fontSize: 13,
-  color: "var(--color-ink)",
-} as const;
+import { useReducedMotion } from "@/lib/use-reduced-motion";
+import {
+  AXIS_TICK,
+  GRID_STROKE,
+  TOOLTIP_CONTENT_STYLE,
+  TOOLTIP_ITEM_STYLE,
+  TOOLTIP_LABEL_STYLE,
+} from "@/components/data/chart-theme";
 
 const DIRECTION_CLASS: Record<string, string> = {
   擴張: "text-pos",
@@ -49,6 +49,7 @@ export function metricChartData(trend: MetricTrendRow): TrendChartPoint[] {
 }
 
 function MetricTrendRowChart({ trend }: { trend: MetricTrendRow }) {
+  const reduced = useReducedMotion();
   const data = metricChartData(trend);
   if (data.length < 2) return null; // too sparse to draw a meaningful line
 
@@ -82,33 +83,35 @@ function MetricTrendRowChart({ trend }: { trend: MetricTrendRow }) {
       >
         <ResponsiveContainer width="100%" height="100%" aria-hidden>
           <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="var(--color-rule)" vertical={false} />
+            <CartesianGrid stroke={GRID_STROKE} vertical={false} />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 11, fill: "var(--color-ink-faint)" }}
+              tick={AXIS_TICK}
               tickLine={false}
-              axisLine={{ stroke: "var(--color-rule)" }}
+              axisLine={{ stroke: GRID_STROKE }}
             />
             <YAxis
               width={48}
-              tick={{ fontSize: 11, fill: "var(--color-ink-faint)" }}
+              tick={AXIS_TICK}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v: number) => fmtNum(v)}
             />
             <Tooltip
               contentStyle={TOOLTIP_CONTENT_STYLE}
-              labelStyle={{ color: "var(--color-ink-soft)" }}
-              itemStyle={{ color: "var(--color-ink)" }}
+              labelStyle={TOOLTIP_LABEL_STYLE}
+              itemStyle={TOOLTIP_ITEM_STYLE}
               formatter={(v: number) => [fmtNum(v), label]}
             />
             <Line
               type="monotone"
               dataKey="value"
-              stroke="var(--color-accent)"
+              stroke="var(--chart-4)"
               strokeWidth={2}
               dot={{ r: 2 }}
-              isAnimationActive={false}
+              isAnimationActive={!reduced}
+              animationDuration={560}
+              animationEasing="ease-out"
             />
           </LineChart>
         </ResponsiveContainer>

@@ -48,6 +48,7 @@ Tokens live in `app/globals.css` and `tailwind.config.ts`.
 | `DeepInsightCard` | Long-form deep brief on Today |
 | `NewsTakeawayBlock` | Portfolio angle; **outside** headline link |
 | `ConfidenceBadge` | Only when `shouldShowConfidenceBadge` (warn/bad) |
+| `PullQuote` | Long-form deep brief emphasis; accent left-rail + serif |
 | `DensePageShell` | Invest / portfolio / signals pages |
 | `StatCard` | Ops and dense KPI tiles |
 
@@ -60,7 +61,10 @@ Tokens live in `app/globals.css` and `tailwind.config.ts`.
 
 ## Allowed accents
 
-- **Deep insight left rail**: `border-l-2 border-accent` on `DeepInsightCard` only — editorial anchor, not a generic card border.
+- **Deep insight left rail**: `border-l-2 border-accent` on `DeepInsightCard` and `PullQuote` only — editorial anchor, not a generic card border.
+- **Drop cap** (`.editorial-dropcap`): lead paragraph only — `DeepInsightCard` first section / flat body and `/item/[id]` 中文摘要. One per article; never on list rows.
+- **Motion tokens**: `--motion-fast|base|slow` + `--ease-out`; all motion auto-neutralised under `prefers-reduced-motion` (global rule in `globals.css`).
+- **Chart palette**: `--chart-1..4` (Tailwind `text-chart-1`…) — single source for recharts + inline SVG.
 
 ## Do not
 

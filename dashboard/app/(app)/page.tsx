@@ -12,6 +12,7 @@ import { DigestHeader } from "@/components/DigestHeader";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { Hairline } from "@/components/Hairline";
 import { Kicker } from "@/components/Kicker";
+import { Reveal } from "@/components/Reveal";
 import { ThemeSection } from "@/components/ThemeSection";
 import { PortfolioTierBadge } from "@/components/data/PortfolioTierBadge";
 import { listEarningsSince } from "@/lib/earnings-firestore";
@@ -125,13 +126,14 @@ export default async function HomePage() {
         </section>
       )}
 
-      {view.themes.map(({ theme, items: themeItems }) => (
-        <ThemeSection
-          key={theme}
-          theme={theme}
-          items={themeItems}
-          authenticated={authenticated}
-        />
+      {view.themes.map(({ theme, items: themeItems }, i) => (
+        <Reveal key={theme} delayMs={Math.min(i, 4) * 60}>
+          <ThemeSection
+            theme={theme}
+            items={themeItems}
+            authenticated={authenticated}
+          />
+        </Reveal>
       ))}
     </div>
   );
