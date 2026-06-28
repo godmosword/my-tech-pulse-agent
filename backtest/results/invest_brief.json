@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-27",
+  "generated_at": "2026-06-28",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -55,43 +55,7 @@
       }
     ]
   },
-  "material_items": [
-    {
-      "id": "09e3e6ed2c0da93322b631e52f12f419b26bb3399d2eab9b537c5e719f1b883c",
-      "title": "OpenAI gets chippy with Broadcom",
-      "impact_score": 0.7609,
-      "posture": "monitor",
-      "label_zh": "需要注意",
-      "reason_zh": "部位衝擊 0.76、證據等級 insufficient。此為注意度分級，非投資建議。",
-      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-07-04",
-      "affected_tickers": [
-        "AVGO",
-        "NVDA",
-        "MU",
-        "TSM",
-        "MRVL"
-      ],
-      "market_flags": [
-        "AI infrastructure",
-        "custom silicon"
-      ]
-    },
-    {
-      "id": "17c46d05b5e15b78157c73414c17ce693acbf1140ee718585b70adbe870cb834",
-      "title": "Nature論文質疑微軟量子計算突破",
-      "impact_score": 0.0878,
-      "posture": "no_action",
-      "label_zh": "無需動作",
-      "reason_zh": "部位衝擊 0.09、證據等級 insufficient。此為注意度分級，非投資建議。",
-      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-07-27",
-      "affected_tickers": [
-        "NVDA"
-      ],
-      "market_flags": []
-    }
-  ],
+  "material_items": [],
   "catalyst_watch": [
     {
       "ticker": "TSM",
