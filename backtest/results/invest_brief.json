@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-29",
+  "generated_at": "2026-06-30",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -57,6 +57,27 @@
   },
   "material_items": [
     {
+      "id": "ac439462be09007bf619fd25570f868e595b677690602f331d4f71a05664ee5c",
+      "title": "美超微臺灣辦公室遭搜索 涉嫌違法轉運晶片至中國",
+      "impact_score": 0.799,
+      "posture": "monitor",
+      "label_zh": "需要注意",
+      "reason_zh": "部位衝擊 0.80、證據等級 insufficient。此為注意度分級，非投資建議。",
+      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
+      "next_check": "2026-07-07",
+      "affected_tickers": [
+        "NVDA",
+        "AVGO",
+        "MU",
+        "TSM",
+        "MRVL"
+      ],
+      "market_flags": [
+        "regulatory_probe",
+        "stock_drop"
+      ]
+    },
+    {
       "id": "0c9bf51a637daf30a192797f446f21c4bbb62a8a138e8641bd076d36d04f4d66",
       "title": "Firmus攜手輝達於印尼建置AI數據中心",
       "impact_score": 0.6373,
@@ -64,7 +85,7 @@
       "label_zh": "需要注意",
       "reason_zh": "部位衝擊 0.64、證據等級 insufficient。此為注意度分級，非投資建議。",
       "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-07-06",
+      "next_check": "2026-07-07",
       "affected_tickers": [
         "NVDA",
         "AVGO",
