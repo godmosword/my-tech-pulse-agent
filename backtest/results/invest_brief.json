@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-03",
+  "generated_at": "2026-07-04",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -55,29 +55,7 @@
       }
     ]
   },
-  "material_items": [
-    {
-      "id": "6ddee985930972fcd0aaad9bbbcc80b655dcf43d51ed4cbe4ce30e7f832011a3",
-      "title": "高通推HBC架構將DRAM堆疊於運算晶片",
-      "impact_score": 0.7869,
-      "posture": "monitor",
-      "label_zh": "需要注意",
-      "reason_zh": "部位衝擊 0.79、證據等級 insufficient。此為注意度分級，非投資建議。",
-      "falsification_zh": "若後續無基本面跟進、或價格已反映且無新增曝險，下次檢查時應降級。",
-      "next_check": "2026-07-10",
-      "affected_tickers": [
-        "NVDA",
-        "TSM",
-        "AVGO",
-        "MU",
-        "MRVL"
-      ],
-      "market_flags": [
-        "product_announcement",
-        "ai_infrastructure"
-      ]
-    }
-  ],
+  "material_items": [],
   "catalyst_watch": [
     {
       "ticker": "TSM",
