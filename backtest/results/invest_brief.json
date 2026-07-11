@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-10",
+  "generated_at": "2026-07-11",
   "evidence_level": "insufficient",
   "portfolio_pulse": {
     "top_holdings": [
@@ -56,14 +56,7 @@
     ]
   },
   "material_items": [],
-  "catalyst_watch": [
-    {
-      "ticker": "TSM",
-      "date": "2026-07-10",
-      "type": "data",
-      "note": "月營收公布"
-    }
-  ],
+  "catalyst_watch": [],
   "thesis_updates": [
     {
       "ticker": "NVDA",
