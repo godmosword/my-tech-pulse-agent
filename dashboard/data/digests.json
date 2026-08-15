@@ -1,1 +1,40 @@
-[]
+[
+  {
+    "digest_id": "20260815T023130Z",
+    "delivered_at": "2026-08-15T02:31:30.067865Z",
+    "digest": null,
+    "theme_groups": [
+      {
+        "theme": "其他焦點",
+        "item_ids": [
+          "055295152b773f3f3b7d0909c9af696634b31bd3ce256eb43c0085b8ede1b4f1",
+          "dbe9f94f14b8deaca41e8b52d64fc7040f945cb379bbf94efa4441834dcce60d",
+          "ebb979a6270a8ae0721e2546ffeba13dfa974f2b950297620a09f343acb943c6"
+        ]
+      },
+      {
+        "theme": "AI 基礎設施",
+        "item_ids": [
+          "660da7a0bfbb7ee46d470e57f9b1bc8c65a090324a20a213ac5918acd6215bf9"
+        ]
+      }
+    ],
+    "summary_item_ids": [
+      "660da7a0bfbb7ee46d470e57f9b1bc8c65a090324a20a213ac5918acd6215bf9",
+      "05e4b80a75340ce9c203fe460e796e80e1d9b0de6cc7debbd907280e48bd8932",
+      "ebb979a6270a8ae0721e2546ffeba13dfa974f2b950297620a09f343acb943c6",
+      "dbe9f94f14b8deaca41e8b52d64fc7040f945cb379bbf94efa4441834dcce60d",
+      "055295152b773f3f3b7d0909c9af696634b31bd3ce256eb43c0085b8ede1b4f1"
+    ],
+    "deep_brief_ids": [],
+    "funnel": {
+      "articles_fetched": 446,
+      "newsapi_fetched": 19,
+      "semantic_prefilter_dropped": 0,
+      "semantic_prefilter_enabled": false,
+      "semantic_dup_checked": 5,
+      "semantic_dup_would_drop": 0,
+      "semantic_dup_dropped": 0
+    }
+  }
+]
