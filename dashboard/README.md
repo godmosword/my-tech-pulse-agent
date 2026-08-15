@@ -1,7 +1,7 @@
 # 科技脈搏 Dashboard
 
 Next.js 15 web reader for the `tech-pulse` digest. Reads
-`tech_pulse_memory_items` from Firestore (see
+`dashboard/data/memory_items.json` (see
 [`../docs/PORTAL_CONTRACT.md`](../docs/PORTAL_CONTRACT.md) for the schema) and
 renders three views:
 
@@ -13,7 +13,7 @@ Design tokens and UI rules: [`DESIGN.md`](./DESIGN.md).
 - `/health` — ops summary of delivered content counts and score distribution.
 - `/item/[id]` — single-doc detail (full deep brief or expanded instant card).
 - `/invest` — investment hub (portfolio, signals, earnings, macro, calibration summaries).
-- `/earnings` — earnings radar list (`tech_pulse_earnings_reports`).
+- `/earnings` — earnings radar list (`dashboard/data/earnings/`).
 - `/earnings/[ticker]` — per-ticker filings + same-tier comparison.
 - `/earnings/report/[reportId]` — v3 six-section deep report (Markdown).
 - `/portfolio` — holdings, theme exposure, allocation drift (`config/portfolio.yaml`).
@@ -33,7 +33,7 @@ Optional `FINNHUB_API_KEY` in `.env.local` enables live quotes on `/portfolio` a
 
 - **匿名訪客**：可看標題與公開摘要（`zh_summary` 優先，否則截斷英文）；`sitemap.xml` /
   `robots.txt` 與每頁 `metadata` 僅使用摘要層級，不把完整 `summary` 放進 HTML。
-- **完整繁中正文**：登入後讀取 Firestore `zh_body`（pipeline 寫入）；舊稿可能僅有英文 `summary`，Dashboard 會 fallback。帳密與 `DASHBOARD_BASIC_AUTH_USER` /
+- **完整繁中正文**：登入後讀取 JSON `zh_body`（pipeline 寫入）；舊稿可能僅有英文 `summary`，Dashboard 會 fallback。帳密與 `DASHBOARD_BASIC_AUTH_USER` /
   `DASHBOARD_BASIC_AUTH_PASS` 相同；登入後寫入簽名 cookie（需
   `DASHBOARD_SESSION_SECRET`，建議至少 32 字元）。
 - **Middleware**：公開讀模式下 **不再** 對全站套用 HTTP Basic（避免與 SEO 衝突）。
@@ -46,9 +46,7 @@ Optional `FINNHUB_API_KEY` in `.env.local` enables live quotes on `/portfolio` a
 
 ```bash
 cd dashboard
-cp .env.example .env.local
-# fill in either FIREBASE_SERVICE_ACCOUNT_JSON or run
-#   gcloud auth application-default login
+cp .env.example .env.local   # optional; API_READ_TOKEN / public-read flags
 pnpm install        # or npm install / yarn install
 pnpm dev
 ```
@@ -85,7 +83,7 @@ dashboard/
 │  ├─ api/v1/           # read-only REST (items, digest, tickers, facets, health)
 │  └─ api/auth/         # reader login + logout (public read mode)
 ├─ lib/
-│  ├─ firestore.ts      # Admin SDK init + readers (server-only)
+│  ├─ firestore.ts      # JSON readers (server-only; filename kept for imports)
 │  ├─ types.ts          # Zod schema for MemoryItem + ISO coercion
 │  ├─ digest.ts         # theme grouping / dedupe / badge logic
 │  ├─ format-numbers.ts # fmtNum / fmtPctPlain / fmtPctSigned / fmtUsd (dense cards)
@@ -112,7 +110,7 @@ The `lib/digest.ts` module is a TypeScript port of
 - deep-vs-instant dedupe key (source_url, then case-insensitive title).
 
 If the algorithm grows complex, promote the canonical selection to a
-Firestore `tech_pulse_digests/{digest_id}` snapshot (additive — does not
+`dashboard/data/digests.json` snapshot (additive — does not
 break Portal contract v1) and have both consumers read it.
 
 ## REST API (`/api/v1`)
@@ -129,7 +127,7 @@ break Portal contract v1) and have both consumers read it.
 | `GET /api/v1/archive/facets` | 歸檔 facet 計數 |
 | `GET /api/v1/earnings` | 財報列表；`limit`, `ticker`, `max_tier` |
 | `GET /api/v1/earnings/report/{reportId}` | 單篇財報（含 v3 欄位） |
-| `GET /api/v1/earnings/upcoming` | 行事曆（`days`；Finnhub 或 Firestore fallback） |
+| `GET /api/v1/earnings/upcoming` | 行事曆（`days`；Finnhub 或 JSON fallback） |
 | `GET /api/v1/earnings/{symbol}/insight` | 最新 v3 財報 + `report_url_path` |
 | `GET /api/v1/earnings/watchlist` | `earnings_watchlist.yaml` 匯出 |
 | `GET /api/v1/earnings/calendar` | 相容別名（`horizon` ≈ `days`） |
@@ -154,14 +152,11 @@ curl -s -H "Authorization: Bearer $API_READ_TOKEN" \
 ## Deployment (Vercel)
 
 Production 環境變數勾選表與驗證指令：[`../docs/DEPLOY_CHECKLIST.md`](../docs/DEPLOY_CHECKLIST.md)。
-財報 v3 僅需 Firestore 讀取（**不必**在 Vercel 設 `FINNHUB_API_KEY`）；Pipeline 端 Finnhub 設定見 [`../docs/EARNINGS_ENV.md`](../docs/EARNINGS_ENV.md)。
+財報 v3 讀 `data/earnings/`（**不必**在 Vercel 設 `FINNHUB_API_KEY`）；Pipeline 端 Finnhub 設定見 [`../docs/EARNINGS_ENV.md`](../docs/EARNINGS_ENV.md)。
 
 1. Import the repo, point project root at `dashboard/`.
 2. Build command: `pnpm build`; output: `.next`.
-3. Set env vars from `.env.example`:
-   - `FIREBASE_SERVICE_ACCOUNT_JSON` — base64-encoded JSON of a service
-     account with `roles/datastore.viewer`. **Server-only** — never expose
-     in client components.
+3. Set env vars:
    - `DASHBOARD_BASIC_AUTH_USER` / `DASHBOARD_BASIC_AUTH_PASS` — reader
      credentials (Basic gate when public read **off**; same pair for `/login`
      when public read **on**).
@@ -171,39 +166,12 @@ Production 環境變數勾選表與驗證指令：[`../docs/DEPLOY_CHECKLIST.md`
      is on.
    - `NEXT_PUBLIC_SITE_URL` — canonical site origin for SEO (recommended in
      production).
-   - `REVALIDATE_TOKEN` — shared secret for the ISR webhook.
-4. After each pipeline run, POST:
-   ```bash
-   curl -X POST "https://<host>/api/revalidate?path=/" \
-     -H "x-revalidate-token: $REVALIDATE_TOKEN"
-   curl -X POST "https://<host>/api/revalidate?path=/earnings" \
-     -H "x-revalidate-token: $REVALIDATE_TOKEN"
-   ```
-   Pipeline [`delivery/revalidate.py`](../delivery/revalidate.py) also revalidates `/earnings` by default.
-   The pipeline does this automatically when both env vars are set:
-   - `DASHBOARD_REVALIDATE_URL` — full webhook URL, e.g.
-     `https://your-dashboard.vercel.app/api/revalidate`
-   - `DASHBOARD_REVALIDATE_TOKEN` — same value as `REVALIDATE_TOKEN` above
-
-   Hook: [`delivery/revalidate.py`](../delivery/revalidate.py). Unset either
-   variable to skip the call (local / CI runs).
-
-### Service account provisioning
-
-Run the helper script once from the repo root to create a read-only SA and
-download a key:
-
-```bash
-PROJECT_ID=my-tech-pulse-agent-494715 ./scripts/setup_dashboard_sa.sh
-```
-
-It creates `tech-pulse-dashboard@<project>.iam.gserviceaccount.com` with
-`roles/datastore.viewer` and writes the key to `dashboard-sa.json`
-(gitignored at the repo root). Base64-encode it into the Vercel
-`FIREBASE_SERVICE_ACCOUNT_JSON` env var.
+   - `API_READ_TOKEN` — Bearer token for `/api/v1`.
+4. Pipeline commits `dashboard/data/**` on the scheduled Action; Vercel rebuilds
+   from that push. ISR webhook is optional.
 
 ## Read-only contract
 
-The dashboard never writes back to Firestore. It also tolerates missing
+The dashboard never writes the JSON snapshots. It also tolerates missing
 optional fields per `docs/PORTAL_CONTRACT.md` — `themes` is reconstructed
 locally from `category` because the pipeline does not yet write that array.

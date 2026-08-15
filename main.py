@@ -1,4 +1,4 @@
-"""Cloud Run Job entry point for one-shot tech-pulse pipeline runs."""
+"""One-shot tech-pulse pipeline entry point (local or GitHub Actions)."""
 
 from __future__ import annotations
 

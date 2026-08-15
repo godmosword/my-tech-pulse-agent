@@ -1,50 +1,92 @@
 name: Scheduled pipeline run
 
-# Triggers the existing Cloud Run Job on a schedule. Disabled by default:
-# the job only runs when repo variable PIPELINE_SCHEDULE_ENABLED == 'true'
-# (manual workflow_dispatch always runs, regardless of the gate).
-#
-# GitHub schedules are best-effort (may be delayed 5-15 min) and are paused
-# after 60 days of repo inactivity. For reliable production scheduling prefer
-# Cloud Scheduler — see docs/SCHEDULED_RUNS.md.
+# Runs python main.py on the runner, then commits dashboard/data + sqlite state
+# + invest artifacts. Enable with repo variable PIPELINE_SCHEDULE_ENABLED=true.
+# Manual workflow_dispatch always runs.
 
 on:
   schedule:
-    # Cron is UTC. Default 09:00 UTC weekdays = 17:00 Asia/Taipei (same weekday;
-    # no day rollover). Adjust to your delivery window. Note: day-of-week is
-    # evaluated in UTC. See docs/SCHEDULED_RUNS.md for the UTC↔Taipei table.
-    - cron: '0 9 * * 1-5'
+    # 23:20 UTC = 07:20 Asia/Taipei
+    - cron: '20 23 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: read
-  id-token: write
+  contents: write
 
 jobs:
   run-pipeline:
-    name: Execute Cloud Run Job
+    name: Run pipeline + commit JSON
     runs-on: ubuntu-latest
-    # Slightly above Cloud Run Job / PIPELINE_TIMEOUT_SECONDS (540s) so --wait
-    # never hangs the runner indefinitely.
     timeout-minutes: 20
     if: ${{ github.event_name == 'workflow_dispatch' || vars.PIPELINE_SCHEDULE_ENABLED == 'true' }}
     concurrency:
-      group: pipeline-run-${{ vars.CLOUD_RUN_SERVICE }}
+      group: pipeline-run
       cancel-in-progress: false
 
     steps:
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          python-version: '3.11'
+          cache: 'pip'
 
-      - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v3
-
-      - name: Execute Cloud Run Job
+      - name: Install dependencies
         run: |
-          gcloud run jobs execute "${{ vars.CLOUD_RUN_SERVICE }}" \
-            --region "${{ vars.GCP_REGION }}" \
-            --project "${{ vars.GCP_PROJECT_ID }}" \
-            --wait
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_ALERT_CHAT_ID: ${{ secrets.TELEGRAM_ALERT_CHAT_ID }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          APIFY_API_KEY: ${{ secrets.APIFY_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          STATE_BACKEND: sqlite
+          STATE_SQLITE_PATH: state/dedup.sqlite
+          MEMORY_BACKEND: json
+          MEMORY_ENABLED: "1"
+          DIGEST_SNAPSHOT_ENABLED: "1"
+          EARNINGS_REPORTS_ENABLED: "1"
+          DASHBOARD_DATA_DIR: dashboard/data
+          JSON_RETENTION_DAYS: "90"
+          DIGEST_FORMAT: v1
+        run: python main.py
+
+      - name: Grade decisions (best-effort)
+        continue-on-error: true
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: python scripts/grade_decisions.py
+
+      - name: Build invest brief
+        env:
+          DASHBOARD_DATA_DIR: dashboard/data
+        run: python scripts/build_invest_brief.py
+
+      - name: Commit artifacts if changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p state dashboard/data/earnings
+          git add dashboard/data state/dedup.sqlite || true
+          for f in track_record.json invest_brief.json; do
+            if [ -f "backtest/results/$f" ]; then
+              git add "backtest/results/$f"
+            fi
+          done
+          if git diff --cached --quiet; then
+            echo "No artifact changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(data): refresh pipeline JSON and invest artifacts"
+          git push

@@ -99,7 +99,7 @@ def truncate_paragraph_at_sentence_boundary(text: str, max_chars: int = 600) -> 
 
 
 class PipelineDeadlineExceeded(BaseException):
-    """Raised when the pipeline reaches its self-imposed Cloud Run runtime budget."""
+    """Raised when the pipeline reaches its self-imposed runtime budget."""
 
 
 class TechPulseCrew:

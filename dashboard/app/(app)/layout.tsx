@@ -33,8 +33,8 @@ export default function AppChromeLayout({
       </div>
 
       <footer className="mt-24 border-t border-rule pt-6 font-sans text-meta uppercase tracking-[0.08em] text-ink-faint">
-        An editorial reading of the Tech Pulse pipeline · Powered by Firestore{" "}
-        <code className="font-mono normal-case">tech_pulse_memory_items</code>
+        An editorial reading of the Tech Pulse pipeline · JSON archive{" "}
+        <code className="font-mono normal-case">dashboard/data</code>
       </footer>
     </div>
   );

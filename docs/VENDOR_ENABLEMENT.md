@@ -28,15 +28,10 @@ vendor 方案與配額常變，**以各自 dashboard 為準**，不寫死數字�
 
 ## 1. 分階段啟用（先 free，逐項 go/no-go）
 
-每階段以 `gcloud run jobs update` 更新 Cloud Run Job env（不寫死 key 進程式碼；
-key 走 Secret/env）：
+每階段把 key 放進 GitHub Actions secrets（不寫死進程式碼）：
 
 ### 階段 1 — Finnhub free
-```bash
-gcloud run jobs update "$CLOUD_RUN_SERVICE" --region "$GCP_REGION" --project "$GCP_PROJECT_ID" \
-  --update-env-vars="EARNINGS_VENDOR_MODE=free" \
-  --update-secrets="FINNHUB_API_KEY=finnhub-api-key:latest"   # 或 --update-env-vars 帶 key（不建議）
-```
+設定 secret `FINNHUB_API_KEY`，並在 `schedule.yml` 把 `EARNINGS_VENDOR_MODE` 設為 `free`。
 Go/No-go（觀測 ≥ 2–3 輪）：
 - [ ] `filings_seen > 0` 時 `earnings_vendor_enriched_count > 0`。
 - [ ] 日誌無連續 401/403/429。
@@ -44,11 +39,7 @@ Go/No-go（觀測 ≥ 2–3 輪）：
 - [ ] Dashboard 抽查至少一筆報告有 consensus/surprise，SEC headline 未被覆寫。
 
 ### 階段 2 — FMP free（階段 1 穩定後）
-```bash
-gcloud run jobs update "$CLOUD_RUN_SERVICE" --region "$GCP_REGION" --project "$GCP_PROJECT_ID" \
-  --update-env-vars="EARNINGS_FUNDAMENTAL_MODE=free" \
-  --update-secrets="FMP_API_KEY=fmp-api-key:latest"
-```
+設定 secret `FMP_API_KEY`，並把 `EARNINGS_FUNDAMENTAL_MODE` 設為 `free`。
 Go/No-go：
 - [ ] `filings_seen > 0` 時 `earnings_fundamental_enriched_count > 0`。
 - [ ] 日誌無 `FMP enrich failed` 連續錯誤、無連續 429。
@@ -58,7 +49,7 @@ Go/No-go：
 ### 階段 3 — 評估 paid（選用）
 僅在 free 配額不足且補強價值已驗證時升級；升級後重跑階段 1/2 的 go/no-go。
 
-## 2. 驗證指標（pipeline_run_summary / Cloud Logging）
+## 2. 驗證指標（pipeline_run_summary / Actions log）
 
 | 指標 | 對應 vendor | 期望 |
 |------|------------|------|
@@ -70,10 +61,7 @@ Go/No-go：
 
 ## 3. 回滾
 
-```bash
-gcloud run jobs update "$CLOUD_RUN_SERVICE" --region "$GCP_REGION" --project "$GCP_PROJECT_ID" \
-  --update-env-vars="EARNINGS_VENDOR_MODE=off,EARNINGS_FUNDAMENTAL_MODE=off"
-```
+把 `EARNINGS_VENDOR_MODE` 與 `EARNINGS_FUNDAMENTAL_MODE` 改回 `off`。
 回滾驗證：下一輪 `earnings_vendor_enriched_count == 0` 且 `earnings_fundamental_enriched_count == 0`，
 報告仍以 SEC-only 正常產生。key secret 可保留，不需刪除。
 

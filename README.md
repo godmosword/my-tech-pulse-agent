@@ -9,11 +9,11 @@ delivers structured summaries to a Telegram channel (#科技脈搏).
 ```bash
 pip install -e .
 cp .env.example .env   # fill in your keys
-python main.py                   # Cloud Run Job entry point
+python main.py                   # one pipeline run (writes dashboard/data JSON)
 python scripts/preflight.py      # production config check
 ```
 
-Local setup (`.env`, ADC, Dashboard): [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md).
+Local setup (`.env`, Dashboard): [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md).
 
 ## Pipeline Overview
 
@@ -32,16 +32,16 @@ RSS / Social / SEC EDGAR
   Smart Telegram Delivery (#科技脈搏)
   → HTML parse_mode, theme-aware chunking at 4096 char boundaries
         ↓
-  Firestore memory archive (optional) + Dashboard ISR webhook
+  dashboard/data JSON archive + Vercel rebuild
   → Next.js reader at dashboard/ (Vercel)
 ```
 
 **Smart message delivery**: Long digests are split at newline (theme) boundaries when possible. Messages stay under Telegram's 4096 character limit with **HTML** `parse_mode` (dynamic text is escaped in `message_formatter.py`). Each chunk includes boundary validation and configurable inter-message delays (`TELEGRAM_CHUNK_DELAY_MS`).
 
-**Web dashboard**: [`dashboard/README.md`](dashboard/README.md) reads `tech_pulse_memory_items` from Firestore. After each successful delivery, the pipeline can POST to `/api/revalidate` when `DASHBOARD_REVALIDATE_URL` and `DASHBOARD_REVALIDATE_TOKEN` are set ([`delivery/revalidate.py`](delivery/revalidate.py)).
+**Web dashboard**: [`dashboard/README.md`](dashboard/README.md) reads `dashboard/data/memory_items.json`. The scheduled GitHub Action commits those files so Vercel rebuilds; ISR webhook is optional.
 
-Earnings reports follow a dedicated sub-pipeline (`earnings_v3` in Firestore
-`tech_pulse_earnings_reports`). SEC XBRL is the source of truth for **actual**
+Earnings reports follow a dedicated sub-pipeline (`earnings_v3` in
+`dashboard/data/earnings/`). SEC XBRL is the source of truth for **actual**
 numbers; Finnhub supplies consensus, calendar, quote, and transcripts when enabled.
 
 ```
@@ -49,7 +49,7 @@ SEC EDGAR RSS → XBRL headline facts → narrative (8-K text)
              → Finnhub estimates/quote/calendar (optional)
              → scorecard (basis-aligned surprise) → guidance/segments/transcript
              → analyzer + conclusion → six-section Markdown
-             → Firestore + Telegram + Dashboard /earnings/report/{id}
+             → JSON + Telegram + Dashboard /earnings/report/{id}
 ```
 
 See [`docs/EARNINGS_PORTAL.md`](docs/EARNINGS_PORTAL.md),
@@ -86,7 +86,7 @@ verified via the additive `earnings_vendor_enriched_count` /
 | `MIN_DEEP_WORDS` | ❌          | Minimum public full-text length before deep chain runs (`800`) |
 | `MAX_EARNINGS_FILINGS` | ❌      | Watchlist full pipeline per run (`8`) |
 | `MAX_EARNINGS_FILINGS_BROAD` | ❌ | Non-watchlist XBRL archive per run (`30`) |
-| `EARNINGS_REPORTS_ENABLED` | ❌ | Write `tech_pulse_earnings_reports` (`1`) |
+| `EARNINGS_REPORTS_ENABLED` | ❌ | Write `dashboard/data/earnings/` (`1`) |
 | `EARNINGS_VENDOR_MODE` | ❌ | `off` \| `free` \| `paid` — Finnhub enrich (`off` default) |
 | `EARNINGS_FUNDAMENTAL_MODE` | ❌ | `off` \| `free` \| `paid` — FMP ratios / cash-flow fill-in (`off` = SEC-only) |
 | `FMP_API_KEY` | ❌ | **Required** when `EARNINGS_FUNDAMENTAL_MODE=free\|paid` |
@@ -98,7 +98,7 @@ verified via the additive `earnings_vendor_enriched_count` /
 | `MAX_VENDOR_CALLS_PER_RUN` | ❌ | Finnhub calls per pipeline run (`20`) |
 | `MAX_SEC_API_CALLS_PER_RUN` | ❌ | SEC companyfacts calls per run (`60`) |
 | `SEC_USER_AGENT` | ✅ | SEC EDGAR User-Agent (email required by SEC policy) |
-| `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before Cloud Run timeout (`540`) |
+| `PIPELINE_TIMEOUT_SECONDS` | ❌   | Stop new work before the GitHub Actions job timeout (`540`) |
 | `MAX_ITEMS_PER_DIGEST` | ❌      | Max items shown in Telegram digest (`6`) |
 | `DIGEST_FORMAT` | ❌ | Telegram digest layout: `v1` = canonical #科技脈搏 (📡 / 🗞️ / 🧭 / 📈 / 🧠 / themed items); `v2` = experimental numbered digest (`v1` default; unknown values fall back to `v1`) |
 | `DIGEST_HEADER_TIMEZONE` | ❌ | IANA timezone for digest header date/time (`Asia/Taipei` default; pipeline timestamps are UTC, header converts for display) |
@@ -107,12 +107,14 @@ verified via the additive `earnings_vendor_enriched_count` /
 | `MAX_SUMMARY_CHARS` | ❌        | Max chars per item structured body in Telegram digest (`340`; Telegram hard limit is 4096 per message) |
 | `EXTRACTOR_MAX_INPUT_CHARS` | ❌ | Article text slice sent to extraction (`6000`) |
 | `MIN_WHAT_HAPPENED_CHARS` | ❌ | If `what_happened` is shorter than this after the reviewer LLM pass, trigger one grounded extraction retry (`45`) |
-| `STATE_BACKEND`        | ❌       | Persistent state backend: `auto`, `sqlite`, or `firestore` (`auto`) |
-| `FIRESTORE_COLLECTION_PREFIX` | ❌ | Collection prefix for production state (`tech_pulse`) |
-| `MEMORY_ENABLED`       | ❌       | Enable Firestore retrieval memory (`1`) |
-| `MEMORY_BACKEND`       | ❌       | Retrieval memory backend; currently `firestore` only |
+| `STATE_BACKEND`        | ❌       | Dedup backend (`sqlite`) |
+| `STATE_SQLITE_PATH`    | ❌       | Dedup / embedding sqlite path (`state/dedup.sqlite`) |
+| `MEMORY_ENABLED`       | ❌       | Enable retrieval memory (`1`) |
+| `MEMORY_BACKEND`       | ❌       | Retrieval memory backend (`json`) |
+| `DASHBOARD_DATA_DIR`   | ❌       | JSON snapshot directory (`dashboard/data`) |
+| `JSON_RETENTION_DAYS`  | ❌       | Memory / digest retention window (`90`) |
 | `GEMINI_EMBEDDING_MODEL` | ❌     | Gemini embedding model (`gemini-embedding-001`) |
-| `MEMORY_EMBEDDING_DIM` | ❌       | Embedding dimension stored in Firestore (`768`) |
+| `MEMORY_EMBEDDING_DIM` | ❌       | Embedding dimension stored in sqlite (`768`) |
 | `MEMORY_TOP_K`         | ❌       | Similar historical items checked per summary (`3`) |
 | `SEMANTIC_DUP_DISTANCE_THRESHOLD` | ❌ | Cosine distance threshold for near-duplicate detection (`0.12`) |
 | `SEMANTIC_DUP_DROP_ENABLED` | ❌  | Drop semantic duplicates when `1`; rollout default is context-only (`0`) |
@@ -130,7 +132,7 @@ Heuristic prefilter (`scoring/heuristic_filter.py`) drops articles that do not m
 
 Reader UI lives under [`dashboard/`](dashboard/). Deploy to Vercel with project root `dashboard/`; env vars in [`dashboard/.env.example`](dashboard/.env.example).
 
-**Earnings column** (reads `tech_pulse_earnings_reports`, not `memory_items`):
+**Earnings column** (reads `dashboard/data/earnings/`, not `memory_items.json`):
 
 | Route | Description |
 |-------|-------------|
@@ -145,14 +147,12 @@ Reader UI lives under [`dashboard/`](dashboard/). Deploy to Vercel with project 
 `python3 scripts/export_portfolio_json.py` before `npm run build` in `dashboard/`. Optional
 `FINNHUB_API_KEY` on Vercel enables live quotes; otherwise the UI shows cost-basis valuation.
 
-Homepage shows **今日財報** when filings landed today (Asia/Taipei). Finnhub keys are configured on the **pipeline** (Cloud Run), not Vercel — the dashboard only needs Firestore read access.
+Homepage shows **今日財報** when filings landed today (Asia/Taipei). Finnhub keys are configured on the **pipeline** (GitHub Actions secrets), not Vercel — the dashboard reads committed JSON.
 
 | Mode | Behavior |
 |------|----------|
 | **Basic Auth** (default when credentials set) | Whole-site HTTP Basic when `DASHBOARD_PUBLIC_READ` is unset |
 | **Public read** | `DASHBOARD_PUBLIC_READ=true` — anonymous title/`zh_summary`; full `zh_body` after `/login` + signed cookie |
-
-Provision a read-only Firestore SA: `PROJECT_ID=<gcp-project> ./scripts/setup_dashboard_sa.sh`
 
 Portal / third-party readers: [`docs/PORTAL_CONTRACT.md`](docs/PORTAL_CONTRACT.md)
 
@@ -166,127 +166,35 @@ Shared UI helpers live under `dashboard/lib/format-numbers.ts`, `login-path.ts`,
 
 ## Deployment
 
-**Vercel + GCP 設定清單**（env、驗證、backfill）：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md).
-許多功能以 shadow / 預設 off 上線；待啟用旗標的前置條件、風險與回滾集中在
-[`docs/ENABLEMENT_CHECKLIST.md`](docs/ENABLEMENT_CHECKLIST.md)。
-
-The pipeline is packaged for container deployment. Run `python scripts/preflight.py` in
-the same environment before the first production run, then start the one-shot command:
+**Vercel + GitHub Actions 設定清單**：[`docs/DEPLOY_CHECKLIST.md`](docs/DEPLOY_CHECKLIST.md).
+許多功能以 shadow / 預設 off 上線；待啟用旗標見 [`docs/ENABLEMENT_CHECKLIST.md`](docs/ENABLEMENT_CHECKLIST.md)。
 
 ```bash
+python scripts/preflight.py
 python main.py
 ```
 
-### Continuous deployment (GitHub Actions → Cloud Run Job)
+### CI
 
-Pushes to `main` automatically run tests, build, and deploy the Cloud Run Job via
-`.github/workflows/ci.yml`. Configure the following in the GitHub repository
-settings before relying on it:
+Pushes to `main` run lint / typecheck / tests via `.github/workflows/ci.yml`.
+Commits that only touch `dashboard/data/**`, `state/**`, or `backtest/results/**` skip CI.
 
-**Repository variables** (Settings → Secrets and variables → Actions → Variables):
+### Scheduled pipeline (GitHub Actions)
 
-| Variable | Example |
-|----------|---------|
-| `GCP_PROJECT_ID` | `my-gcp-project` |
-| `GCP_REGION` | `asia-east1` |
-| `ARTIFACT_REGISTRY_REPO` | `tech-pulse-images` |
-| `CLOUD_RUN_SERVICE` | `tech-pulse` (Cloud Run Job name) |
+`.github/workflows/schedule.yml` runs `python main.py` on the runner (23:20 UTC =
+07:20 Asia/Taipei), then commits `dashboard/data/**`, `state/dedup.sqlite`, and
+invest artifacts. Enable with `PIPELINE_SCHEDULE_ENABLED=true`, or use
+`workflow_dispatch`. Pause any leftover Cloud Scheduler job first to avoid
+double Telegram sends. Details: [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md).
 
-**Repository secrets** (Workload Identity Federation — no JSON key needed):
+**Repository secrets** for the scheduled job: `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`,
+`TELEGRAM_CHANNEL_ID`, `SEC_USER_AGENT`, plus optional NewsAPI / Apify / Finnhub / FMP / FRED.
 
-| Secret | Description |
-|--------|-------------|
-| `WIF_PROVIDER` | Full WIF provider resource name, e.g. `projects/123/locations/global/workloadIdentityPools/github/providers/github-actions` |
-| `WIF_SERVICE_ACCOUNT` | Service account email with `roles/run.developer` and `roles/artifactregistry.writer` |
+### JSON memory and sqlite state
 
-The Artifact Registry repo and Cloud Run Job must already exist (the workflow updates the
-existing job's image; it does not create resources). Each deploy runs `gcloud run jobs update`
-with `--update-env-vars DIGEST_FORMAT=v1` so production keeps the canonical #科技脈搏 digest layout
-unless you override that variable in GCP. If you prefer to deploy as a
-Cloud Run Service instead of a Job, swap `gcloud run jobs update` for
-`gcloud run deploy` in the workflow.
-
-### Scheduled runs
-
-Daily execution is driven by one of two interchangeable paths (pick one to avoid
-double runs): the `.github/workflows/schedule.yml` cron workflow (**disabled by
-default**; set repository variable `PIPELINE_SCHEDULE_ENABLED=true`, or use
-`workflow_dispatch` for manual one-off runs), or Cloud Scheduler →
-Cloud Run Job via `scripts/setup_cloud_scheduler.sh` (idempotent, supports
-`DRY_RUN`). UTC ↔ Asia/Taipei conversion, the enablement checklist, and
-monitoring guidance live in [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md).
-
-A second daily workflow, `.github/workflows/refresh-invest-artifacts.yml`
-(`00:00 UTC`, plus `workflow_dispatch`), recomputes the dashboard's investment
-artifacts (`backtest/results/track_record.json`, `invest_brief.json`) from
-Firestore over the existing WIF identity and commits them back to `main` only
-when changed, so Vercel serves fresh data without a Cloud Run rebuild (`ci.yml`
-ignores `backtest/results/**`). Gated by repository variable
-`INVEST_ARTIFACTS_ENABLED=true` (**enabled in production**). The `grade_decisions`
-step is best-effort: without `FINNHUB_API_KEY` it skips forward returns and the
-brief is still rebuilt.
-
-### Production state on Firestore
-
-Local runs default to `output/dedup.sqlite`. Cloud Run uses Firestore when `STATE_BACKEND=auto`
-or `STATE_BACKEND=firestore`, so the dedup state survives stateless container restarts:
-
-```bash
-gcloud services enable firestore.googleapis.com --project "$GCP_PROJECT_ID"
-
-gcloud run jobs update "$CLOUD_RUN_SERVICE" \
-  --region "$GCP_REGION" \
-  --project "$GCP_PROJECT_ID" \
-  --set-env-vars STATE_BACKEND=auto,FIRESTORE_COLLECTION_PREFIX=tech_pulse
-```
-
-Grant the Cloud Run runtime service account Firestore access:
-
-```bash
-gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
-  --member="serviceAccount:$RUNTIME_SERVICE_ACCOUNT" \
-  --role="roles/datastore.user"
-```
-
-The Firestore backend writes `tech_pulse_seen_items` and `tech_pulse_saved_items`.
-Configure a Firestore TTL policy on the `expires_at` field of `tech_pulse_seen_items`
-to let GCP expire old dedup records automatically.
-
-Content-hash deduplication also needs a composite Firestore index on
-`tech_pulse_seen_items` for `content_hash ASC, seen_at ASC`. Deploy every index
-in `firestore.indexes.json` at once with
-`PROJECT_ID=<gcp-project> ./scripts/deploy_firestore_indexes.sh` (wraps
-`firebase deploy --only firestore:indexes`), or create this one directly:
-
-```bash
-gcloud firestore indexes composite create \
-  --project "$GCP_PROJECT_ID" \
-  --collection-group tech_pulse_seen_items \
-  --query-scope COLLECTION \
-  --field-config field-path=content_hash,order=ascending \
-  --field-config field-path=seen_at,order=ascending
-```
-
-### Firestore retrieval memory
-
-When `MEMORY_ENABLED=1`, delivered digest items, deep briefs, and earnings outputs are archived
-to `tech_pulse_memory_items` after Telegram delivery succeeds. Future runs use Firestore vector
-search to find related historical items, attach a short background hint to the digest, and mark
-near-duplicates. The rollout default is conservative: `SEMANTIC_DUP_DROP_ENABLED=0` archives and
-searches memory without suppressing items.
-
-Create the vector index before enabling duplicate dropping:
-
-```bash
-gcloud firestore indexes composite create \
-  --project "$GCP_PROJECT_ID" \
-  --collection-group tech_pulse_memory_items \
-  --query-scope COLLECTION \
-  --field-config field-path=embedding,vector-config='{"dimension":"768", "flat": "{}"}'
-```
-
-If the vector index is missing or still building, the pipeline logs a warning and continues
-without memory search for that run.
+When `MEMORY_ENABLED=1`, delivered items are archived to `dashboard/data/memory_items.json`
+(90-day window, no embeddings). Semantic search uses vectors in `state/dedup.sqlite`.
+`SEMANTIC_DUP_DROP_ENABLED` stays `0` by default.
 
 ## Troubleshooting: Telegram digest shows only one item
 
@@ -302,7 +210,7 @@ Each run logs a JSON line `pipeline_run_summary { ... }` with funnel counts. Com
 
 Inspect `OUTPUT_DIR/summaries_<timestamp>.json` for the same run: count rows and check `score` / `score_status` / `confidence`.
 
-**Header time** — The `📡 科技脈搏 · …` timestamp is converted from UTC to **`DIGEST_HEADER_TIMEZONE`** (default `Asia/Taipei`). Use `UTC` if you want the header to match Cloud Run’s coordinated time.
+**Header time** — The `📡 科技脈搏 · …` timestamp is converted from UTC to **`DIGEST_HEADER_TIMEZONE`** (default `Asia/Taipei`). Use `UTC` if you want the header to match pipeline UTC.
 
 **Typical causes**
 
@@ -321,9 +229,9 @@ tech-pulse/
 ├── scripts/              Production preflight checks
 ├── pipeline/             Orchestration + scheduling
 ├── delivery/             Telegram bot + dashboard ISR webhook
-├── dashboard/            Next.js 15 web reader (Firestore)
+├── dashboard/            Next.js 15 web reader (JSON snapshots)
 ├── docs/                 Portal contract, integration notes
-├── scripts/              preflight, GDELT backfill, dashboard SA setup
+├── scripts/              preflight, backfill, invest brief
 └── tests/                Smoke tests + LLM-as-judge
 ```
 

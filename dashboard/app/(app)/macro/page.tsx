@@ -48,7 +48,7 @@ export default async function MacroPage() {
       {!snapshot ? (
         <BackfillHint
           title="尚無 macro_context"
-          note="Vercel 不會帶 output/（gitignore）。要在線上看到資料，需改讀 Firestore／API，或 commit 快照到 repo 並調整讀取路徑。本機 npm run dev 可直接讀 output/。"
+          note="Vercel 不會帶 output/（gitignore）。要在線上看到資料，需 commit 快照到 repo 或等 pipeline 寫入 dashboard/data。本機 npm run dev 可直接讀 output/。"
         >
           <p>在 repo 根目錄產生 output/macro_context_latest.json（可選 FRED_API_KEY）：</p>
           <BackfillCode>{`python -c "

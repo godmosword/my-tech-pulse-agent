@@ -1,9 +1,8 @@
 import "server-only";
 
-import { getFirestore } from "firebase-admin/firestore";
-
 import { listEarningsReports } from "./earnings-firestore";
-import { getApp, listLatestItems } from "./firestore";
+import { listLatestItems } from "./firestore";
+import { itemIdOf, loadEarningsIndexRaw, loadMemoryItemsRaw } from "./json-data";
 import {
   normalizeSearchQuery,
   titlePrefixBounds,
@@ -18,13 +17,6 @@ import { hasCjk, MemoryItemSchema, toIsoString, displayTitle } from "./types";
 import type { RenderableItem } from "./types";
 
 const RECENT_SCAN_LIMIT = 400;
-
-const COLLECTION_PREFIX =
-  process.env.FIRESTORE_COLLECTION_PREFIX?.trim() || "tech_pulse";
-const COLLECTION =
-  process.env.TECH_PULSE_FIRESTORE_COLLECTION?.trim() ||
-  `${COLLECTION_PREFIX}_memory_items`;
-const EARNINGS_COLLECTION = `${COLLECTION_PREFIX}_earnings_reports`;
 
 const SEARCH_LIMIT = 10;
 
@@ -50,12 +42,8 @@ export interface SearchResults {
   earnings: SearchEarningsHit[];
 }
 
-function db() {
-  return getFirestore(getApp());
-}
-
-function prefixEnd(prefix: string): string {
-  return `${prefix}\uf8ff`;
+function startsWithInsensitive(value: string, prefix: string): boolean {
+  return value.toLowerCase().startsWith(prefix.toLowerCase());
 }
 
 function renderableToNewsHit(item: RenderableItem): SearchNewsHit {
@@ -119,15 +107,15 @@ async function searchNewsByTicker(
   ticker: string,
   limit: number,
 ): Promise<SearchNewsHit[]> {
-  const snap = await db()
-    .collection(COLLECTION)
-    .where("tickers", "array-contains", ticker)
-    .limit(limit)
-    .get();
   const hits: SearchNewsHit[] = [];
-  for (const doc of snap.docs) {
-    const hit = toNewsHit(doc.id, (doc.data() || {}) as Record<string, unknown>);
+  for (const raw of loadMemoryItemsRaw()) {
+    const tickers = Array.isArray(raw.tickers)
+      ? raw.tickers.map((t) => String(t).toUpperCase())
+      : [];
+    if (!tickers.includes(ticker)) continue;
+    const hit = toNewsHit(itemIdOf(raw), raw);
     if (hit) hits.push(hit);
+    if (hits.length >= limit) break;
   }
   return hits;
 }
@@ -137,17 +125,13 @@ async function searchNewsByTitlePrefix(
   prefix: string,
   limit: number,
 ): Promise<SearchNewsHit[]> {
-  const snap = await db()
-    .collection(COLLECTION)
-    .orderBy(field)
-    .startAt(prefix)
-    .endAt(prefixEnd(prefix))
-    .limit(limit)
-    .get();
   const hits: SearchNewsHit[] = [];
-  for (const doc of snap.docs) {
-    const hit = toNewsHit(doc.id, (doc.data() || {}) as Record<string, unknown>);
+  for (const raw of loadMemoryItemsRaw()) {
+    const value = String(raw[field] || "");
+    if (!startsWithInsensitive(value, prefix)) continue;
+    const hit = toNewsHit(itemIdOf(raw), raw);
     if (hit) hits.push(hit);
+    if (hits.length >= limit) break;
   }
   return hits;
 }
@@ -157,16 +141,9 @@ async function searchNewsByTokens(
   limit: number,
 ): Promise<SearchNewsHit[]> {
   if (queryTokens.length === 0) return [];
-  const snap = await db()
-    .collection(COLLECTION)
-    .where("search_tokens", "array-contains-any", queryTokens.slice(0, 30))
-    .limit(limit * 3)
-    .get();
-
   const ranked: { hit: SearchNewsHit; score: number; at: number }[] = [];
-  for (const doc of snap.docs) {
-    const raw = (doc.data() || {}) as Record<string, unknown>;
-    const hit = toNewsHit(doc.id, raw);
+  for (const raw of loadMemoryItemsRaw()) {
+    const hit = toNewsHit(itemIdOf(raw), raw);
     if (!hit) continue;
     const docTokens = Array.isArray(raw.search_tokens)
       ? (raw.search_tokens as unknown[]).map(String)
@@ -255,32 +232,20 @@ async function searchEarningsByCompanyPrefix(
   prefix: string,
   limit: number,
 ): Promise<SearchEarningsHit[]> {
-  const snap = await db()
-    .collection(EARNINGS_COLLECTION)
-    .orderBy("company")
-    .startAt(prefix)
-    .endAt(prefixEnd(prefix))
-    .limit(limit)
-    .get();
-
   const hits: SearchEarningsHit[] = [];
   const seen = new Set<string>();
-  for (const doc of snap.docs) {
-    const raw = (doc.data() || {}) as Record<string, unknown>;
+  for (const raw of loadEarningsIndexRaw()) {
     const ticker = String(raw.ticker || "").toUpperCase();
+    const company = String(raw.company || ticker);
     if (!ticker || seen.has(ticker)) continue;
+    if (!startsWithInsensitive(company, prefix)) continue;
     seen.add(ticker);
     hits.push({
       ticker,
-      company: String(raw.company || ticker),
+      company,
       quarter_label: String(raw.quarter_label || ""),
       href: `/earnings/${encodeURIComponent(ticker)}`,
-      published_at:
-        typeof raw.published_at === "string"
-          ? raw.published_at
-          : raw.published_at instanceof Date
-            ? raw.published_at.toISOString()
-            : null,
+      published_at: typeof raw.published_at === "string" ? raw.published_at : null,
     });
     if (hits.length >= limit) break;
   }

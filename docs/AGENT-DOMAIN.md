@@ -10,7 +10,7 @@
 | 欄位 | 值 |
 |------|-----|
 | **專案名稱** | tech-pulse（my-tech-pulse-agent） |
-| **主要技術棧** | Python 3.11 pipeline（Gemini agents、Firestore）+ Next.js dashboard（Vercel） |
+| **主要技術棧** | Python 3.11 pipeline（Gemini agents、JSON snapshots）+ Next.js dashboard（Vercel） |
 | **回應語言** | 繁體中文 |
 
 ---
@@ -31,7 +31,7 @@
 | 任務類型 | 加讀 |
 |----------|------|
 | Pipeline／agents／LLM | `pipeline/`、`agents/`、`llm/`、`main.py` |
-| 評分／Firestore 寫入 | `scoring/`、`docs/PORTAL_CONTRACT.md` |
+| 評分／JSON 寫入 | `scoring/`、`docs/PORTAL_CONTRACT.md` |
 | 送報／Telegram | `delivery/`、`message_formatter.py` |
 | Earnings v3 | `docs/EARNINGS_PORTAL.md`、`docs/EARNINGS_ENV.md` |
 | Dashboard | `dashboard/README.md` |
@@ -45,7 +45,7 @@
 | 紅線 | 說明 |
 |------|------|
 | **Pipeline 未核准** | 動到 `pipeline/`、`main.py`、`agents/`、`llm/`、`sources/`、`scoring/`、`delivery/`、production 相關 `scripts/`、deploy 步驟或 pipeline 用 `.env.example` 變數 → **須先取得維護者同意**（見 `docs/WORKFLOW.md` §2） |
-| **Portal 契約** | 不可破壞 [`docs/PORTAL_CONTRACT.md`](PORTAL_CONTRACT.md) 對外語意；Firestore 欄位 alias 以 `scoring/memory_store.py` 為準，不重命名既有 pipeline 欄位 |
+| **Portal 契約** | 不可破壞 [`docs/PORTAL_CONTRACT.md`](PORTAL_CONTRACT.md) 對外語意；JSON 欄位 alias 以 `scoring/memory_store.py` 為準，不重命名既有 pipeline 欄位 |
 | **Earnings 數據來源** | SEC XBRL 為 actual 真值；Finnhub/FMP 為 enrichment，預設 off；禁止 LLM 捏造財報數字 |
 | **Telegram HTML** | 動態文字須 escape；`parse_mode=HTML`；chunk ≤ 4096 |
 | **機敏資訊** | 禁止 commit API key、token、`.env` |
@@ -99,7 +99,7 @@
 | branch protection | 失敗時報錯，改人類處理 |
 | 完整 VERSION ship | gstack `/ship` |
 
-**注意**：`main` push 會觸發 Cloud Run 自動 deploy（CI and Deploy workflow）。
+**注意**：`main` push 只跑 CI；pipeline 由 `schedule.yml` 執行。資料 commit 不重跑 pytest。
 
 ---
 
@@ -107,7 +107,7 @@
 
 | 反模式 | 為什麼 |
 |--------|--------|
-| 未核准就 push pipeline | 直接改 production 跑法與 Firestore 寫入 |
+| 未核准就 push pipeline | 直接改 production 跑法與 JSON 寫入 |
 | 只跑 pytest 不跑 ruff/pyright | 與 CI 不一致，merge 後才爆 |
 | Dashboard 變更只跑 Python 測試 | dashboard job 獨立，會漏 lint/typecheck |
 | 跳過 CHANGELOG/TODOS | 違反段落完成定義 |

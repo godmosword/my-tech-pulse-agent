@@ -7,8 +7,7 @@ graded decision records, then writes backtest/results/invest_brief.json. Posture
 and its cross-run cooldown are resolved here (see scoring.invest_brief), so the
 dashboard renders one authoritative brief.
 
-Run after the pipeline (it reads what the pipeline wrote). Firestore optional:
-without it the brief still carries pulse / catalysts / thesis text.
+Run after the pipeline (it reads dashboard/data/memory_items.json).
 
 Usage:
   python scripts/build_invest_brief.py --dry-run
@@ -20,7 +19,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -70,39 +68,21 @@ def _graded_records() -> list[dict]:
 
 
 def _recent_items() -> list[dict]:
-    """Best-effort Firestore read of recent items + their portfolio_impact."""
-    try:
-        from google.cloud import firestore  # noqa: PLC0415
-        from google.cloud.firestore_v1.base_query import FieldFilter  # noqa: PLC0415
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Firestore unavailable, brief omits material items: %s", exc)
-        return []
+    """Best-effort read of recent items + their portfolio_impact from JSON."""
+    from scoring.json_io import memory_items_path, parse_iso, read_json_list  # noqa: PLC0415
 
-    prefix = os.getenv("FIRESTORE_COLLECTION_PREFIX", "tech_pulse").strip("_")
-    collection = (
-        os.getenv("TECH_PULSE_FIRESTORE_COLLECTION", "").strip()
-        or f"{prefix}_memory_items"
-    )
     since = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
     try:
-        db = firestore.Client(
-            project=os.getenv("FIRESTORE_PROJECT_ID") or None,
-            database=os.getenv("FIRESTORE_DATABASE") or None,
-        )
-        query = (
-            db.collection(collection)
-            .where(filter=FieldFilter("delivered_at", ">=", since))
-            .order_by("delivered_at", direction=firestore.Query.DESCENDING)
-            .limit(200)
-        )
-        docs = list(query.stream())
+        rows = read_json_list(memory_items_path())
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Firestore query failed, brief omits material items: %s", exc)
+        logger.warning("memory_items.json unavailable, brief omits material items: %s", exc)
         return []
 
     items: list[dict] = []
-    for doc in docs:
-        data = doc.to_dict() or {}
+    for data in rows:
+        delivered = parse_iso(data.get("delivered_at"))
+        if delivered is not None and delivered < since:
+            continue
         impact = data.get("portfolio_impact") or {}
         if not impact:
             continue
@@ -110,7 +90,7 @@ def _recent_items() -> list[dict]:
         market = data.get("market_context") or {}
         items.append(
             {
-                "id": doc.id,
+                "id": data.get("item_id") or data.get("id") or "",
                 "title": data.get("zh_title") or data.get("title") or data.get("entity") or "",
                 "impact_score": impact.get("score") or 0.0,
                 "affected_tickers": [a.get("ticker") for a in affected if a.get("ticker")],

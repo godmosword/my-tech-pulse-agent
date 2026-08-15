@@ -17,7 +17,7 @@
 3. **同一輪**更新 [`CHANGELOG.md`](../CHANGELOG.md) 與 [`TODOS.md`](../TODOS.md)（可與功能同一 commit，或緊接著的 docs commit）
 4. `git push origin main`
 
-不需為例行段落另開長壽命 feature branch；`main` 上的 push 會觸發 [CI and Deploy](../.github/workflows/ci.yml)。
+不需為例行段落另開長壽命 feature branch；`main` 上的 push 會觸發 [CI](../.github/workflows/ci.yml)（資料 commit 除外）。
 
 ### CHANGELOG 怎麼寫
 
@@ -41,8 +41,8 @@
 | 來源與評分 | `sources/`、`scoring/` |
 | 送報 | `delivery/`（含 Telegram 格式、ISR webhook） |
 | 型別與設定 | `pyproject.toml` / `setup.cfg` 中影響 runtime 的依賴；根目錄 `.env.example` 中 **pipeline 執行**相關變數 |
-| 營運腳本 | `scripts/preflight.py` 等會改變 **生產跑法或 Firestore 寫入** 的腳本 |
-| 部署契約 | `.github/workflows/ci.yml` 中 **deploy 步驟**（映像、env、Cloud Run 參數） |
+| 營運腳本 | `scripts/preflight.py` 等會改變 **生產跑法或 JSON 寫入** 的腳本 |
+| 排程契約 | `.github/workflows/schedule.yml`（直接跑 `main.py`、commit JSON） |
 
 **不需事先確認**（仍須段落完成後更新 CHANGELOG／TODOS 並 push `main`）：
 
@@ -57,7 +57,7 @@
 
 1. 要改的檔案與行為差異（一句話 + 關鍵 env／成本影響）
 2. 如何驗證（例如 `pytest -q`、dry-run、staging 觀察欄位）
-3. 是否會觸發 Cloud Run 自動 deploy（`main` push 預設會）
+3. 是否會改變 `schedule.yml` 的生產跑法（`main` push 只跑 CI，不跑 pipeline）
 
 維護者同意前：可調查、寫草稿、開 draft PR，**不要** push 會改變 production pipeline 的 commit 到 `main`。
 

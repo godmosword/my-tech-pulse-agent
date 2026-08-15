@@ -21,7 +21,7 @@ import { LoginToReadCta } from "@/components/LoginToReadCta";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
 
-/** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
+/** Avoid static prerender of live item JSON. */
 export const dynamic = "force-dynamic";
 
 export const revalidate = 600;

@@ -2,13 +2,13 @@
 """Backfill earnings reports for a filed-date range (watchlist tickers).
 
 Reads SEC submissions per CIK, builds earnings_v2 reports from XBRL, writes
-tech_pulse_earnings_reports and memory_items (kind=earnings).
+dashboard/data/earnings and memory_items.json (kind=earnings).
 
 Usage:
   # Dry-run: list filings that would be processed
   python scripts/backfill_earnings.py --since 2026-05-01 --until 2026-05-21 --dry-run
 
-  # Write to Firestore (requires ADC / service account)
+  # Write JSON snapshots
   python scripts/backfill_earnings.py --since 2026-05-01 --until 2026-05-21
 
   # Optional: run Gemini narrative on each filing (slow, costs API)
@@ -16,7 +16,7 @@ Usage:
 
   # --with-llm runs narrative extractor + analyzer (no numeric extraction from LLM)
 
-Env: SEC_USER_AGENT, FIRESTORE_* , GEMINI_API_KEY (if --with-llm)
+Env: SEC_USER_AGENT, DASHBOARD_DATA_DIR, GEMINI_API_KEY (if --with-llm)
 """
 
 from __future__ import annotations

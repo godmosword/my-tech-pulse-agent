@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **離開 GCP**：pipeline 改由 GitHub Actions 直接跑 `python main.py`；內容 SSOT 改為 `dashboard/data/*.json`（90 天）與 `state/dedup.sqlite`（去重／embedding）。Dashboard `/api/v1` 欄位不變。已移除 Cloud Run deploy、WIF、Firestore 依賴與 `firebase-admin`。排程見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。一次性匯出：`scripts/export_firestore_to_json.py`（需另裝 `google-cloud-firestore`）。
+
 ### Added
 - **Agent 編排（Cursor）**：自 investment-ai-agent 可攜模板 bootstrap（`.cursor/commands/agent-plan.md`、`agent-action.md`、`.cursor/rules/agent-orchestration.mdc`、`docs/AGENT-WORKFLOW.md`）；填寫 tech-pulse 專用 [`docs/AGENT-DOMAIN.md`](docs/AGENT-DOMAIN.md)（Bootstrap、pipeline 核准紅線、驗證矩陣、Ship 政策）。`README.md`／`CLAUDE.md`／`docs/WORKFLOW.md` 加導航。
 

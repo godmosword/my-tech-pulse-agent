@@ -18,7 +18,7 @@ import { PortfolioTierBadge } from "@/components/data/PortfolioTierBadge";
 import { listEarningsSince } from "@/lib/earnings-firestore";
 import { withPortfolioTierOnReports } from "@/lib/portfolio-server";
 
-/** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
+/** Avoid static prerender of live digest JSON. */
 export const dynamic = "force-dynamic";
 
 // ISR: pipeline runs a few times daily; rebuild on next request after 5 min.

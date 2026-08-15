@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal, Protocol, cast
+from typing import Literal, Protocol
+
+from scoring.json_io import state_sqlite_path
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +61,7 @@ def feedback_doc_key(user_id_hash: str, target_type: TargetType, target_id: str)
 
 class SQLiteFeedbackStore:
     def __init__(self, db_path: Path | None = None):
-        if db_path is None:
-            db_path = Path(os.getenv("OUTPUT_DIR", "output")) / "dedup.sqlite"
-        self._db_path = Path(db_path)
+        self._db_path = state_sqlite_path(db_path)
         self._init_db()
 
     def _init_db(self) -> None:
@@ -113,85 +112,6 @@ class SQLiteFeedbackStore:
             conn.commit()
 
 
-class FirestoreFeedbackStore:
-    """Firestore-backed feedback for Cloud Run production deployments."""
-
-    def __init__(
-        self,
-        project_id: str | None = None,
-        database: str | None = None,
-        collection_prefix: str | None = None,
-    ):
-        try:
-            from google.cloud import firestore
-        except ImportError as exc:
-            raise RuntimeError(
-                "Firestore feedback store requires google-cloud-firestore to be installed."
-            ) from exc
-
-        project_id = project_id or os.getenv("FIRESTORE_PROJECT_ID") or None
-        database = database or os.getenv("FIRESTORE_DATABASE") or None
-        self._prefix = (collection_prefix or os.getenv("FIRESTORE_COLLECTION_PREFIX", "tech_pulse")).strip("_")
-        if database:
-            self._client = firestore.Client(project=project_id, database=database)
-        else:
-            self._client = firestore.Client(project=project_id)
-
-    def _feedback_collection(self):
-        return self._client.collection(f"{self._prefix}_feedback")
-
-    def _offset_doc(self):
-        return self._client.collection(f"{self._prefix}_telegram_poll").document("callback_offset")
-
-    def save_vote(
-        self,
-        *,
-        target_id: str,
-        target_type: TargetType,
-        vote: VoteValue,
-        user_id_hash: str,
-        voted_at: datetime,
-    ) -> None:
-        doc_key = feedback_doc_key(user_id_hash, target_type, target_id)
-        self._feedback_collection().document(doc_key).set(
-            {
-                "target_id": target_id,
-                "target_type": target_type,
-                "vote": vote,
-                "user_id_hash": user_id_hash,
-                "timestamp": voted_at,
-            },
-            merge=True,
-        )
-
-    def get_update_offset(self) -> int:
-        doc = cast(Any, self._offset_doc().get())
-        if not doc.exists:
-            return 0
-        data = doc.to_dict() or {}
-        return int(data.get("offset") or 0)
-
-    def set_update_offset(self, offset: int) -> None:
-        self._offset_doc().set({"offset": int(offset)}, merge=True)
-
-
 def make_feedback_store(db_path: Path | None = None) -> FeedbackStore:
-    """Create the configured feedback backend."""
-    if db_path is not None:
-        return SQLiteFeedbackStore(db_path)
-
-    backend = os.getenv("STATE_BACKEND", "auto").strip().lower()
-    if backend == "auto":
-        backend = "firestore" if os.getenv("K_SERVICE") or os.getenv("CLOUD_RUN_JOB") else "sqlite"
-
-    if backend in {"sqlite", "sqlite3", ""}:
-        return SQLiteFeedbackStore()
-    if backend == "firestore":
-        try:
-            return FirestoreFeedbackStore()
-        except Exception:
-            logger.exception("Firestore feedback backend unavailable; falling back to sqlite")
-            return SQLiteFeedbackStore()
-
-    logger.warning("Unknown STATE_BACKEND=%r for feedback; falling back to sqlite", backend)
-    return SQLiteFeedbackStore()
+    """Create the sqlite feedback backend."""
+    return SQLiteFeedbackStore(db_path)

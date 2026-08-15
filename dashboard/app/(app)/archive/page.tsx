@@ -17,7 +17,7 @@ import { Hairline } from "@/components/Hairline";
 import { Kicker } from "@/components/Kicker";
 import { ClearFiltersLink } from "@/components/ClearFiltersLink";
 
-/** Build 階段無 Firestore 憑證時避免 prerender 失敗。 */
+/** Avoid static prerender of live archive JSON. */
 export const dynamic = "force-dynamic";
 
 export const revalidate = 300;

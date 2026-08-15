@@ -1,15 +1,6 @@
 import "server-only";
-import {
-  FieldPath,
-  getFirestore,
-  type QueryDocumentSnapshot,
-} from "firebase-admin/firestore";
 
-import { getApp } from "./firestore";
-
-const COLLECTION_PREFIX =
-  process.env.FIRESTORE_COLLECTION_PREFIX?.trim() || "tech_pulse";
-const EARNINGS_COLLECTION = `${COLLECTION_PREFIX}_earnings_reports`;
+import { loadEarningsIndexRaw, loadEarningsReportRaw } from "./json-data";
 
 interface MetricValueRow {
   actual?: number | null;
@@ -305,10 +296,6 @@ function toRow(id: string, raw: Record<string, unknown>): EarningsReportRow | nu
   };
 }
 
-function db() {
-  return getFirestore(getApp());
-}
-
 function publishedAtMs(iso: string | null): number {
   if (!iso) return 0;
   const ms = Date.parse(iso);
@@ -326,30 +313,22 @@ export interface EarningsFirestoreCursor {
   reportId: string;
 }
 
-function publishedAtFromIso(iso: string): Date {
-  const ms = Date.parse(iso);
-  if (!Number.isFinite(ms)) {
-    throw new Error(`invalid published_at cursor: ${iso}`);
-  }
-  return new Date(ms);
-}
-
 function passesTier(row: EarningsReportRow, maxTier: number): boolean {
   return row.tier == null || row.tier <= maxTier;
 }
 
-function collectTierFiltered(
-  docs: QueryDocumentSnapshot[],
-  maxTier: number,
-): EarningsReportRow[] {
+function allEarningsRows(maxTier: number, ticker?: string): EarningsReportRow[] {
+  const wanted = ticker?.toUpperCase();
   const rows: EarningsReportRow[] = [];
-  for (const doc of docs) {
-    const row = toRow(doc.id, (doc.data() || {}) as Record<string, unknown>);
+  for (const raw of loadEarningsIndexRaw()) {
+    const id = String(raw.report_id || "");
+    const row = toRow(id, raw);
     if (!row) continue;
+    if (wanted && row.ticker.toUpperCase() !== wanted) continue;
     if (!passesTier(row, maxTier)) continue;
     rows.push(row);
   }
-  return rows;
+  return sortByPublishedDesc(rows);
 }
 
 export async function listEarningsReports({
@@ -361,22 +340,7 @@ export async function listEarningsReports({
   ticker?: string;
   maxTier?: number;
 } = {}): Promise<EarningsReportRow[]> {
-  // Ticker filter + orderBy requires a composite Firestore index and fails at
-  // runtime on Vercel. Filter by ticker only, then sort in memory.
-  const snap = ticker
-    ? await db()
-        .collection(EARNINGS_COLLECTION)
-        .where("ticker", "==", ticker.toUpperCase())
-        .limit(limit * 3)
-        .get()
-    : await db()
-        .collection(EARNINGS_COLLECTION)
-        .orderBy("published_at", "desc")
-        .limit(limit * 3)
-        .get();
-
-  const rows = collectTierFiltered(snap.docs, maxTier);
-  return sortByPublishedDesc(rows).slice(0, limit);
+  return allEarningsRows(maxTier, ticker).slice(0, limit);
 }
 
 export async function listEarningsReportsPage({
@@ -394,69 +358,19 @@ export async function listEarningsReportsPage({
   hasMore: boolean;
   lastCursor: EarningsFirestoreCursor | null;
 }> {
-  const batchSize = Math.max(limit * 3, 30);
-  const collected: EarningsReportRow[] = [];
-  let scanCursor = cursor;
-  let hasMoreInFirestore = true;
-
-  while (collected.length < limit + 1 && hasMoreInFirestore) {
-    let snap;
-    if (ticker) {
-      snap = await db()
-        .collection(EARNINGS_COLLECTION)
-        .where("ticker", "==", ticker.toUpperCase())
-        .limit(batchSize + 1)
-        .get();
-      hasMoreInFirestore = false;
-    } else {
-      let query = db()
-        .collection(EARNINGS_COLLECTION)
-        .orderBy("published_at", "desc")
-        .orderBy(FieldPath.documentId(), "desc");
-      if (scanCursor) {
-        query = query.startAfter(
-          publishedAtFromIso(scanCursor.publishedAtIso),
-          scanCursor.reportId,
-        );
-      }
-      snap = await query.limit(batchSize + 1).get();
-      hasMoreInFirestore = snap.docs.length > batchSize;
-    }
-
-    const docs = snap.docs.slice(0, batchSize);
-    const rows = sortByPublishedDesc(collectTierFiltered(docs, maxTier));
-    for (const row of rows) {
-      if (
-        scanCursor &&
-        publishedAtMs(row.published_at_iso) === publishedAtMs(scanCursor.publishedAtIso) &&
-        row.report_id === scanCursor.reportId
-      ) {
-        continue;
-      }
-      collected.push(row);
-      if (collected.length >= limit + 1) break;
-    }
-
-    const lastDoc = docs.at(-1);
-    if (!ticker && lastDoc) {
-      const lastRow = toRow(
-        lastDoc.id,
-        (lastDoc.data() || {}) as Record<string, unknown>,
-      );
-      if (lastRow?.published_at_iso) {
-        scanCursor = {
-          publishedAtIso: lastRow.published_at_iso,
-          reportId: lastRow.report_id,
-        };
-      }
-    }
-
-    if (!hasMoreInFirestore || ticker) break;
+  let rows = allEarningsRows(maxTier, ticker);
+  if (cursor) {
+    const cursorMs = publishedAtMs(cursor.publishedAtIso);
+    rows = rows.filter((row) => {
+      const ms = publishedAtMs(row.published_at_iso);
+      if (ms < cursorMs) return true;
+      if (ms > cursorMs) return false;
+      return row.report_id < cursor.reportId;
+    });
   }
-
-  const items = collected.slice(0, limit);
+  const items = rows.slice(0, limit);
   const last = items.at(-1);
-  const hasMore = collected.length > limit || (items.length === limit && hasMoreInFirestore);
+  const hasMore = rows.length > limit;
 
   return {
     items,
@@ -470,10 +384,9 @@ export async function listEarningsReportsPage({
 export async function getEarningsReport(
   reportId: string
 ): Promise<EarningsReportRow | null> {
-  const doc = await db().collection(EARNINGS_COLLECTION).doc(reportId).get();
-  if (!doc.exists) return null;
-  const raw = (doc.data() || {}) as Record<string, unknown>;
-  const row = toRow(doc.id, raw);
+  const raw = loadEarningsReportRaw(reportId);
+  if (!raw) return null;
+  const row = toRow(String(raw.report_id || reportId), raw);
   // Trend is attached detail-only so list/API rows stay lean.
   return row ? { ...row, trend: parseEarningsTrend(raw.trend) } : null;
 }

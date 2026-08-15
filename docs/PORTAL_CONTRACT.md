@@ -2,9 +2,9 @@
 
 **`schema_version`**: `v1`
 
-本文件定義 Portal（例如 investment-ai-agent 的 `api_routers/news.py`）可讀取的 Firestore collection 語意欄位與實體對照。tech-pulse 維持 headless pipeline；**實際寫入欄位**以 [`scoring/memory_store.py`](../scoring/memory_store.py) 為準。
+本文件定義 Portal（例如 investment-ai-agent 的 `api_routers/news.py`）可讀取的語意欄位與實體對照。SSOT 是 repo 內 [`dashboard/data/memory_items.json`](../dashboard/data/memory_items.json)；對外仍走 Vercel `/api/v1`。**實際寫入欄位**以 [`scoring/memory_store.py`](../scoring/memory_store.py) 為準。
 
-**預設 collection 名稱**：`tech_pulse_memory_items`（由 `FIRESTORE_COLLECTION_PREFIX` + `_memory_items` 組成；預設前綴為 `tech_pulse`）。若部署變更前綴，實際 collection 名會變，請與 `TECH_PULSE_FIRESTORE_COLLECTION` 對齊。
+**邏輯 collection 名稱**（`/api/v1/health` 的 `collection`）：`tech_pulse_memory_items`。實體檔是 `dashboard/data/memory_items.json`。
 
 ## Collection: `tech_pulse_memory_items`
 
@@ -12,7 +12,7 @@
 
 | 欄位 | 型別 | 必填 | 說明 |
 |------|------|------|------|
-| `id` | string | ✅ | Firestore document ID |
+| `id` | string | ✅ | 文件 ID（`item_id`） |
 | `title` | string | ✅ | 文章標題 |
 | `summary` | string | ✅ | Gemini 生成的 1–3 句摘要（或 deep brief 合併正文，見 alias） |
 | `source_url` | string | ✅ | 原文 URL（Portal 強制顯示；earnings 列可能為空字串） |
@@ -24,12 +24,12 @@
 | `confidence` | float | ✅ | 信心相關數值語意；見 alias — 實體為 `score` 等，非 0.0–1.0 機率欄 |
 | `pillar` | string | ✅ | 如 `AI` / `Semis` / `Crypto` / `Macro` 語意；見 alias — 實體為 `category`，枚舉與此表非一對一 |
 | `deep_brief` | string | ❌ | 長篇深度分析；見 alias — 無獨立欄位，`kind == deep_brief` 時內容在 `summary` |
-| `embedding` | vector | ❌ | Gemini 向量（Portal 不讀，supply chain 用） |
+| `embedding` | vector | ❌ | 不寫入 JSON；語意向量存在 sqlite |
 | `delivered_at` | timestamp | ❌ | Telegram 送出／歸檔時間 |
 
 ## 實體欄位對照（alias）
 
-tech-pulse 寫入的 document **body** 鍵（見 `FirestoreMemoryService.archive_*`）：
+tech-pulse 寫入的 document **body** 鍵（見 `JsonMemoryService.archive_*`）：
 
 | 實體欄位 | 說明 |
 |----------|------|
@@ -54,9 +54,9 @@ tech-pulse 寫入的 document **body** 鍵（見 `FirestoreMemoryService.archive
 
 **`deep_brief`**：無獨立 Firestore 鍵；當 `kind == "deep_brief"` 時視 `summary` 為深度內文。
 
-## Collection: `tech_pulse_digests`（additive）
+## Digests：`dashboard/data/digests.json`（additive）
 
-每次成功送報後，pipeline 可寫入一筆 digest 快照（`DIGEST_SNAPSHOT_ENABLED=1`）：
+每次成功送報後，pipeline 可追加一筆 digest 快照（`DIGEST_SNAPSHOT_ENABLED=1`）：
 
 | 欄位 | 說明 |
 |------|------|
@@ -78,11 +78,7 @@ Dashboard 首頁優先讀取最新快照；Portal 可選讀此 collection 以避
 
 ## Portal 讀取權限
 
-Portal API（`api_routers/news.py`）使用 **read-only service account**：
-
-- `roles/datastore.viewer` 即可
-- 不需要 write 權限
-- SA email 由 investment-ai-agent 維護方提供
+Portal 只打 Vercel `/api/v1`（`Authorization: Bearer $API_READ_TOKEN`）。不必再發 GCP service account。
 
 ## Portal News API（Slice 1 — Vercel `/api/v1/news/*`）
 
@@ -98,23 +94,20 @@ Portal API（`api_routers/news.py`）使用 **read-only service account**：
 ## Portal Earnings API（Slice 2 — Vercel `/api/v1/earnings/*`）
 
 - `GET /api/v1/earnings/upcoming?days=14` — 對齊 Q-Silicon `/api/earnings/upcoming`
-- `GET /api/v1/earnings/{symbol}/insight` — 讀 `tech_pulse_earnings_reports`（取代 JSONL scaffold）
+- `GET /api/v1/earnings/{symbol}/insight` — 讀 `dashboard/data/earnings/`（取代 JSONL scaffold）
 - `GET /api/v1/earnings/watchlist` — 來自 `config/earnings_watchlist.yaml`
 
 ## Preflight：確認實際鍵名
 
-在具 GCP Application Default Credentials 的環境執行：
-
 ```bash
 python -c "
-from google.cloud import firestore
-db = firestore.Client()
-docs = db.collection('tech_pulse_memory_items').limit(1).get()
-for d in docs:
-    print(d.to_dict().keys())
+import json
+from pathlib import Path
+rows = json.loads(Path('dashboard/data/memory_items.json').read_text())
+print(rows[0].keys() if rows else 'empty')
 "
 ```
 
-若無文件或無憑證會得到空輸出或錯誤；與本節「實體欄位對照」不一致時，**只更新本合約文件**，不改 tech-pulse pipeline。
+與本節「實體欄位對照」不一致時，**只更新本合約文件**，不改 tech-pulse pipeline。
 
-**單筆樣本觀測（preflight）**：`category`, `delivered_at`, `embedding`, `entity`, `expires_at`, `item_id`, `kind`, `published_at`, `score`, `score_status`, `source_name`, `source_url`, `summary`, `title`（與 `memory_store` 寫入一致；`themes` 等欄位未出現）。
+**單筆樣本觀測**：`category`, `delivered_at`, `entity`, `expires_at`, `item_id`, `kind`, `published_at`, `score`, `score_status`, `source_name`, `source_url`, `summary`, `title`（與 `memory_store` 寫入一致；JSON **不存** `embedding`）。

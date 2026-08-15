@@ -21,8 +21,8 @@ EXPECTED_MODELS = {
     "GEMINI_MODEL": "gemini-3.1-pro-preview",
     "GEMINI_FLASH_MODEL": "gemini-3-flash-preview",
 }
-STATE_BACKENDS = {"auto", "sqlite", "firestore"}
-MEMORY_BACKENDS = {"firestore"}
+STATE_BACKENDS = {"auto", "sqlite", "sqlite3"}
+MEMORY_BACKENDS = {"json", "sqlite"}
 
 
 def _failures() -> list[str]:
@@ -44,14 +44,9 @@ def _failures() -> list[str]:
             f"STATE_BACKEND must be one of {sorted(STATE_BACKENDS)!r}, got {state_backend!r}"
         )
 
-    if state_backend in {"auto", "firestore"}:
-        prefix = os.getenv("FIRESTORE_COLLECTION_PREFIX", "tech_pulse").strip()
-        if not prefix:
-            failures.append("FIRESTORE_COLLECTION_PREFIX must not be empty for Firestore state")
-
     memory_enabled = os.getenv("MEMORY_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"}
     if memory_enabled:
-        memory_backend = os.getenv("MEMORY_BACKEND", "firestore").strip().lower()
+        memory_backend = os.getenv("MEMORY_BACKEND", "json").strip().lower()
         if memory_backend not in MEMORY_BACKENDS:
             failures.append(
                 f"MEMORY_BACKEND must be one of {sorted(MEMORY_BACKENDS)!r}, got {memory_backend!r}"
@@ -62,7 +57,7 @@ def _failures() -> list[str]:
             failures.append("MEMORY_EMBEDDING_DIM must be an integer")
         else:
             if memory_dim != 768:
-                failures.append("MEMORY_EMBEDDING_DIM must be 768 to match the Firestore vector index")
+                failures.append("MEMORY_EMBEDDING_DIM must be 768")
 
     if not (ROOT / ".env.example").exists():
         failures.append("Missing .env.example")

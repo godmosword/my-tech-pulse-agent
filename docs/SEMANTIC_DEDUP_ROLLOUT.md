@@ -8,21 +8,17 @@
 | 機制 | 旗標 | 範圍 | 觀測指標 |
 |------|------|------|----------|
 | `_semantic_prefilter` | `SEMANTIC_PREFILTER_ENABLED` | **同一批** extraction 前，省 LLM token | `semantic_prefilter_dropped` |
-| `_apply_memory_context` | `SEMANTIC_DUP_DROP_ENABLED` | **跨 run** 對 Firestore memory | `semantic_dup_*`（本文件主題） |
+| `_apply_memory_context` | `SEMANTIC_DUP_DROP_ENABLED` | **跨 run** 對 sqlite embeddings | `semantic_dup_*`（本文件主題） |
 
 ## 1. 前置
 
-1. 部署向量索引（768 維，`tech_pulse_memory_items.embedding`）：
-   ```bash
-   GCP_PROJECT_ID=<project> bash scripts/deploy_firestore_indexes.sh
-   ```
-   等索引 `READY`：`gcloud firestore indexes composite list --project <project>`。
-2. 確認 `MEMORY_ENABLED=1`，讓每日 run 持續 archive 摘要 embedding，使 memory 累積（建議累積 ≥ 7 天再評估）。
+1. 確認 `STATE_BACKEND=sqlite` 且 `state/dedup.sqlite` 會被 GHA commit 回來（embeddings 存在 `article_embeddings`）。
+2. 確認 `MEMORY_ENABLED=1`，讓每日 run 持續 archive 摘要 embedding（建議累積 ≥ 7 天再評估）。
 
 ## 2. Shadow 觀測（旗標仍關閉）
 
 維持 `SEMANTIC_DUP_DROP_ENABLED=0`，可選 `SEMANTIC_DUP_SHADOW_LOG=1` 以逐筆記錄候選。
-> 注意：這些旗標在 module import 時讀取，**改 env 後需重新部署/重啟 Cloud Run Job** 才生效。
+> 注意：這些旗標在 module import 時讀取，**改 env 後下一輪 `schedule.yml` 才生效**。
 
 每日 run 的 `pipeline_run_summary`（**primary source**；digest snapshot funnel 僅在 delivery 成功時寫入，僅供輔助）會包含：
 
@@ -37,8 +33,7 @@
 
 判讀：
 - `checked > 0, would_drop = 0`：memory 有資料但本輪無近重複 —— 正常。
-- `checked = 0`：memory search 未真正執行 —— **檢查向量索引是否缺失**：
-  Cloud Logging 搜尋 `Firestore memory vector search skipped` / `Memory search failed`。索引未 READY 時 `would_drop` 會假性為 0。
+- `checked = 0`：memory search 未真正執行 —— 檢查 `state/dedup.sqlite` 是否有 `article_embeddings`，以及 `MEMORY_ENABLED=1`。
 - `would_drop / checked` 即潛在丟棄比例，用於決策。
 
 逐筆候選（`SEMANTIC_DUP_SHADOW_LOG=1`）：

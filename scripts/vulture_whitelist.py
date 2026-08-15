@@ -40,15 +40,13 @@ from agents.synthesizer_agent import Theme  # noqa: F401
 _ = Theme.supporting_entities
 
 # Store protocol implementations (selected via factory)
-from scoring.digest_store import DigestStore, FirestoreDigestStore  # noqa: F401
-from scoring.memory_store import FirestoreMemoryStore, SqliteMemoryStore  # noqa: F401
+from scoring.digest_store import DigestStore, JsonDigestStore  # noqa: F401
+from scoring.memory_store import JsonMemoryService  # noqa: F401
 
 DigestStore.get_latest
-FirestoreDigestStore.get_latest
-SqliteMemoryStore.archive_earnings
-SqliteMemoryStore.is_semantic_duplicate
-FirestoreMemoryStore.archive_earnings
-FirestoreMemoryStore.is_semantic_duplicate
+JsonDigestStore.get_latest
+JsonMemoryService.archive_earnings
+JsonMemoryService.is_semantic_duplicate
 
 # Delivery / pipeline entrypoints
 from delivery.message_formatter import MAX_PER_CATEGORY, _truncate  # noqa: F401

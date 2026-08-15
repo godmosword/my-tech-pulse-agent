@@ -1,4 +1,4 @@
-"""Firestore-backed retrieval memory for delivered tech-pulse items."""
+"""JSON-backed retrieval memory for delivered tech-pulse items."""
 
 from __future__ import annotations
 
@@ -14,17 +14,25 @@ from agents.deep_insight_agent import InsightBrief
 from agents.earnings_agent import EarningsOutput
 from agents.earnings_models import EarningsReport, report_to_legacy_output
 from agents.extractor_agent import ArticleSummary
-from llm.embedding_client import GeminiEmbedder, MEMORY_EMBEDDING_DIM
+from llm.embedding_client import GeminiEmbedder
 from llm.localization import derive_zh_title
+from scoring.json_io import (
+    json_retention_days,
+    json_safe,
+    memory_items_path,
+    prune_by_timestamp,
+    read_json_list,
+    upsert_by_id,
+    write_json,
+)
 from scoring.search_tokens import search_tokens_for_payload
+from scoring.state_store import StateStore, _cosine_similarity, make_state_store
 
 logger = logging.getLogger(__name__)
 
-MEMORY_COLLECTION_SUFFIX = "memory_items"
 MEMORY_TTL_DAYS = int(os.getenv("MEMORY_TTL_DAYS", "365"))
 MEMORY_TOP_K = int(os.getenv("MEMORY_TOP_K", "3"))
 SEMANTIC_DUP_DISTANCE_THRESHOLD = float(os.getenv("SEMANTIC_DUP_DISTANCE_THRESHOLD", "0.12"))
-VECTOR_DISTANCE_FIELD = "vector_distance"
 
 _TRACKING_PARAMS = frozenset({
     "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term",
@@ -121,65 +129,27 @@ class DisabledMemoryService:
         return False
 
 
-class FirestoreMemoryService:
-    """Archive delivered items and search them with Firestore vector search."""
+class JsonMemoryService:
+    """Archive delivered items to dashboard/data JSON; embeddings stay in sqlite."""
 
     def __init__(
         self,
         *,
         embedder: GeminiEmbedder | None = None,
-        client: Any | None = None,
-        project_id: str | None = None,
-        database: str | None = None,
-        collection_prefix: str | None = None,
-        vector_cls: Any | None = None,
-        distance_measure: Any | None = None,
-        failed_precondition_error: type[Exception] | tuple[type[Exception], ...] | None = None,
+        state: StateStore | None = None,
+        data_dir: Any = None,
+        retention_days: int | None = None,
     ):
         self._embedder = embedder or GeminiEmbedder()
-        self._prefix = (collection_prefix or os.getenv("FIRESTORE_COLLECTION_PREFIX", "tech_pulse")).strip("_")
+        self._state = state or make_state_store()
+        self._data_dir = data_dir
+        self._retention_days = retention_days if retention_days is not None else json_retention_days()
         self._ttl = timedelta(days=MEMORY_TTL_DAYS)
-
-        if client is None:
-            from google.cloud import firestore  # noqa: PLC0415
-
-            project_id = project_id or os.getenv("FIRESTORE_PROJECT_ID") or None
-            database = database or os.getenv("FIRESTORE_DATABASE") or None
-            client = firestore.Client(project=project_id, database=database) if database else firestore.Client(project=project_id)
-
-        if vector_cls is None or distance_measure is None:
-            from google.cloud.firestore_v1.base_vector_query import DistanceMeasure  # noqa: PLC0415
-            from google.cloud.firestore_v1.vector import Vector  # noqa: PLC0415
-
-            vector_cls = vector_cls or Vector
-            distance_measure = distance_measure or DistanceMeasure.COSINE
-
-        if failed_precondition_error is None:
-            try:
-                from google.api_core import exceptions as google_exceptions  # noqa: PLC0415
-
-                failed_precondition_error = google_exceptions.FailedPrecondition
-            except Exception:
-                failed_precondition_error = RuntimeError
-
-        self._client = client
-        self._vector_cls = vector_cls
-        self._distance_measure = distance_measure
-        self._failed_precondition_error = failed_precondition_error
-        assert self._vector_cls is not None and self._distance_measure is not None
-
-    def _make_vector(self, embedding: list[float]) -> Any:
-        assert self._vector_cls is not None
-        return self._vector_cls(embedding)
 
     def archive_summaries(self, summaries: list[ArticleSummary], *, delivered_at: datetime | None = None) -> None:
         delivered_at = delivered_at or datetime.now(timezone.utc)
         for summary in summaries:
             text = _summary_text(summary)
-            embedding = self._embedder.embed_document(title=summary.title or summary.entity, text=text)
-            if not embedding:
-                continue
-
             item_id = _item_id(summary.source_url or f"{summary.source_name}:{summary.title}")
             zh_title = (getattr(summary, "zh_title", "") or "").strip()
             zh_summary = (getattr(summary, "zh_summary", "") or "").strip()
@@ -195,11 +165,6 @@ class FirestoreMemoryService:
                 "title": summary.title or summary.entity,
                 "zh_title": zh_title,
                 "summary": text,
-                # zh_summary is additive (PORTAL_CONTRACT.md v1 compatible): the
-                # extractor already generates a 2-sentence Traditional Chinese
-                # paragraph; persisting it lets the dashboard render bilingual
-                # cards without re-translating at read time. Empty string when
-                # the source language is already zh-TW or the LLM skipped it.
                 "zh_summary": zh_summary,
                 "zh_body": zh_body,
                 "tldr_tier": getattr(summary, "tldr_tier", "standard") or "standard",
@@ -219,18 +184,14 @@ class FirestoreMemoryService:
                 "score": float(summary.score or 0.0),
                 "score_status": summary.score_status,
                 "kind": "instant_summary",
-                "embedding": self._make_vector(embedding),
                 "expires_at": delivered_at + self._ttl,
             }
-            self._write_payload(item_id, payload)
+            embedding = self._embedder.embed_document(title=summary.title or summary.entity, text=text)
+            self._write_payload(item_id, payload, embedding, summary.source_url)
 
     def archive_deep_brief(self, brief: InsightBrief, *, delivered_at: datetime | None = None) -> None:
         delivered_at = delivered_at or datetime.now(timezone.utc)
         text = " ".join([brief.insight, brief.tech_rationale, brief.implication]).strip()
-        embedding = self._embedder.embed_document(title=brief.title, text=text)
-        if not embedding:
-            return
-
         item_id = _item_id(brief.url or brief.item_id or brief.title)
         zh_summary = (brief.insight or "").strip()
         payload = {
@@ -248,21 +209,15 @@ class FirestoreMemoryService:
             "score": 0.0,
             "score_status": brief.confidence,
             "kind": "deep_brief",
-            "embedding": self._make_vector(embedding),
             "expires_at": delivered_at + self._ttl,
         }
-        self._write_payload(item_id, payload)
+        embedding = self._embedder.embed_document(title=brief.title, text=text)
+        self._write_payload(item_id, payload, embedding, brief.url)
 
     def archive_earnings_report(self, report: EarningsReport, *, delivered_at: datetime | None = None) -> None:
         delivered_at = delivered_at or datetime.now(timezone.utc)
         legacy = report_to_legacy_output(report)
         text = _earnings_text(legacy)
-        embedding = self._embedder.embed_document(
-            title=f"{report.ticker} {report.quarter_label}", text=text
-        )
-        if not embedding:
-            return
-
         item_id = _item_id(f"earnings:{report.report_id}")
         zh_sum, zh_body = _earnings_zh_fields(legacy)
         primary_url = report.source_documents[0].filing_url if report.source_documents else ""
@@ -281,21 +236,19 @@ class FirestoreMemoryService:
             "score": 0.0,
             "score_status": report.confidence,
             "kind": "earnings",
-            "embedding": self._make_vector(embedding),
             "expires_at": delivered_at + self._ttl,
             "report_id": report.report_id,
             "tier": report.tier,
             "tickers": [report.ticker],
         }
-        self._write_payload(item_id, payload)
+        embedding = self._embedder.embed_document(
+            title=f"{report.ticker} {report.quarter_label}", text=text
+        )
+        self._write_payload(item_id, payload, embedding, primary_url)
 
     def archive_earnings(self, earnings: EarningsOutput, *, delivered_at: datetime | None = None) -> None:
         delivered_at = delivered_at or datetime.now(timezone.utc)
         text = _earnings_text(earnings)
-        embedding = self._embedder.embed_document(title=f"{earnings.company} {earnings.quarter}", text=text)
-        if not embedding:
-            return
-
         item_id = _item_id(f"earnings:{earnings.company}:{earnings.quarter}:{earnings.source}")
         zh_sum, zh_body = _earnings_zh_fields(earnings)
         payload = {
@@ -313,10 +266,12 @@ class FirestoreMemoryService:
             "score": 0.0,
             "score_status": earnings.confidence,
             "kind": "earnings",
-            "embedding": self._make_vector(embedding),
             "expires_at": delivered_at + self._ttl,
         }
-        self._write_payload(item_id, payload)
+        embedding = self._embedder.embed_document(
+            title=f"{earnings.company} {earnings.quarter}", text=text
+        )
+        self._write_payload(item_id, payload, embedding, "")
 
     def search_similar(
         self,
@@ -331,35 +286,21 @@ class FirestoreMemoryService:
         if not embedding:
             return []
 
-        try:
-            vector_query = self._collection().find_nearest(
-                vector_field="embedding",
-                query_vector=self._make_vector(embedding),
-                distance_measure=self._distance_measure,
-                limit=max(1, top_k),
-                distance_result_field=VECTOR_DISTANCE_FIELD,
-            )
-            results = []
-            normalized_exclude = _normalize_url(exclude_url) if exclude_url else ""
-            for doc in vector_query.stream():
-                result = _doc_to_memory_result(doc)
-                if normalized_exclude and _normalize_url(result.source_url) == normalized_exclude:
-                    continue
-                results.append(result)
-            return results
-        except Exception as exc:
-            if self._is_missing_index_error(exc):
-                logger.warning(
-                    "Firestore memory vector search skipped because the required vector index "
-                    "is missing or building. Create collection group %s_%s embedding dimension %d. Error: %s",
-                    self._prefix,
-                    MEMORY_COLLECTION_SUFFIX,
-                    MEMORY_EMBEDDING_DIM,
-                    exc,
-                )
-                return []
-            logger.warning("Firestore memory vector search failed; continuing without memory: %s", exc)
-            return []
+        items = {str(row.get("item_id") or ""): row for row in self._load_items()}
+        ranked: list[tuple[float, MemorySearchResult]] = []
+        normalized_exclude = _normalize_url(exclude_url) if exclude_url else ""
+        for item_id, url, stored in self._state.list_recent_embeddings(self._retention_days):
+            row = items.get(item_id)
+            if row is None:
+                continue
+            source_url = str(row.get("source_url") or url or "")
+            if normalized_exclude and _normalize_url(source_url) == normalized_exclude:
+                continue
+            sim = _cosine_similarity(embedding, stored)
+            distance = 1.0 - sim
+            ranked.append((distance, _row_to_memory_result(row, distance)))
+        ranked.sort(key=lambda pair: pair[0])
+        return [result for _, result in ranked[: max(1, top_k)]]
 
     def is_semantic_duplicate(
         self,
@@ -371,19 +312,28 @@ class FirestoreMemoryService:
         matches = self.search_similar(title, summary, top_k=1)
         return bool(matches and matches[0].distance is not None and matches[0].distance <= threshold)
 
-    def _collection(self):
-        return self._client.collection(f"{self._prefix}_{MEMORY_COLLECTION_SUFFIX}")
+    def _load_items(self) -> list[dict[str, Any]]:
+        return read_json_list(memory_items_path(self._data_dir))
 
-    def _write_payload(self, item_id: str, payload: dict[str, Any]) -> None:
-        # Additive keyword-search index; mirrored by dashboard/lib/search-tokens.ts.
-        enriched = {**payload, "search_tokens": search_tokens_for_payload(payload)}
-        try:
-            self._collection().document(item_id).set(enriched, merge=True)
-        except Exception as exc:
-            logger.warning("Firestore memory archive skipped for %s: %s", item_id, exc)
-
-    def _is_missing_index_error(self, exc: Exception) -> bool:
-        return isinstance(exc, self._failed_precondition_error) and "index" in str(exc).lower()
+    def _write_payload(
+        self,
+        item_id: str,
+        payload: dict[str, Any],
+        embedding: list[float] | None,
+        source_url: str,
+    ) -> None:
+        safe = json_safe(payload)
+        if not isinstance(safe, dict):
+            return
+        safe["item_id"] = item_id
+        safe["search_tokens"] = search_tokens_for_payload(safe)
+        if "embedding" in safe:
+            del safe["embedding"]
+        path = memory_items_path(self._data_dir)
+        rows = upsert_by_id(self._load_items(), safe)
+        write_json(path, prune_by_timestamp(rows, retention_days=self._retention_days))
+        if embedding:
+            self._state.store_embedding(item_id, source_url, embedding)
 
 
 def make_memory_service() -> MemoryService:
@@ -391,15 +341,14 @@ def make_memory_service() -> MemoryService:
     if not enabled:
         return DisabledMemoryService()
 
-    backend = os.getenv("MEMORY_BACKEND", "firestore").strip().lower()
-    if backend != "firestore":
-        logger.warning("Unknown MEMORY_BACKEND=%r; memory disabled", backend)
-        return DisabledMemoryService()
+    backend = os.getenv("MEMORY_BACKEND", "json").strip().lower()
+    if backend not in {"json", "sqlite", ""}:
+        logger.warning("Unknown MEMORY_BACKEND=%r; using json", backend)
 
     try:
-        return FirestoreMemoryService()
+        return JsonMemoryService()
     except Exception as exc:
-        logger.warning("Firestore memory unavailable; continuing without memory: %s", exc)
+        logger.warning("JSON memory unavailable; continuing without memory: %s", exc)
         return DisabledMemoryService()
 
 
@@ -499,18 +448,9 @@ def _earnings_text(earnings: EarningsOutput) -> str:
     return " ".join(part for part in parts if part).strip()
 
 
-def _doc_to_memory_result(doc: Any) -> MemorySearchResult:
-    data = doc.to_dict() if hasattr(doc, "to_dict") else dict(doc)
-    distance = None
-    if hasattr(doc, "get"):
-        try:
-            distance = doc.get(VECTOR_DISTANCE_FIELD)
-        except Exception:
-            distance = None
-    if distance is None:
-        distance = data.get(VECTOR_DISTANCE_FIELD)
+def _row_to_memory_result(data: dict[str, Any], distance: float | None) -> MemorySearchResult:
     return MemorySearchResult(
-        item_id=str(data.get("item_id") or getattr(doc, "id", "")),
+        item_id=str(data.get("item_id") or ""),
         title=str(data.get("title") or ""),
         summary=str(data.get("summary") or ""),
         source_url=str(data.get("source_url") or ""),
@@ -522,7 +462,7 @@ def _doc_to_memory_result(doc: Any) -> MemorySearchResult:
         score=float(data.get("score") or 0.0),
         score_status=str(data.get("score_status") or ""),
         kind=str(data.get("kind") or "instant_summary"),
-        distance=float(distance) if distance is not None else None,
+        distance=distance,
     )
 
 

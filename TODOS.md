@@ -89,7 +89,7 @@
 - [x] **Pipeline**：`_try_fundamental_enrich`；SEC headline 不覆寫；FMP 失敗不影響主流程
 - [x] **Dashboard**：`/earnings/[ticker]` 估值比率 + EPS surprise 迷你表
 - [x] **測試** `tests/test_fmp_fundamentals.py`（7 cases）
-- [ ] **Production env**：Cloud Run 設 `FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`（分階段啟用見 [`docs/VENDOR_ENABLEMENT.md`](docs/VENDOR_ENABLEMENT.md)）
+- [ ] **Production env**：GHA 設 `FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`（分階段啟用見 [`docs/VENDOR_ENABLEMENT.md`](docs/VENDOR_ENABLEMENT.md)）
 - [x] **FMP 全域 per-run cap**：改為在 `EarningsPipelineRunner.run()` local scope 建單一 `FundamentalProvider`，傳入 full + broad 兩處 `_try_fundamental_enrich`，使 `MAX_FMP_CALLS_PER_RUN` 成真正全輪上限（測試 `test_try_fundamental_enrich_shares_provider_cap`）
 
 ## 財報 — Phase 4 投資訊號（2026-05-21）
@@ -113,7 +113,7 @@
 - [x] **主題映射** `agents/macro_context_builder.py` → digest macro 段落
 - [x] **Dashboard** `/macro` + 持倉加權環境 `portfolioEnvironment`
 - [x] **測試** `tests/test_macro_context.py`（7 cases）
-- [ ] **Production env**：Cloud Run 設 `FRED_API_KEY`（可選）；定期更新 `supply_chain_manual.yaml` as_of
+- [ ] **Production env**：GHA 設 `FRED_API_KEY`（可選）；定期更新 `supply_chain_manual.yaml` as_of
 
 ## Dashboard dense 設計系統（2026-05-21）
 
@@ -138,12 +138,15 @@
 - [x] **CI dashboard job**：typecheck + vitest + production build（2026-05-29）
 - [x] **CI 品質閘（DoD）**：ruff / pyright / vulture / pytest coverage ≥62% / Dashboard ESLint + `api-routes` vitest（2026-05-30）
 - [x] **Agent 規範**：[`CLAUDE.md`](CLAUDE.md) + [`.cursorignore`](.cursorignore)（2026-05-30）
-- [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md) + `scripts/setup_finnhub_production.sh`（production env 待批准執行）
+- [x] **Finnhub 啟用文件**：[`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md)（GHA secret，production env 待批准執行）
 - [x] **Dashboard 六階段審查（2026-05-31）**：legacy CSS 移除、lib export 收斂；共用 `format-numbers`／`login-path`／`BrandMark`／`InstantCardNewsList`；`SignalsTable` 手機版 Link／button 分離；a11y（`:focus-visible`、login `role="alert"`、Relationships `<details>`、BacktestCharts `aria-label`）；`npm run lint` + typecheck + vitest + build 全綠
 
 ## 進行中 / 下一步
 
-- [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / ADC / `main.py` / `backfill_zh_fields.py`（Cloud Run Secret 暫緩）
+- [x] **離開 GCP**：Actions 跑 pipeline + `dashboard/data` JSON SSOT；停 Cloud Run / Firestore
+- [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / `main.py` / `backfill_zh_fields.py`
+- [ ] **GCP 收尾**：pause `tech-pulse-daily`、設 `PIPELINE_SCHEDULE_ENABLED=true`、確認 GHA 成功後再刪 GCP 專案
+- [ ] **歷史資料**：若還要舊 archive，在撤 GCP 前跑 `python scripts/export_firestore_to_json.py`
 - [x] **EarningsAgent 類別**：**保留**（judge baseline）—— 仍由 `smoke_test.py` + `agents/__init__` + vulture 白名單引用；生產路徑僅 v3 agents，刪除擾動多檔無實益
 - [x] **API route 測試延伸**：`api-routes.test.ts` 已覆蓋 `/api/v1/news/digest`、`news/deep`、`news/deep/[itemId]`、`items/[id]`、`archive/facets` 等 handler vitest
 - [x] **Slice 1 Portal News API**：`/api/v1/news/*` + [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md)
@@ -156,7 +159,7 @@
 
 - [ ] **Backfill v3**：`scripts/backfill_earnings.py` 支援 `--deep-report` 回填歷史 `rendered_markdown_zh`（可選；SEC/XBRL + LLM，不依賴 Vendor key）
 - [ ] **P4 Telegram**：長文 chunking 正式測試矩陣（雙擊/雙殺/Mixed EPS/缺 transcript）
-- [ ] **P6 Preflight**：SEC 連線 + `tech_pulse_earnings_reports` smoke（Finnhub ping 見下方「付費 Vendor API」）
+- [ ] **P6 Preflight**：SEC 連線 + `dashboard/data/earnings` smoke（Finnhub ping 見下方「付費 Vendor API」）
 - [x] **P1 測試**：MSFT / GOOGL / TSM fiscal 邊界 fixture（[`docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md`](docs/fixtures/FISCAL_BOUNDARY_FIXTURES.md)）
 - [ ] **Dashboard**：SiC／持倉篩選（`tags: sic`）；TradingView 圖表（可選）
 - [ ] **Watchlist**：Tier 2–5 補滿至各 10 檔（不臆造 ticker）
@@ -167,7 +170,7 @@
 
 程式已合併（Finnhub provider、price_reaction、transcript、vendor enrich、**FMP fundamental enrich**）；**production 暫不申請／不設定付費或配額型 API key**。未設 key 時 pipeline 仍以 SEC XBRL 為主，`price_reaction` / transcript / 共識 estimate / FMP 比率可能為 `degraded` 或略過。評估與 env 對照見 [`docs/EARNINGS_API_EVALUATION.md`](docs/EARNINGS_API_EVALUATION.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md)。
 
-- [ ] **Production env**：Cloud Run 設 `FINNHUB_API_KEY`；`EARNINGS_VENDOR_MODE=free`（或 `paid`）；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`（見 [`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md)）
+- [ ] **Production env**：GHA 設 `FINNHUB_API_KEY`；`EARNINGS_VENDOR_MODE=free`（或 `paid`）；跑一輪 pipeline 驗證 `earnings_vendor_enriched_count`（見 [`docs/FINNHUB_PRODUCTION_SETUP.md`](docs/FINNHUB_PRODUCTION_SETUP.md)）
 - [ ] **Production env（FMP）**：`FMP_API_KEY` + `EARNINGS_FUNDAMENTAL_MODE=free`；驗證 report 含 `ratios` / `surprise_history`
 - [x] **FMP 程式**：`fmp_provider` / `fundamental_provider` / normalize + pipeline hook（`off` = 純 SEC）
 - [ ] **P2 Vendor 實作**：Finnhub HTTP 完整接線；`tech_pulse_vendor_api_usage` + cache TTL（降配額消耗）

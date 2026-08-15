@@ -1,21 +1,16 @@
-name: CI and Deploy
+name: CI
 
 on:
   push:
     branches: [main]
-    # Skip the rebuild/redeploy when a commit only refreshes dashboard data
-    # artifacts (see refresh-invest-artifacts.yml). Commits that also touch code
-    # still trigger CI normally.
     paths-ignore:
       - 'backtest/results/**'
+      - 'dashboard/data/**'
+      - 'state/**'
   workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
-
-env:
-  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/tech-pulse:${{ github.sha }}
 
 jobs:
   test:
@@ -87,68 +82,3 @@ jobs:
 
       - name: Production build
         run: npm run build
-
-  deploy:
-    name: Build and deploy
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [test, dashboard]
-    concurrency:
-      group: deploy-cloudrun
-      cancel-in-progress: false
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-
-      - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v3
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Build image
-        run: docker build -t "$IMAGE" .
-
-      - name: Push image
-        run: docker push "$IMAGE"
-
-      - name: Deploy to Cloud Run Job
-        run: |
-          gcloud run jobs update "${{ vars.CLOUD_RUN_SERVICE }}" \
-            --image "$IMAGE" \
-            --region "${{ vars.GCP_REGION }}" \
-            --project "${{ vars.GCP_PROJECT_ID }}" \
-            --update-env-vars DIGEST_FORMAT=v1
-
-  deploy-staging:
-    name: Deploy staging job (semantic prefilter)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: deploy
-    if: ${{ vars.CLOUD_RUN_STAGING_JOB != '' }}
-
-    steps:
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-
-      - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v3
-
-      - name: Deploy staging Cloud Run Job
-        run: |
-          gcloud run jobs update "${{ vars.CLOUD_RUN_STAGING_JOB }}" \
-            --image "${{ env.IMAGE }}" \
-            --region "${{ vars.GCP_REGION }}" \
-            --project "${{ vars.GCP_PROJECT_ID }}" \
-            --update-env-vars TECH_PULSE_ENV=staging,DIGEST_FORMAT=v1

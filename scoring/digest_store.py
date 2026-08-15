@@ -1,4 +1,4 @@
-"""Canonical digest snapshots in Firestore (`{prefix}_digests`)."""
+"""Canonical digest snapshots in dashboard/data/digests.json."""
 
 from __future__ import annotations
 
@@ -11,11 +11,17 @@ from agents.deep_insight_agent import InsightBrief
 from agents.extractor_agent import ArticleSummary
 from agents.synthesizer_agent import DigestOutput
 from delivery.message_formatter import _select_by_theme
+from scoring.json_io import (
+    digests_path,
+    json_safe,
+    prune_by_timestamp,
+    read_json_list,
+    upsert_by_id,
+    write_json,
+)
 from scoring.memory_store import _item_id
 
 logger = logging.getLogger(__name__)
-
-DIGEST_COLLECTION_SUFFIX = "digests"
 
 
 class DigestStore(Protocol):
@@ -43,24 +49,9 @@ class DisabledDigestStore:
         return None
 
 
-class FirestoreDigestStore:
-    def __init__(
-        self,
-        *,
-        client: Any | None = None,
-        project_id: str | None = None,
-        database: str | None = None,
-        collection_prefix: str | None = None,
-    ):
-        if client is None:
-            from google.cloud import firestore  # noqa: PLC0415
-
-            project_id = project_id or os.getenv("FIRESTORE_PROJECT_ID") or None
-            database = database or os.getenv("FIRESTORE_DATABASE") or None
-            client = firestore.Client(project=project_id, database=database) if database else firestore.Client(project=project_id)
-
-        prefix = (collection_prefix or os.getenv("FIRESTORE_COLLECTION_PREFIX", "tech_pulse")).strip("_")
-        self._collection = client.collection(f"{prefix}_{DIGEST_COLLECTION_SUFFIX}")
+class JsonDigestStore:
+    def __init__(self, *, data_dir: Any = None):
+        self._data_dir = data_dir
 
     def save_run(
         self,
@@ -85,7 +76,7 @@ class FirestoreDigestStore:
                 ],
             })
 
-        payload = {
+        payload = json_safe({
             "digest_id": digest_id,
             "delivered_at": delivered_at,
             "digest": digest.model_dump() if digest else None,
@@ -100,29 +91,24 @@ class FirestoreDigestStore:
                 for brief in deep_briefs
             ],
             "funnel": funnel or {},
-        }
-        self._collection.document(digest_id).set(payload)
+        })
+        if not isinstance(payload, dict):
+            return None
+        path = digests_path(self._data_dir)
+        rows = upsert_by_id(read_json_list(path), payload, id_key="digest_id")
+        write_json(path, prune_by_timestamp(rows))
         logger.info("Saved digest snapshot %s (%d theme groups)", digest_id, len(theme_groups))
         return digest_id
 
     def get_latest(self) -> dict | None:
-        docs = (
-            self._collection.order_by("delivered_at", direction="DESCENDING")
-            .limit(1)
-            .stream()
-        )
-        for doc in docs:
-            data = doc.to_dict() or {}
-            data.setdefault("digest_id", doc.id)
-            return data
-        return None
+        rows = read_json_list(digests_path(self._data_dir))
+        if not rows:
+            return None
+        rows.sort(key=lambda row: str(row.get("delivered_at") or ""), reverse=True)
+        return rows[0]
 
 
 def make_digest_store() -> DigestStore:
     if os.getenv("DIGEST_SNAPSHOT_ENABLED", "1").strip().lower() in {"0", "false", "no"}:
         return DisabledDigestStore()
-    try:
-        return FirestoreDigestStore()
-    except Exception as exc:
-        logger.warning("Digest store disabled: %s", exc)
-        return DisabledDigestStore()
+    return JsonDigestStore()

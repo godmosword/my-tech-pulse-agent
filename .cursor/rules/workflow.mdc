@@ -25,10 +25,10 @@ Do **not** leave CHANGELOG/TODOS stale after merging a slice. Routine work does 
 - `pipeline/`, `main.py`, `agents/`, `llm/`, `sources/`, `scoring/`, `delivery/`
 - Production-impacting `scripts/` (e.g. `preflight.py`, `backfill_gdelt.py`)
 - Root `.env.example` vars that affect pipeline runs
-- `.github/workflows/ci.yml` deploy steps (image, Cloud Run env)
+- `.github/workflows/ci.yml` or `schedule.yml` (pipeline run / secrets / commit paths)
 
 **No approval needed** for: `dashboard/`, `docs/`, `README.md`, `CHANGELOG.md`, `TODOS.md`, tests-only (unless they change pipeline behavior).
 
 Before asking, you may investigate and draft; after approval, follow the slice → `main` + CHANGELOG/TODOS flow.
 
-When proposing pipeline work, state: files affected, runtime/env impact, verification command, and that `main` push triggers deploy.
+When proposing pipeline work, state: files affected, runtime/env impact, verification command, and that `schedule.yml` (not `main` push) runs production pipeline.

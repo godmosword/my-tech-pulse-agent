@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
-"""Backfill Traditional Chinese fields on existing tech_pulse_memory_items.
+"""Backfill Traditional Chinese fields on dashboard/data/memory_items.json.
 
-Re-runs ExtractorAgent on stored English fields when zh_summary or zh_title
-is missing. Requires GEMINI_API_KEY and Firestore credentials.
+Re-runs Flash zh backfill when zh_summary or zh_title is missing.
 
 Usage:
   python scripts/backfill_zh_fields.py --dry-run --limit 8
   python scripts/backfill_zh_fields.py --limit 8 --max-updates 6
-
-Fetches recent docs in one Firestore query (no long-lived stream during Gemini calls).
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -29,18 +25,9 @@ load_dotenv()
 
 from llm.localization import has_cjk  # noqa: E402
 from llm.zh_backfill import ZhBackfillResult, extract_zh_backfill  # noqa: E402
+from scoring.json_io import memory_items_path, read_json_list, write_json  # noqa: E402
 
 logger = logging.getLogger(__name__)
-
-COLLECTION_SUFFIX = "memory_items"
-
-
-def _collection_name() -> str:
-    prefix = os.getenv("FIRESTORE_COLLECTION_PREFIX", "tech_pulse").strip("_")
-    override = os.getenv("TECH_PULSE_FIRESTORE_COLLECTION", "").strip()
-    if override:
-        return override
-    return f"{prefix}_{COLLECTION_SUFFIX}"
 
 
 def _needs_backfill(data: dict) -> bool:
@@ -78,30 +65,21 @@ def _patch_from_zh(data: dict, zh: ZhBackfillResult) -> dict:
 
 
 def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
-    from google.cloud import firestore  # noqa: PLC0415
-
-    db = firestore.Client(
-        project=os.getenv("FIRESTORE_PROJECT_ID") or None,
-        database=os.getenv("FIRESTORE_DATABASE") or None,
-    )
-    collection = db.collection(_collection_name())
-
-    # Fetch upfront: holding a stream open across slow Gemini calls can hit DEADLINE_EXCEEDED.
-    query = (
-        collection.order_by("delivered_at", direction=firestore.Query.DESCENDING).limit(limit)
-    )
-    docs = list(query.stream())
+    path = memory_items_path()
+    rows = read_json_list(path)
+    rows.sort(key=lambda row: str(row.get("delivered_at") or ""), reverse=True)
+    docs = rows[:limit]
     logger.info("Fetched %d recent documents (limit=%d)", len(docs), limit)
 
     updated = 0
     skipped = 0
     failed = 0
 
-    for doc in docs:
+    for data in docs:
         if max_updates is not None and updated >= max_updates:
             logger.info("Reached --max-updates=%d, stopping", max_updates)
             break
-        data = doc.to_dict() or {}
+        item_id = str(data.get("item_id") or data.get("id") or "")
         if data.get("kind") not in {None, "", "instant_summary"}:
             skipped += 1
             continue
@@ -121,29 +99,22 @@ def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
             what_happened=str(data.get("what_happened") or ""),
         )
         if not zh:
-            logger.warning("zh_backfill failed for %s (%s)", doc.id, title[:60])
+            logger.warning("zh_backfill failed for %s (%s)", item_id, title[:60])
             failed += 1
             continue
 
         patch = _patch_from_zh(data, zh)
         if not patch:
-            logger.warning(
-                "No zh patch for %s (existing zh_title=%r zh_summary_len=%d; "
-                "extracted zh_title=%r zh_summary_len=%d hook_len=%d)",
-                doc.id,
-                (data.get("zh_title") or "")[:40],
-                len((data.get("zh_summary") or "")),
-                (zh.zh_title or "")[:40],
-                len((zh.zh_summary or "")),
-                len((zh.hook or "")),
-            )
             skipped += 1
             continue
 
-        logger.info("%s %s: patch keys %s", "DRY-RUN" if dry_run else "UPDATE", doc.id, list(patch.keys()))
+        logger.info("%s %s: patch keys %s", "DRY-RUN" if dry_run else "UPDATE", item_id, list(patch.keys()))
         if not dry_run:
-            collection.document(doc.id).set(patch, merge=True)
+            data.update(patch)
         updated += 1
+
+    if not dry_run and updated:
+        write_json(path, rows)
 
     logger.info(
         "Backfill complete: fetched=%d updated=%d skipped=%d failed=%d dry_run=%s",
@@ -158,20 +129,10 @@ def run_backfill(*, limit: int, max_updates: int | None, dry_run: bool) -> int:
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    parser = argparse.ArgumentParser(description="Backfill zh_* fields on memory_items")
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=12,
-        help="Max recent documents to fetch from Firestore (by delivered_at desc)",
-    )
-    parser.add_argument(
-        "--max-updates",
-        type=int,
-        default=None,
-        help="Stop after this many successful patches (default: no cap)",
-    )
-    parser.add_argument("--dry-run", action="store_true", help="Log patches without writing")
+    parser = argparse.ArgumentParser(description="Backfill zh_* fields on memory_items.json")
+    parser.add_argument("--limit", type=int, default=12)
+    parser.add_argument("--max-updates", type=int, default=None)
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     max_updates = args.max_updates if args.max_updates and args.max_updates > 0 else None
     return run_backfill(

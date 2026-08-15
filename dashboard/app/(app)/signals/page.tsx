@@ -73,7 +73,7 @@ export default async function SignalsPage({ searchParams }: Props) {
       kicker="Signal Engine"
       title="投資訊號排行"
       description="近 30 日財報綜合訊號（0–100），僅讀既有 scorecard / trend / 市場反應 / 比率欄位。非投資建議。"
-      source="Firestore earnings"
+      source="JSON earnings"
       backHref="/invest"
       backLabel="返回投資中樞"
       breadcrumb={[
@@ -141,16 +141,16 @@ export default async function SignalsPage({ searchParams }: Props) {
       {items.length === 0 ? (
         <BackfillHint
           title="尚無含 investment_signal 的近期財報"
-          note="Vercel 部署讀 Firestore；本機 dashboard 需 ADC 與同一 GCP 專案。既有舊報告若缺 signal，需用 backfill 重寫。"
+          note="Vercel 讀 committed JSON（dashboard/data/earnings/）。既有舊報告若缺 signal，需用 backfill 重寫。"
         >
-          <p>1. 新財報（Cloud Run 排程或本機完整 pipeline）：</p>
+          <p>1. 新財報（GitHub Actions 排程或本機完整 pipeline）：</p>
           <BackfillCode>{`cd /path/to/my-tech-pulse-agent
 python main.py`}</BackfillCode>
-          <p>2. 依 SEC 申報日區間 backfill（寫入 Firestore 並附 investment_signal）：</p>
+          <p>2. 依 SEC 申報日區間 backfill（寫入 JSON 並附 investment_signal）：</p>
           <BackfillCode>{`python scripts/backfill_earnings.py \\
   --since 2026-01-01 --until 2026-05-21 \\
   --max-filings 20`}</BackfillCode>
-          <p>環境：SEC_USER_AGENT、Firestore ADC（GOOGLE_APPLICATION_CREDENTIALS 或 gcloud auth）。</p>
+          <p>環境：SEC_USER_AGENT、DASHBOARD_DATA_DIR=dashboard/data。</p>
         </BackfillHint>
       ) : (
         <SignalsListSection
