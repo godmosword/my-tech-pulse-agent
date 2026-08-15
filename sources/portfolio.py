@@ -82,15 +82,6 @@ class Portfolio(BaseModel):
     def tickers(self) -> list[str]:
         return sorted({p.ticker for p in self.positions})
 
-    def position_for(self, ticker: str | None) -> Position | None:
-        if not ticker:
-            return None
-        key = ticker.upper()
-        for p in self.positions:
-            if p.ticker == key:
-                return p
-        return None
-
 
 def theme_for(ticker: str, watchlist: EarningsWatchlist) -> str:
     """Attribute ticker to a theme; first watchlist tag, normalized for target keys."""

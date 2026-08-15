@@ -20,6 +20,7 @@ from scoring.json_io import (
     json_retention_days,
     json_safe,
     memory_items_path,
+    parse_iso,
     prune_by_timestamp,
     read_json_list,
     upsert_by_id,
@@ -177,7 +178,7 @@ class JsonMemoryService:
                 "market_context": _model_payload(getattr(summary, "market_context", None)),
                 "source_url": summary.source_url,
                 "source_name": summary.source_name,
-                "published_at": _parse_datetime(getattr(summary, "published_at", "")),
+                "published_at": parse_iso(getattr(summary, "published_at", "")),
                 "delivered_at": delivered_at,
                 "category": summary.category,
                 "entity": summary.entity,
@@ -484,17 +485,3 @@ def _normalize_url(url: str) -> str:
         return parsed._replace(query=clean_query, fragment="").geturl().rstrip("/")
     except Exception:
         return url.rstrip("/")
-
-
-def _parse_datetime(value: object) -> datetime | None:
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, str) and value:
-        try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
-            return parsed
-        except ValueError:
-            return None
-    return None

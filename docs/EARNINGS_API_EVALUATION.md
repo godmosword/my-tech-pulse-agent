@@ -12,7 +12,7 @@ Status: **stub only** — `EARNINGS_VENDOR_MODE=off` by default. SEC XBRL remain
 
 ## Integration rules (implemented)
 
-1. `sources/vendor_earnings_provider.py` — `VendorEarningsProvider` with `enrich_ticker()` stub.
+1. `sources/vendor_earnings_provider.py` — `VendorEarningsProvider.enrich_for_report`。
 2. Vendor failure never adds `critical_errors`; pipeline continues SEC-only.
 3. `MAX_VENDOR_CALLS_PER_RUN` caps per Cloud Run execution.
 4. Estimates must include `source_type: vendor_estimate` or fact_guard drops them.

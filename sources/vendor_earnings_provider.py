@@ -74,31 +74,6 @@ class VendorEarningsProvider:
             enriched=enriched,
         )
 
-    def enrich_ticker(self, ticker: str) -> VendorEnrichmentResult:
-        """Backward-compatible ticker-only enrich (no fiscal match)."""
-        if not self.enabled() or self._calls >= MAX_VENDOR_CALLS_PER_RUN:
-            return VendorEnrichmentResult()
-        if self._finnhub is None:
-            return VendorEnrichmentResult()
-        self._calls += 1
-        try:
-            estimates = self._finnhub.enrich_estimates(ticker, fiscal_year=None, fiscal_period="")
-            market = self._finnhub.enrich_market(ticker, fiscal_year=None, fiscal_period="")
-        except Exception as exc:
-            logger.warning("Finnhub enrich failed for %s: %s", ticker, exc)
-            return VendorEnrichmentResult(calls_made=1)
-        return VendorEnrichmentResult(
-            estimates=estimates,
-            market_context=market,
-            calls_made=1,
-            enriched=bool(estimates),
-        )
-
-    def get_calendar(self, _horizon_days: int = 30) -> list[dict[str, Any]]:
-        if not self.enabled():
-            return []
-        return []
-
     @property
     def calls_made(self) -> int:
         return self._calls

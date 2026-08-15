@@ -145,8 +145,7 @@
 
 - [x] **離開 GCP**：Actions 跑 pipeline + `dashboard/data` JSON SSOT；停 Cloud Run / Firestore
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / `main.py` / `backfill_zh_fields.py`
-- [ ] **GCP 收尾**：pause `tech-pulse-daily`、設 `PIPELINE_SCHEDULE_ENABLED=true`、確認 GHA 成功後再刪 GCP 專案
-- [ ] **歷史資料**：若還要舊 archive，在撤 GCP 前跑 `python scripts/export_firestore_to_json.py`
+- [x] **GCP 收尾**：GHA 已啟用；專案 `my-tech-pulse-agent-494715` 為 `DELETE_REQUESTED`
 - [x] **EarningsAgent 類別**：**保留**（judge baseline）—— 仍由 `smoke_test.py` + `agents/__init__` + vulture 白名單引用；生產路徑僅 v3 agents，刪除擾動多檔無實益
 - [x] **API route 測試延伸**：`api-routes.test.ts` 已覆蓋 `/api/v1/news/digest`、`news/deep`、`news/deep/[itemId]`、`items/[id]`、`archive/facets` 等 handler vitest
 - [x] **Slice 1 Portal News API**：`/api/v1/news/*` + [`docs/QSILICON_INTEGRATION.md`](docs/QSILICON_INTEGRATION.md)

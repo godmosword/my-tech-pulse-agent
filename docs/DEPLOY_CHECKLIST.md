@@ -211,4 +211,3 @@ python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 **資料**
 
 - [ ] `backfill_zh_fields.py` dry-run 後決定是否正式 backfill
-- [ ] 若要舊 archive：撤 GCP 前跑 `python scripts/export_firestore_to_json.py`

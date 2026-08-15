@@ -95,11 +95,6 @@ class TickerCikMap:
         cik = self._ticker_to_cik.get(ticker.upper())
         return format_cik(cik) if cik else None
 
-    def ticker_for(self, cik: str | None) -> str | None:
-        if not cik:
-            return None
-        return self._cik_to_ticker.get(format_cik(cik))
-
     def resolve_ticker(self, company: str, title: str = "") -> str | None:
         """Best-effort ticker from EDGAR title / company name."""
         blob = f"{company} {title}".upper()

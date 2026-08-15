@@ -22,7 +22,7 @@ EXPECTED_MODELS = {
     "GEMINI_FLASH_MODEL": "gemini-3-flash-preview",
 }
 STATE_BACKENDS = {"auto", "sqlite", "sqlite3"}
-MEMORY_BACKENDS = {"json", "sqlite"}
+MEMORY_BACKENDS = {"json"}
 
 
 def _failures() -> list[str]:

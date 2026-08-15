@@ -24,7 +24,6 @@ MAX_WEIGHT = 2.0
 WEIGHT_INCREMENT = 0.1
 VOTE_CALLBACK_PREFIX = "fv"
 TARGET_TYPE_CODES = {"d": "digest", "i": "item"}
-TARGET_TYPE_TO_CODE = {v: k for k, v in TARGET_TYPE_CODES.items()}
 
 def encode_vote_callback(vote: VoteValue, target_key: str) -> str:
     """Build Telegram callback_data for a digest/item vote (≤64 bytes)."""
@@ -55,12 +54,6 @@ def parse_vote_callback(data: str) -> tuple[VoteValue, TargetType, str] | None:
     vote: VoteValue = "up" if vote_bit == "1" else "down"
     target_type: TargetType = TARGET_TYPE_CODES[type_code]  # type: ignore[assignment]
     return vote, target_type, target_id
-
-
-def digest_feedback_key(now: datetime | None = None) -> str:
-    from delivery.message_formatter import digest_feedback_date_key
-
-    return f"d:{digest_feedback_date_key(now)}"
 
 
 def item_feedback_key(source_url: str, *, fallback: str = "") -> str:
