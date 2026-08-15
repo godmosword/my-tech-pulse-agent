@@ -18,9 +18,8 @@
 ### ✅ 自動排程（C1）— 改走 GitHub Actions
 - **現況**：`.github/workflows/schedule.yml`（`20 23 * * *` UTC = 07:20 Asia/Taipei）直接跑 `python main.py` 並 commit JSON。
 - **啟用**：設 `vars.PIPELINE_SCHEDULE_ENABLED=true`；手動 `workflow_dispatch` 不受限。
-- **⚠️ 切換前**在 GCP Console **pause** `tech-pulse-daily`，避免與 GHA 雙跑、重複送 Telegram。
-- **回滾 / 停跑**：把 `PIPELINE_SCHEDULE_ENABLED` 設回非 `true`。
-- **Runbook**：[`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)。
+- **回滾 / 停跑**：把 `PIPELINE_SCHEDULE_ENABLED` 設回非 `true`。手動 `workflow_dispatch` 仍可跑。
+- **Runbook**：[`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)。來源清單見 [`SOURCES.md`](SOURCES.md)。
 
 ## 待啟用（依建議順序，由「高體感低風險」到「需成本決策」）
 
@@ -50,30 +49,39 @@
 - **風險**：在抽取前丟棄，較早介入；threshold 太低會誤併不同題材。
 - **回滾**：設 `0`。
 
-### ✅（已啟用，列此供回滾參考）財報 vendor — `EARNINGS_VENDOR_MODE`（C3，Finnhub）
-- **現況**：**`free`，production 已啟用**（`FINNHUB_API_KEY` 已配，驗證 2026-06-14 job env）。
-- **作用**：Finnhub 共識／日曆／股價／逐字稿 enrich 財報。
-- **注意**：只在**財報日**開火；無 watchlist filing 的日子 `earnings_vendor_enriched_count = 0` 屬正常（非關閉）。
-- **剩餘決策**：是否 `free → paid`（額度／涵蓋度需求），**不是**啟用。
-- **回滾**：設 `off`。**Runbook**：[`VENDOR_ENABLEMENT.md`](VENDOR_ENABLEMENT.md)
+### 4. 財報 vendor — `EARNINGS_VENDOR_MODE`（C3，Finnhub）
+- **現況**：**`off`（程式與 GHA 預設）**。`schedule.yml` 可注入 `FINNHUB_API_KEY`，**有 key 不代表已開**。舊 Cloud Run 曾設 `free`，已過期。
+- **作用**：Finnhub 共識／日曆／股價／逐字稿 enrich 財報（不覆寫 SEC headline）。
+- **啟用**：在 `schedule.yml` 設 `EARNINGS_VENDOR_MODE=free`（pipeline，需維護者批准）且 secret 有 `FINNHUB_API_KEY`。
+- **注意**：只在**財報日**開火；無 watchlist filing 的日子 `earnings_vendor_enriched_count = 0` 屬正常。
+- **回滾**：設回 `off` 或不設。**Runbook**：[`VENDOR_ENABLEMENT.md`](VENDOR_ENABLEMENT.md)。來源見 [`SOURCES.md`](SOURCES.md)。
 
-### ✅（已啟用）財報基本面 enrich — `EARNINGS_FUNDAMENTAL_MODE`（C3，FMP）
-- **現況**：**`free`，production 已啟用**（`FMP_API_KEY` 已配）。
+### 5. 財報基本面 enrich — `EARNINGS_FUNDAMENTAL_MODE`（C3，FMP）
+- **現況**：**`off`（程式與 GHA 預設）**。有 `FMP_API_KEY` 不代表已開。
 - **作用**：FMP 比率／現金流補 SEC 缺口（FCF、ROIC 等），標 SEC vs FMP `source_conflicts`。
-- **驗證**：`pipeline_run_summary.earnings_fundamental_enriched_count`（同樣財報日才 > 0）。
-- **已知限制**：`MAX_FMP_CALLS_PER_RUN` 因 provider 每筆重建而非全輪硬上限（TODOS follow-up）。
-- **剩餘決策**：`free → paid`。**回滾**：設 `off`。
+- **啟用**：`EARNINGS_FUNDAMENTAL_MODE=free` + `FMP_API_KEY`（需批准）。
+- **驗證**：`pipeline_run_summary.earnings_fundamental_enriched_count`（財報日才 > 0）。
+- **回滾**：設回 `off`。
 
-### ✅（已啟用）News takeaway — `NEWS_TAKEAWAY_MODE`
-- **現況**：**`on`，production 已啟用**。
+### 6. News takeaway — `NEWS_TAKEAWAY_MODE`
+- **現況**：**`off`（程式預設；GHA 未覆寫）**。舊文件寫 production `on`，與現況不符。
 - **作用**：每篇新聞加一段 Flash 生成的 takeaway，Dashboard `NewsTakeawayBlock` 呈現。
-- **回滾**：設 `off`。
+- **啟用**：設 `on`。**回滾**：設 `off` 或不設。
+
+### 7. NewsAPI 補充 — `NEWSAPI_ENABLED`
+- **現況**：**`0`（程式與 GHA 預設）**。有 `NEWSAPI_KEY` 不代表已開。
+- **作用**：科技 `top-headlines` 併入 RSS。主源已是 RSS／KOL，預設關以減噪與配額。
+- **啟用**：`NEWSAPI_ENABLED=1` + key。**回滾**：設 `0`。見 [`SOURCES.md`](SOURCES.md)。
+
+### 8. 社群趨勢 — `SOCIAL_TRENDING_ENABLED`
+- **現況**：**`0`（程式與 GHA 預設）**。`APIFY_API_KEY` 仍可供 deep 全文。
+- **作用**：X／Threads hashtag 當評分訊號，不進正文。
+- **啟用**：`SOCIAL_TRENDING_ENABLED=1` + Apify key。**回滾**：設 `0`。
 
 ## 建議節奏
 
-排程（C1）每日成功；vendor（Finnhub free）、FMP（free）、news takeaway 皆**已啟用**。
-剩下真正待推的只有去重的第 2、3 步：
+排程（C1）可手動跑；自動排程由 `PIPELINE_SCHEDULE_ENABLED` 控制。vendor（Finnhub）、FMP、news takeaway **預設關閉**。
 
-1. **第 1 → 2 步**：shadow log 已於 2026-06-14 開啟，收 ≥ 7 天資料後（~06-22）達門檻（`would_drop / checked < 15%` 且抽查無誤判）再翻 `SEMANTIC_DUP_DROP_ENABLED`。
+1. **第 1 → 2 步**：shadow log 已於 2026-06-14 開啟；embeddings 改 OpenAI 後語意去重是冷啟動，達門檻再翻 `SEMANTIC_DUP_DROP_ENABLED`。
 2. **第 3 步**（prefilter）排在第 2 步行為穩定之後。
-3. **vendor / FMP** 的剩餘決策是 `free → paid`（成本 vs 涵蓋度），非啟用；無急迫性。
+3. **vendor / FMP / takeaway / NewsAPI / trending**：維持關；要開再翻旗標。見 [`SOURCES.md`](SOURCES.md)。

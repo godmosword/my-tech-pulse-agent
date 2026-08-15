@@ -13,13 +13,19 @@ import httpx
 import yaml
 from pydantic import BaseModel
 
+from sources.sec_client import sec_user_agent
+
 logger = logging.getLogger(__name__)
 
 REGISTRY_PATH = Path(__file__).parent / "source_registry.yaml"
-SEC_HEADERS = {
-    "User-Agent": "tech-pulse/0.1 research@example.com",
-    "Accept-Encoding": "gzip, deflate",
-}
+
+
+def sec_document_headers() -> dict[str, str]:
+    """HTML/Atom/PDF fetch headers (not the JSON Accept used by SecClient)."""
+    return {
+        "User-Agent": sec_user_agent(),
+        "Accept-Encoding": "gzip, deflate",
+    }
 
 
 class EarningsFiling(BaseModel):
@@ -63,7 +69,7 @@ class EarningsFetcher:
 
     def _fetch_edgar_rss(self, url: str, form_types: tuple[str, ...]) -> list[EarningsFiling]:
         try:
-            with httpx.Client(timeout=20, headers=SEC_HEADERS, follow_redirects=True) as client:
+            with httpx.Client(timeout=20, headers=sec_document_headers(), follow_redirects=True) as client:
                 resp = client.get(url)
                 resp.raise_for_status()
                 text = resp.text
@@ -136,7 +142,7 @@ class EarningsFetcher:
     def enrich_with_text(self, filing: EarningsFiling) -> EarningsFiling:
         """Download and extract raw text from a filing URL (HTML or PDF)."""
         try:
-            with httpx.Client(timeout=30, headers=SEC_HEADERS, follow_redirects=True) as client:
+            with httpx.Client(timeout=30, headers=sec_document_headers(), follow_redirects=True) as client:
                 resp = client.get(filing.filing_url)
                 resp.raise_for_status()
                 content_type = resp.headers.get("content-type", "")

@@ -9,8 +9,10 @@ All notable changes to this project will be documented in this file.
 - **停 Telegram 推送**：digest／財報／深度稿只寫 `dashboard/data` JSON，由 GHA commit 觸發 Vercel 重建。不再需要 `TELEGRAM_BOT_TOKEN`／`TELEGRAM_CHANNEL_ID`。
 - **離開 GCP**：pipeline 改由 GitHub Actions 直接跑 `python main.py`；內容 SSOT 改為 `dashboard/data/*.json`（90 天）與 `state/dedup.sqlite`（去重／embedding）。Dashboard `/api/v1` 欄位不變。已移除 Cloud Run deploy、WIF、Firestore 依賴與 `firebase-admin`。排程見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
 - **死碼清理**：刪過期 `export_firestore_to_json.py`、未引用的 vendor／feedback／portfolio／CIK helper、未使用的 `PullQuote`；`MEMORY_BACKEND` preflight 只接受 `json`；datetime 解析改走 `json_io.parse_iso`。
+- **新聞／財報減源**：RSS 主源收成 9 路（TechCrunch→Verge→Ars→Wired→Register 備援；IEEE／HF／OpenAI／CoinDesk）。關 Bloomberg／Reuters／Decrypt／The Block／AnandTech／重複的 SemiAnalysis RSS。NewsAPI 與社群趨勢改要明示旗標（預設 `0`）；Finnhub vendor 維持 `off`。`earnings_fetcher`／10-K 正文 UA 改走 `SEC_USER_AGENT`。清單見 [`docs/SOURCES.md`](docs/SOURCES.md)。
 
 ### Added
+- **新聞／財報來源盤點**：新增 [`docs/SOURCES.md`](docs/SOURCES.md)（RSS／KOL／NewsAPI／Apify、SEC／XBRL／vendor 開關與金鑰）。[`docs/ENABLEMENT_CHECKLIST.md`](docs/ENABLEMENT_CHECKLIST.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) 改為 GHA 預設：Finnhub／FMP／takeaway `off`，Telegram 非必要；有 key 不代表已開。
 - **Agent 編排（Cursor）**：自 investment-ai-agent 可攜模板 bootstrap（`.cursor/commands/agent-plan.md`、`agent-action.md`、`.cursor/rules/agent-orchestration.mdc`、`docs/AGENT-WORKFLOW.md`）；填寫 tech-pulse 專用 [`docs/AGENT-DOMAIN.md`](docs/AGENT-DOMAIN.md)（Bootstrap、pipeline 核准紅線、驗證矩陣、Ship 政策）。`README.md`／`CLAUDE.md`／`docs/WORKFLOW.md` 加導航。
 
 ### Fixed

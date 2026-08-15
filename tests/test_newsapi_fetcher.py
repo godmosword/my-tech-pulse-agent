@@ -2,9 +2,16 @@ from sources.newsapi_fetcher import NewsApiFetcher
 
 
 def test_newsapi_skips_without_key(monkeypatch):
+    monkeypatch.setenv("NEWSAPI_ENABLED", "1")
     monkeypatch.delenv("NEWSAPI_KEY", raising=False)
     fetcher = NewsApiFetcher(api_key="")
     assert fetcher.fetch() == []
+
+
+def test_newsapi_skips_when_disabled(monkeypatch):
+    monkeypatch.setenv("NEWSAPI_ENABLED", "0")
+    articles = NewsApiFetcher(api_key="test-key").fetch()
+    assert articles == []
 
 
 def test_newsapi_parses_article(monkeypatch):
@@ -40,6 +47,7 @@ def test_newsapi_parses_article(monkeypatch):
         def get(self, url, params=None):
             return FakeResponse()
 
+    monkeypatch.setenv("NEWSAPI_ENABLED", "1")
     monkeypatch.setattr("sources.newsapi_fetcher.httpx.Client", FakeClient)
     articles = NewsApiFetcher(api_key="test-key").fetch(limit=5)
     assert len(articles) == 1

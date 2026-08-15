@@ -1,16 +1,12 @@
-sources:
-  - name: bloomberg_rss
-    url: https://feeds.bloomberg.com/technology/news.rss
-    priority: 1
-    fallback: techcrunch_rss
-    last_success: null
-    health_check: true
-    enabled: true
-    weight: 1.0
+# News + earnings discovery registry.
+# RSSFetcher loads type: news (or unset). EarningsFetcher loads type: earnings.
+# Disabled feeds stay listed so they can be flipped back without hunting URLs.
 
+sources:
+  # --- Primary news (enabled) ---
   - name: techcrunch_rss
     url: https://techcrunch.com/feed/
-    priority: 2
+    priority: 1
     fallback: theverge_rss
     last_success: null
     health_check: true
@@ -19,8 +15,8 @@ sources:
 
   - name: theverge_rss
     url: https://www.theverge.com/rss/index.xml
-    priority: 3
-    fallback: null
+    priority: 2
+    fallback: ars_technica_rss
     last_success: null
     health_check: true
     enabled: true
@@ -28,8 +24,8 @@ sources:
 
   - name: ars_technica_rss
     url: https://feeds.arstechnica.com/arstechnica/technology-lab
-    priority: 4
-    fallback: null
+    priority: 3
+    fallback: wired_rss
     last_success: null
     health_check: true
     enabled: true
@@ -37,43 +33,16 @@ sources:
 
   - name: wired_rss
     url: https://www.wired.com/feed/rss
+    priority: 4
+    fallback: theregister_rss
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  - name: theregister_rss
+    url: https://www.theregister.com/headlines.atom
     priority: 5
-    fallback: null
-    last_success: null
-    health_check: true
-    enabled: true
-    weight: 1.0
-
-  - name: coindesk_rss
-    url: https://www.coindesk.com/arc/outboundfeeds/rss/
-    priority: 6
-    fallback: null
-    last_success: null
-    health_check: true
-    enabled: true
-    weight: 1.0
-
-  - name: decrypt_rss
-    url: https://decrypt.co/feed
-    priority: 7
-    fallback: null
-    last_success: null
-    health_check: true
-    enabled: true
-    weight: 1.0
-
-  - name: theblock_rss
-    url: https://www.theblock.co/rss.xml
-    priority: 8
-    fallback: null
-    last_success: null
-    health_check: true
-    enabled: true
-    weight: 1.0
-
-  - name: anandtech_rss
-    url: https://www.anandtech.com/rss/
-    priority: 9
     fallback: null
     last_success: null
     health_check: true
@@ -82,16 +51,7 @@ sources:
 
   - name: ieee_spectrum_rss
     url: https://spectrum.ieee.org/rss/blog/feed/fulltext
-    priority: 10
-    fallback: null
-    last_success: null
-    health_check: true
-    enabled: true
-    weight: 1.0
-
-  - name: theregister_rss
-    url: https://www.theregister.com/headlines.atom
-    priority: 11
+    priority: 6
     fallback: null
     last_success: null
     health_check: true
@@ -100,7 +60,7 @@ sources:
 
   - name: huggingface_blog_rss
     url: https://huggingface.co/blog/feed.xml
-    priority: 12
+    priority: 7
     fallback: null
     last_success: null
     health_check: true
@@ -109,31 +69,79 @@ sources:
 
   - name: openai_news_rss
     url: https://openai.com/blog/rss.xml
-    priority: 13
+    priority: 8
     fallback: null
     last_success: null
     health_check: true
     enabled: true
+    weight: 1.0
+
+  - name: coindesk_rss
+    url: https://www.coindesk.com/arc/outboundfeeds/rss/
+    priority: 9
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: true
+    weight: 1.0
+
+  # --- News kept but off (overlap, dead, or often blocked) ---
+  - name: bloomberg_rss
+    url: https://feeds.bloomberg.com/technology/news.rss
+    priority: 20
+    fallback: techcrunch_rss
+    last_success: null
+    health_check: true
+    enabled: false
     weight: 1.0
 
   - name: reuters_tech_rss
     url: https://feeds.reuters.com/reuters/technologyNews
-    priority: 14
+    priority: 21
     fallback: null
     last_success: null
     health_check: true
-    enabled: true
+    enabled: false
     weight: 1.0
 
+  - name: decrypt_rss
+    url: https://decrypt.co/feed
+    priority: 22
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: false
+    weight: 1.0
+
+  - name: theblock_rss
+    url: https://www.theblock.co/rss.xml
+    priority: 23
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: false
+    weight: 1.0
+
+  - name: anandtech_rss
+    url: https://www.anandtech.com/rss/
+    priority: 24
+    fallback: null
+    last_success: null
+    health_check: true
+    enabled: false
+    weight: 1.0
+
+  # Duplicate of kol_registry semianalysis (same URL).
   - name: semianalysis_rss
     url: https://semianalysis.com/feed/
-    priority: 15
+    priority: 25
     fallback: null
     last_success: null
     health_check: true
-    enabled: true
+    enabled: false
     weight: 1.0
 
+  # --- Earnings discovery ---
   - name: sec_edgar_rss
     # startdt is injected dynamically (rolling 7-day window) by earnings_fetcher.py
     url: https://efts.sec.gov/LATEST/search-index?q=%228-K%22&dateRange=custom&forms=8-K

@@ -17,6 +17,15 @@ ACTOR_POLL_INTERVAL = 3   # seconds between status checks
 ACTOR_TIMEOUT = 90        # seconds before giving up on an actor run
 
 
+def social_trending_enabled() -> bool:
+    return os.getenv("SOCIAL_TRENDING_ENABLED", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 class TrendingTopic(BaseModel):
     platform: str          # "x" | "threads"
     hashtag: str
@@ -38,6 +47,9 @@ class SocialTracker:
     def fetch_trending(self, limit: int = 20) -> list[TrendingTopic]:
         topics: list[TrendingTopic] = []
 
+        if not social_trending_enabled():
+            logger.info("SOCIAL_TRENDING_ENABLED is off; skipping social trending fetch")
+            return topics
         if self._apify_key:
             topics.extend(self._fetch_x_trending(limit))
             topics.extend(self._fetch_threads_trending(limit))

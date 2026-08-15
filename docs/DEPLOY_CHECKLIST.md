@@ -87,8 +87,8 @@ curl -sS -X POST \
 
 | Secret | 說明 |
 |--------|------|
-| `NEWSAPI_KEY` | NewsAPI technology headlines |
-| `APIFY_API_KEY` | Social trending + 可選全文擷取 |
+| `NEWSAPI_KEY` | NewsAPI（還要 `NEWSAPI_ENABLED=1`，預設關） |
+| `APIFY_API_KEY` | deep 全文；trending 還要 `SOCIAL_TRENDING_ENABLED=1`（預設關） |
 | `FINNHUB_API_KEY` | 財報 consensus / surprise |
 | `FMP_API_KEY` | FMP 比率 / 現金流 |
 | `FRED_API_KEY` | 宏觀利率 / CPI |
@@ -186,7 +186,7 @@ python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 | 首頁部分標題仍英文 | 舊稿缺 `zh_title` | 執行 `backfill_zh_fields.py` 或等 pipeline 新稿 |
 | 送報後網站未更新 | GHA 未 commit／未 push，或 Vercel 未重建 | 查 `schedule.yml` 與 Vercel deploy |
 | Staging 指標全是 0 | 未設 `TECH_PULSE_ENV=staging` | 見 §3 |
-| `newsapi_fetched` 永遠 0 | 未設 `NEWSAPI_KEY` | 在 GHA secrets 加上 key |
+| `newsapi_fetched` 永遠 0 | 未設 `NEWSAPI_ENABLED=1` 或沒有 `NEWSAPI_KEY` | 預設關；要開才設旗標 + secret |
 
 ---
 

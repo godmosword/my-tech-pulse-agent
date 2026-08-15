@@ -8,7 +8,7 @@ from datetime import date, timedelta
 
 import httpx
 
-from sources.earnings_fetcher import EarningsFetcher, SEC_HEADERS
+from sources.earnings_fetcher import EarningsFetcher, sec_document_headers
 from sources.sec_submissions import SecSubmissionsClient
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ def _strip_html(html: str) -> str:
 
 def download_filing_text(url: str, *, max_chars: int = _MAX_TEXT_CHARS) -> str:
     try:
-        with httpx.Client(timeout=60, headers=SEC_HEADERS, follow_redirects=True) as client:
+        with httpx.Client(timeout=60, headers=sec_document_headers(), follow_redirects=True) as client:
             resp = client.get(url)
             resp.raise_for_status()
             content_type = resp.headers.get("content-type", "")

@@ -4,6 +4,8 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **新聞／財報減源**：主源 9 RSS + KOL；關重複／不穩源；NewsAPI／trending 預設 off；`SEC_USER_AGENT` 用於 filing 正文；vendor 維持 off。見 [`docs/SOURCES.md`](docs/SOURCES.md)
+- [x] **新聞／財報來源盤點**：[`docs/SOURCES.md`](docs/SOURCES.md)；ENABLEMENT／EARNINGS_ENV 對齊 GHA 預設 off
 - [x] **Agent 編排（Cursor）**：bootstrap agent-orchestration（`/agent-plan`、`/agent-action`）+ `docs/AGENT-DOMAIN.md`（tech-pulse Domain）
 - [x] **Dashboard 登入 CTA + 日期時區統一**：`LoginToReadCta`、`format-datetime`（Asia/Taipei zh-TW）
 - [x] **Dashboard 導覽搜尋**：NavRail／行動版 combobox + `GET /api/v1/search`（token 比對 + ticker 精確 + 標題前綴 + 最近 400 篇 fallback；`search_tokens` backfill 見 `scripts/backfill_search_tokens.py`）
@@ -179,6 +181,7 @@
 - [ ] **P1 整合測試**：transcript timeout；有 key 時 end-to-end `price_reaction` + scorecard surprise
 - [ ] **Backfill（需 key）**：歷史報告補 `price_reaction`、Finnhub 共識／transcript（可選）
 - [ ] **其他付費來源**（評估中）：FMP paid tier、NewsAPI / Apify 配額監控與降本
+- [ ] **來源後續**：必要時重開 Bloomberg／NewsAPI／trending；vendor 仍預設 off（見 [`docs/SOURCES.md`](docs/SOURCES.md)）
 
 ## 積壓（Backlog）
 

@@ -45,7 +45,9 @@ jobs:
           OPENAI_FLASH_MODEL: gpt-5.6-luna
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          NEWSAPI_ENABLED: "0"
           APIFY_API_KEY: ${{ secrets.APIFY_API_KEY }}
+          SOCIAL_TRENDING_ENABLED: "0"
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}

@@ -33,7 +33,8 @@
 | Pipeline／agents／LLM | `pipeline/`、`agents/`、`llm/`、`main.py` |
 | 評分／JSON 寫入 | `scoring/`、`docs/PORTAL_CONTRACT.md` |
 | 送報／Telegram | `delivery/`、`message_formatter.py` |
-| Earnings v3 | `docs/EARNINGS_PORTAL.md`、`docs/EARNINGS_ENV.md` |
+| 新聞／財報 ingest | [`docs/SOURCES.md`](SOURCES.md)、`sources/source_registry.yaml`、`sources/kol_registry.yaml` |
+| Earnings v3 | [`docs/SOURCES.md`](SOURCES.md)、`docs/EARNINGS_PORTAL.md`、`docs/EARNINGS_ENV.md` |
 | Dashboard | `dashboard/README.md` |
 | Portal 整合 | `docs/QSILICON_INTEGRATION.md`、`docs/PORTAL_CONTRACT.md` |
 | 本地開發 | `docs/LOCAL_DEV_SETUP.md` |

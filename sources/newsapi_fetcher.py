@@ -18,13 +18,20 @@ DEFAULT_PAGE_SIZE = int(os.getenv("NEWSAPI_PAGE_SIZE", "20"))
 DEFAULT_TIMEOUT = float(os.getenv("NEWSAPI_TIMEOUT_SECONDS", "15"))
 
 
+def newsapi_enabled() -> bool:
+    return os.getenv("NEWSAPI_ENABLED", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+
 class NewsApiFetcher:
-    """Fetch English technology headlines when NEWSAPI_KEY is configured."""
+    """Fetch English technology headlines when enabled and NEWSAPI_KEY is set."""
 
     def __init__(self, api_key: str | None = None):
         self._api_key = (api_key if api_key is not None else os.getenv("NEWSAPI_KEY", "")).strip()
 
     def fetch(self, *, limit: int | None = None) -> list[Article]:
+        if not newsapi_enabled():
+            logger.info("NEWSAPI_ENABLED is off; skipping NewsAPI ingest")
+            return []
         if not self._api_key:
             logger.info("NEWSAPI_KEY not set; skipping NewsAPI ingest")
             return []
