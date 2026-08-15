@@ -79,7 +79,7 @@ def extract_zh_backfill(
     facts = (what_happened or "").strip()[:1200]
     prompt = _PROMPT.format(title=title[:500], summary=summary[:3000], facts=facts or "(none)")
 
-    model = os.getenv("BACKFILL_GEMINI_MODEL", GEMINI_FLASH_MODEL)
+    model = os.getenv("BACKFILL_OPENAI_MODEL") or os.getenv("BACKFILL_GEMINI_MODEL") or GEMINI_FLASH_MODEL
     token_budgets = [
         int(os.getenv("BACKFILL_ZH_OUTPUT_TOKENS", "1536")),
         int(os.getenv("BACKFILL_ZH_RETRY_OUTPUT_TOKENS", "2048")),
@@ -95,6 +95,7 @@ def extract_zh_backfill(
                 prompt=prompt,
                 max_output_tokens=max_output_tokens,
                 response_schema=ZhBackfillResult,
+                tier="flash",
             )
             result = ZhBackfillResult(**data)
             break

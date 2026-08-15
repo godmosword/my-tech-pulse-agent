@@ -16,10 +16,10 @@ from dotenv import load_dotenv
 
 from delivery.message_formatter import CANONICAL_DIGEST_FORMAT, EXPERIMENTAL_DIGEST_FORMAT
 
-REQUIRED_ENV = ("GEMINI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID")
+REQUIRED_ENV = ("OPENAI_API_KEY",)
 EXPECTED_MODELS = {
-    "GEMINI_MODEL": "gemini-3.1-pro-preview",
-    "GEMINI_FLASH_MODEL": "gemini-3-flash-preview",
+    "OPENAI_MODEL": "gpt-5.6-luna",
+    "OPENAI_FLASH_MODEL": "gpt-5.6-luna",
 }
 STATE_BACKENDS = {"auto", "sqlite", "sqlite3"}
 MEMORY_BACKENDS = {"json"}

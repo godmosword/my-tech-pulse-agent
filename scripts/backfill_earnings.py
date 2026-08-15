@@ -16,7 +16,7 @@ Usage:
 
   # --with-llm runs narrative extractor + analyzer (no numeric extraction from LLM)
 
-Env: SEC_USER_AGENT, DASHBOARD_DATA_DIR, GEMINI_API_KEY (if --with-llm)
+Env: SEC_USER_AGENT, DASHBOARD_DATA_DIR, OPENAI_API_KEY (if --with-llm)
 """
 
 from __future__ import annotations

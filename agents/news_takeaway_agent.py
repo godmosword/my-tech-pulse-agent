@@ -98,6 +98,7 @@ def _generate_takeaway_data(client, *, model: str, prompt: str) -> dict:
                 max_output_tokens=max_tokens,
                 response_schema=TakeawayLLMOutput,
                 log_parse_errors=attempt == 1,
+                tier="flash",
             )
             return data
         except GeminiJsonParseError as exc:

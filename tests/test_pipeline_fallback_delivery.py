@@ -252,7 +252,7 @@ def test_memory_semantic_duplicate_can_be_filtered(monkeypatch):
     assert summary.semantic_distance == 0.05
 
 
-def test_items_digest_archives_memory_only_after_successful_delivery():
+def test_items_digest_archives_memory_when_deliverable():
     summary_1 = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
         Article(
             title="Delivered",
@@ -269,22 +269,7 @@ def test_items_digest_archives_memory_only_after_successful_delivery():
 
     assert crew._send_items_digest_with_memory([summary_1], total_fetched=1, total_after_filter=1) is True
     assert crew.memory.archived == [summary_1]
-
-    summary_2 = TechPulseCrew.__new__(TechPulseCrew)._fallback_summaries([
-        Article(
-            title="Failed",
-            url="https://example.com/fail",
-            source="Example",
-            summary="Failed summary",
-            score=8.0,
-            score_status="scored",
-        )
-    ])[0]
-    crew.telegram = _FakeTelegram(sent=False)
-    crew.memory = _FakeMemory()
-
-    assert crew._send_items_digest_with_memory([summary_2], total_fetched=1, total_after_filter=1) is False
-    assert crew.memory.archived == []
+    assert crew.telegram.calls == 0
 
 
 def test_items_digest_skips_unscored_fallback_only_delivery():
@@ -335,7 +320,7 @@ def test_items_digest_allows_low_score_fallback_delivery():
     assert TechPulseCrew._has_deliverable_item_signal(summaries) is True
     assert TechPulseCrew._has_formal_scored_item_signal(summaries) is False
     assert crew._send_items_digest_with_memory(summaries, total_fetched=316, total_after_filter=2) is True
-    assert crew.telegram.calls == 1
+    assert crew.telegram.calls == 0
     assert crew.memory.archived == summaries
 
 
@@ -397,5 +382,5 @@ def test_items_digest_allows_story_insight_without_scored_summary():
         total_after_filter=1,
         story_insights=[object()],
     ) is True
-    assert crew.telegram.calls == 1
+    assert crew.telegram.calls == 0
     assert crew.memory.archived == [summary]

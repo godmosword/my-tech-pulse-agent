@@ -80,10 +80,7 @@ curl -sS -X POST \
 
 | Secret | 說明 |
 |--------|------|
-| `GEMINI_API_KEY` | Gemini 提取 / 打分 / 合成 |
-| `TELEGRAM_BOT_TOKEN` | Bot token |
-| `TELEGRAM_CHANNEL_ID` | 頻道 ID |
-| `TELEGRAM_ALERT_CHAT_ID` | **建議** — 管線未處理例外時的告警 chat |
+| `OPENAI_API_KEY` | OpenAI Luna 提取 / 打分 / 合成 |
 | `SEC_USER_AGENT` | SEC EDGAR User-Agent（含 email） |
 
 ### 2.2 可選 secrets
@@ -203,7 +200,7 @@ python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 
 **GitHub Actions**
 
-- [ ] Secrets：`GEMINI_API_KEY`、`TELEGRAM_*`、`SEC_USER_AGENT`
+- [ ] Secrets：`OPENAI_API_KEY`、`SEC_USER_AGENT`
 - [ ] `vars.PIPELINE_SCHEDULE_ENABLED=true`
 - [ ] GCP Console 已 pause `tech-pulse-daily`（避免雙跑）
 - [ ] （可選）`NEWSAPI_KEY`、`APIFY_API_KEY`、`FINNHUB_API_KEY`

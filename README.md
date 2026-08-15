@@ -64,12 +64,11 @@ verified via the additive `earnings_vendor_enriched_count` /
 
 | Variable              | Required | Description                   |
 |-----------------------|----------|-------------------------------|
-| `GEMINI_API_KEY`      | ✅       | Gemini API key                |
-| `GEMINI_MODEL`        | ❌       | Pro model for extraction/synthesis (`gemini-3.1-pro-preview`) |
-| `GEMINI_FLASH_MODEL`  | ❌       | Flash model for scoring (`gemini-3-flash-preview`) |
-| `GEMINI_REQUEST_TIMEOUT_MS` | ❌ | Per Gemini request timeout (`45000`) |
-| `TELEGRAM_BOT_TOKEN`  | ✅       | Telegram bot token            |
-| `TELEGRAM_CHANNEL_ID` | ✅       | Target channel (`#科技脈搏`)  |
+| `OPENAI_API_KEY`      | ✅       | OpenAI API key                |
+| `OPENAI_MODEL`        | ❌       | Heavy path (`gpt-5.6-luna`, `reasoning.mode=pro`) |
+| `OPENAI_FLASH_MODEL`  | ❌       | Scoring / zh backfill (`gpt-5.6-luna`, `effort=none`) |
+| `OPENAI_EMBEDDING_MODEL` | ❌    | Embeddings (`text-embedding-3-small`) |
+| `OPENAI_REQUEST_TIMEOUT_MS` | ❌ | Per OpenAI request timeout (`45000`) |
 | `APIFY_API_KEY`       | ❌       | Social trending and deep article extraction (optional) |
 | `APIFY_ARTICLE_ACTOR` | ❌       | Apify actor for deep article extraction (`apify/website-content-crawler`) |
 | `NEWSAPI_KEY`         | ❌       | Supplemental news (optional)  |
@@ -113,7 +112,6 @@ verified via the additive `earnings_vendor_enriched_count` /
 | `MEMORY_BACKEND`       | ❌       | Retrieval memory backend (`json`) |
 | `DASHBOARD_DATA_DIR`   | ❌       | JSON snapshot directory (`dashboard/data`) |
 | `JSON_RETENTION_DAYS`  | ❌       | Memory / digest retention window (`90`) |
-| `GEMINI_EMBEDDING_MODEL` | ❌     | Gemini embedding model (`gemini-embedding-001`) |
 | `MEMORY_EMBEDDING_DIM` | ❌       | Embedding dimension stored in sqlite (`768`) |
 | `MEMORY_TOP_K`         | ❌       | Similar historical items checked per summary (`3`) |
 | `SEMANTIC_DUP_DISTANCE_THRESHOLD` | ❌ | Cosine distance threshold for near-duplicate detection (`0.12`) |
@@ -184,11 +182,11 @@ Commits that only touch `dashboard/data/**`, `state/**`, or `backtest/results/**
 `.github/workflows/schedule.yml` runs `python main.py` on the runner (23:20 UTC =
 07:20 Asia/Taipei), then commits `dashboard/data/**`, `state/dedup.sqlite`, and
 invest artifacts. Enable with `PIPELINE_SCHEDULE_ENABLED=true`, or use
-`workflow_dispatch`. Pause any leftover Cloud Scheduler job first to avoid
-double Telegram sends. Details: [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md).
+`workflow_dispatch`. Delivery is `dashboard/data` JSON → Vercel rebuild (no Telegram).
+Details: [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md).
 
-**Repository secrets** for the scheduled job: `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`,
-`TELEGRAM_CHANNEL_ID`, `SEC_USER_AGENT`, plus optional NewsAPI / Apify / Finnhub / FMP / FRED.
+**Repository secrets** for the scheduled job: `OPENAI_API_KEY`,
+`SEC_USER_AGENT`, plus optional NewsAPI / Apify / Finnhub / FMP / FRED.
 
 ### JSON memory and sqlite state
 

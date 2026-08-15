@@ -144,6 +144,7 @@
 ## 進行中 / 下一步
 
 - [x] **離開 GCP**：Actions 跑 pipeline + `dashboard/data` JSON SSOT；停 Cloud Run / Firestore
+- [x] **OpenAI Luna + Vercel 送報**：LLM 直連 OpenAI（`gpt-5.6-luna`）；停 Telegram；內容只走 JSON → Vercel
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / `main.py` / `backfill_zh_fields.py`
 - [x] **GCP 收尾**：GHA 已啟用；專案 `my-tech-pulse-agent-494715` 為 `DELETE_REQUESTED`
 - [x] **EarningsAgent 類別**：**保留**（judge baseline）—— 仍由 `smoke_test.py` + `agents/__init__` + vulture 白名單引用；生產路徑僅 v3 agents，刪除擾動多檔無實益
@@ -194,7 +195,7 @@
 - [x] 10-K 關係抽取（Gemini + quote 驗證）與 `data/relationships/` 離線腳本
 - [x] 價格相關性聚類 + `data/clusters.json` 離線腳本
 - [x] Dashboard `GET /api/v1/relationships`、財報 ticker 關係區塊、持倉曝險穿透卡
-- [ ] 定期 Cron：`extract_relationships.py`（年更）、`build_clusters.py`（週更）；production 填入 `GEMINI_API_KEY` / `FINNHUB_API_KEY` 後重跑
+- [ ] 定期 Cron：`extract_relationships.py`（年更）、`build_clusters.py`（週更）；production 填入 `OPENAI_API_KEY` / `FINNHUB_API_KEY` 後重跑
 
 ## 維運檢查清單（每次 deploy 後）
 

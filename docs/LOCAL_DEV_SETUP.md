@@ -23,10 +23,8 @@ cp .env.example .env
 ## 環境變數（`.env` 最少填這些）
 
 ```bash
-GEMINI_API_KEY=你的_key
+OPENAI_API_KEY=你的_key
 SEC_USER_AGENT=tech-pulse/0.2 你的@email.com
-TELEGRAM_BOT_TOKEN=...          # 若要推播 Telegram
-TELEGRAM_CHANNEL_ID=...
 
 MEMORY_ENABLED=1
 MEMORY_BACKEND=json
@@ -74,7 +72,7 @@ python main.py
 
 ### B. 舊稿補繁中標題與摘要（Dashboard 仍顯示英文時必做）
 
-**僅在本機**執行（需 `GEMINI_API_KEY`；寫入 `dashboard/data/memory_items.json`；**不要在 Vercel 跑**）。
+**僅在本機**執行（需 `OPENAI_API_KEY`；寫入 `dashboard/data/memory_items.json`；**不要在 Vercel 跑**）。
 
 ```bash
 # 1) 先乾跑：只看會改哪些 doc，不寫入

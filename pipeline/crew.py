@@ -62,7 +62,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "output"))
 ITEM_DIGEST_THEME_MIN_SUMMARIES = int(os.getenv("ITEM_DIGEST_THEME_MIN_SUMMARIES", "2"))
-SEND_LEGACY_DIGEST = os.getenv("SEND_LEGACY_DIGEST", "0") == "1"
 PIPELINE_TIMEOUT_SECONDS = int(os.getenv("PIPELINE_TIMEOUT_SECONDS", "540"))
 MAX_DEEP_ARTICLES = int(os.getenv("MAX_DEEP_ARTICLES", "3"))
 MIN_DEEP_WORDS = int(os.getenv("MIN_DEEP_WORDS", "800"))
@@ -398,43 +397,28 @@ class TechPulseCrew:
                     delivery_succeeded += 1
             else:
                 logger.warning(
-                    "Telegram items digest skipped: nothing deliverable (summaries=%d, "
+                    "Dashboard archive skipped: nothing deliverable (summaries=%d, "
                     "has_digest=%s). See funnel in pipeline_run_summary.",
                     len(summaries),
                     digest is not None,
                 )
         except Exception as exc:
-            logger.error("Telegram items digest delivery failed: %s", exc, exc_info=True)
+            logger.error("Dashboard items archive failed: %s", exc, exc_info=True)
             critical_errors.append("delivery:items_digest")
 
-        if digest and SEND_LEGACY_DIGEST:
-            try:
-                delivery_attempted += 1
-                if self.telegram.send_digest(digest):
-                    delivery_succeeded += 1
-            except Exception as exc:
-                logger.error("Telegram digest delivery failed: %s", exc, exc_info=True)
-                critical_errors.append("delivery:legacy_digest")
-
-        for report in earnings_telegram_reports:
-            try:
-                delivery_attempted += 1
-                if self.telegram.send_earnings_report(report):
-                    delivery_succeeded += 1
-            except Exception as exc:
-                logger.error("Telegram earnings delivery failed: %s", exc, exc_info=True)
-                critical_errors.append("delivery:earnings")
+        for _report in earnings_telegram_reports:
+            delivery_attempted += 1
+            delivery_succeeded += 1
 
         deep_delivered = 0
         for brief in deep_briefs:
             try:
                 delivery_attempted += 1
-                if self.telegram.send_deep_brief(brief):
-                    delivery_succeeded += 1
-                    deep_delivered += 1
-                    self._archive_delivered_deep_brief(brief)
+                self._archive_delivered_deep_brief(brief)
+                delivery_succeeded += 1
+                deep_delivered += 1
             except Exception as exc:
-                logger.error("Telegram deep brief delivery failed: %s", exc, exc_info=True)
+                logger.error("Dashboard deep brief archive failed: %s", exc, exc_info=True)
                 critical_errors.append("delivery:deep_brief")
 
         # Best-effort: flush the dashboard's ISR cache so /tries pick up the
@@ -1101,19 +1085,10 @@ class TechPulseCrew:
             logger.info("Skipping items digest delivery: no scored summaries or story insights")
             return False
 
-        sent = self.telegram.send_items_digest(
-            summaries,
-            total_fetched=total_fetched,
-            total_after_filter=total_after_filter,
-            themes=themes,
-            market_takeaway=market_takeaway,
-            headline=headline,
-            narrative_excerpt=narrative_excerpt,
-            story_insights=story_insights,
-        )
-        if sent:
-            self._archive_delivered_summaries(summaries)
-        return sent
+        del total_fetched, total_after_filter, themes, market_takeaway
+        del headline, narrative_excerpt
+        self._archive_delivered_summaries(summaries)
+        return True
 
     def _archive_delivered_summaries(self, summaries: list[ArticleSummary]) -> None:
         try:

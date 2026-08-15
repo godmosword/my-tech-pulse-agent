@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **LLM 改 OpenAI Luna**：pipeline 直連 `api.openai.com`（不再用 Gemini）。生成一律 `gpt-5.6-luna`——重活 `reasoning.mode=pro` + `effort=medium`，打分／繁中補譯 `effort=none`；embedding 改 `text-embedding-3-small`（768 維）。必填 `OPENAI_API_KEY`。
+- **停 Telegram 推送**：digest／財報／深度稿只寫 `dashboard/data` JSON，由 GHA commit 觸發 Vercel 重建。不再需要 `TELEGRAM_BOT_TOKEN`／`TELEGRAM_CHANNEL_ID`。
 - **離開 GCP**：pipeline 改由 GitHub Actions 直接跑 `python main.py`；內容 SSOT 改為 `dashboard/data/*.json`（90 天）與 `state/dedup.sqlite`（去重／embedding）。Dashboard `/api/v1` 欄位不變。已移除 Cloud Run deploy、WIF、Firestore 依賴與 `firebase-admin`。排程見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
 - **死碼清理**：刪過期 `export_firestore_to_json.py`、未引用的 vendor／feedback／portfolio／CIK helper、未使用的 `PullQuote`；`MEMORY_BACKEND` preflight 只接受 `json`；datetime 解析改走 `json_io.parse_iso`。
 

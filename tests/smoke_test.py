@@ -19,32 +19,35 @@ from scoring.scorer import Scorer
 from sources.deep_scraper import DeepScraper
 from sources.rss_fetcher import Article, RSSFetcher, clean_feed_text
 from scripts.preflight import _failures as preflight_failures
-from llm.gemini_client import _extract_json_object
+from llm.json_client import _extract_json_object
 from pipeline.crew import TechPulseCrew
 
 
-def _gemini_response(text: str) -> MagicMock:
+def _llm_response(text: str) -> MagicMock:
     response = MagicMock()
-    response.text = text
+    response.output_text = text
+    response.status = "completed"
+    response.output = []
     return response
 
 
+def _wire_responses(mock_client, response_text: str | list[str] | None = None, raise_error: bool = False):
+    if raise_error:
+        mock_client.responses.create.side_effect = Exception("Simulated API error")
+    elif isinstance(response_text, str):
+        mock_client.responses.create.return_value = _llm_response(response_text)
+    elif isinstance(response_text, list):
+        mock_client.responses.create.side_effect = [_llm_response(t) for t in response_text]
+    else:
+        mock_client.responses.create.return_value = _llm_response("{}")
+
+
 def _mock_gemini_client(response_text: str | list[str] | None = None, raise_error: bool = False):
-    """可靠的 Gemini mock，直接 patch make_client()，解決 lazy import 問題"""
+    """Mock make_client() so generate_json hits client.responses.create."""
     from contextlib import ExitStack
 
     mock_client = MagicMock()
-
-    if raise_error:
-        mock_client.models.generate_content.side_effect = Exception("Simulated API error")
-    elif isinstance(response_text, str):
-        mock_client.models.generate_content.return_value = _gemini_response(response_text)
-    elif isinstance(response_text, list):
-        mock_client.models.generate_content.side_effect = [
-            _gemini_response(t) for t in response_text
-        ]
-    else:
-        mock_client.models.generate_content.return_value = _gemini_response("{}")
+    _wire_responses(mock_client, response_text, raise_error)
 
     def _mock_make_client():
         return mock_client
@@ -64,17 +67,20 @@ def _mock_gemini_client(response_text: str | list[str] | None = None, raise_erro
     return _Patcher()
 
 @pytest.fixture(autouse=True)
-def _set_test_gemini_key(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+def _set_test_openai_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-5.6-luna")
+    monkeypatch.setenv("OPENAI_FLASH_MODEL", "gpt-5.6-luna")
 
 
 # ---------- Configuration ----------
 
-def test_env_example_uses_gemini_keys_only():
+def test_env_example_uses_openai_keys_only():
     env_example = Path(".env.example").read_text()
-    assert "GEMINI_API_KEY" in env_example
-    assert "GEMINI_MODEL=gemini-3.1-pro-preview" in env_example
-    assert "GEMINI_FLASH_MODEL=gemini-3-flash-preview" in env_example
+    assert "OPENAI_API_KEY" in env_example
+    assert "OPENAI_MODEL=gpt-5.6-luna" in env_example
+    assert "OPENAI_FLASH_MODEL=gpt-5.6-luna" in env_example
+    assert "GEMINI_API_KEY" not in env_example
     old_keys = [
         "".join(("ANTH", "ROPIC", "_API_KEY")),
         "".join(("CLA", "UDE", "_MODEL")),
@@ -84,11 +90,9 @@ def test_env_example_uses_gemini_keys_only():
 
 
 def test_preflight_passes_with_required_env(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-telegram-token")
-    monkeypatch.setenv("TELEGRAM_CHANNEL_ID", "@test")
-    monkeypatch.setenv("GEMINI_MODEL", "gemini-3.1-pro-preview")
-    monkeypatch.setenv("GEMINI_FLASH_MODEL", "gemini-3-flash-preview")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-5.6-luna")
+    monkeypatch.setenv("OPENAI_FLASH_MODEL", "gpt-5.6-luna")
     assert preflight_failures() == []
 
 
@@ -342,15 +346,11 @@ def test_extractor_batch_respects_runtime_cap(monkeypatch):
         result = agent.extract_batch(articles)
 
     assert len(result) == 2
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.responses.create.call_count == 2
 
 
 def test_extractor_returns_none_on_invalid_json():
-    with patch("google.genai.Client") as mock_gemini:
-        mock_client = MagicMock()
-        mock_gemini.return_value = mock_client
-        mock_client.models.generate_content.return_value = _gemini_response("not valid json")
-
+    with _mock_gemini_client("not valid json"):
         agent = ExtractorAgent()
         result = agent.extract(title="Test", text="Test text")
 
@@ -543,8 +543,7 @@ def test_synthesizer_parses_valid_response():
 
 
 def test_synthesizer_returns_none_on_empty_input():
-    with patch("google.genai.Client") as mock_gemini:
-        mock_gemini.return_value = MagicMock()
+    with _mock_gemini_client():
         agent = SynthesizerAgent()
         result = agent.synthesize([])
 
@@ -589,7 +588,7 @@ def test_fact_guard_nulls_unverifiable_number():
     )
     source_text = "Acme reported EPS of $1.23 per diluted share."
 
-    with patch("google.genai.Client"):
+    with _mock_gemini_client():
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, source_text)
 
@@ -607,7 +606,7 @@ def test_fact_guard_downgrades_confidence_on_violation():
         source="SEC 8-K",
         confidence="high",
     )
-    with patch("google.genai.Client"):
+    with _mock_gemini_client():
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, "No financial figures here.")
 
@@ -625,7 +624,7 @@ def test_fact_guard_clears_beat_pct_when_estimate_missing():
         confidence="high",
     )
     source_text = "Revenue was $50.0 billion."
-    with patch("google.genai.Client"):
+    with _mock_gemini_client():
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, source_text)
 
@@ -648,7 +647,7 @@ def test_fact_guard_passes_clean_output():
         "Revenue was $124.3 billion versus estimates of $122.0 billion. "
         "EPS of $2.40. Guidance for next quarter is $89.0 billion."
     )
-    with patch("google.genai.Client"):
+    with _mock_gemini_client():
         agent = EarningsAgent()
     result = agent._fact_guard_apply(output, source_text)
 
@@ -869,10 +868,7 @@ def test_scorer_parses_valid_response():
 
 
 def test_scorer_returns_none_on_invalid_json():
-    with patch("google.genai.Client") as mock_gemini:
-        mock_client = MagicMock()
-        mock_gemini.return_value = mock_client
-        mock_client.models.generate_content.return_value = _gemini_response("not json")
+    with _mock_gemini_client("not json"):
         scorer = Scorer()
         result = scorer.score_item("title", "text")
     assert result is None
@@ -946,7 +942,7 @@ def test_scorer_filter_articles_respects_runtime_cap(monkeypatch):
         result = scorer.filter_articles(articles)
 
     assert len(result) == 2
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.responses.create.call_count == 2
 
 
 def test_scorer_runtime_cap_uses_signal_ranking(monkeypatch):
@@ -987,7 +983,7 @@ def test_scorer_runtime_cap_uses_signal_ranking(monkeypatch):
         scorer = Scorer()
         result = scorer.filter_articles(articles)
 
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.responses.create.call_count == 2
     assert {article.title for article in result} == {
         "Nvidia AI GPU benchmark improves inference latency",
         "OpenAI LLM model adds RAG context window features",
@@ -1019,7 +1015,7 @@ def test_scorer_runtime_cap_prioritizes_freshness_before_static_signal(monkeypat
         scorer = Scorer()
         result = scorer.filter_articles(articles)
 
-    assert mock_client.models.generate_content.call_count == 1
+    assert mock_client.responses.create.call_count == 1
     assert len(result) == 1
     assert result[0].title == "Fresh Nvidia AI chip update"
 
@@ -1073,7 +1069,7 @@ def test_scorer_prefilter_drops_obvious_low_signal_article():
     assert len(result) == 1
     assert result[0].title == "Nvidia launches new AI data center GPU"
     assert articles[0].score_status == "prefiltered_out"
-    assert mock_client.models.generate_content.call_count == 1
+    assert mock_client.responses.create.call_count == 1
 
 
 def test_scorer_annotates_lexicon_match_before_prefilter_drop():
@@ -1116,7 +1112,7 @@ def test_scorer_prefilter_bypasses_kol_articles():
     assert len(result) == 1
     assert result[0].base_score == 1.0
     assert result[0].base_score_status == "kol_bypass"
-    assert mock_client.models.generate_content.call_count == 1
+    assert mock_client.responses.create.call_count == 1
 
 
 def test_scorer_fail_open_on_api_error():
@@ -1153,7 +1149,7 @@ def test_scorer_retries_once_on_non_json_response():
         scorer = Scorer()
         result = scorer.filter_articles([article])
 
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.responses.create.call_count == 2
     assert len(result) == 1
     assert result[0].score_status == "scored"
     assert result[0].score == 7.4
@@ -1171,7 +1167,7 @@ def test_scorer_parse_failure_uses_fallback_item():
         scorer = Scorer()
         result = scorer.filter_articles([article])
 
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.responses.create.call_count == 2
     assert len(result) == 1
     assert result[0].score == 0.0
     assert result[0].score_status == "fallback"
@@ -1188,7 +1184,7 @@ def test_scorer_empty_response_falls_back_without_retry():
         scorer = Scorer()
         result = scorer.filter_articles([article])
 
-    assert mock_client.models.generate_content.call_count == 1
+    assert mock_client.responses.create.call_count == 1
     assert len(result) == 1
     assert result[0].score == 0.0
     assert result[0].score_status == "fallback"
@@ -1423,13 +1419,13 @@ def _mock_reviewer_client(response_text: str | list[str] | None = None, raise_er
 
     mock_client = MagicMock()
     if raise_error:
-        mock_client.models.generate_content.side_effect = Exception("API error")
+        mock_client.responses.create.side_effect = Exception("API error")
     elif isinstance(response_text, list):
-        mock_client.models.generate_content.side_effect = [
-            _gemini_response(t) for t in response_text
+        mock_client.responses.create.side_effect = [
+            _llm_response(t) for t in response_text
         ]
     else:
-        mock_client.models.generate_content.return_value = _gemini_response(
+        mock_client.responses.create.return_value = _llm_response(
             response_text or "{}"
         )
 
@@ -1590,7 +1586,7 @@ def test_scorer_uses_kol_weights_for_kol_articles():
         scorer = Scorer()
         scorer.filter_articles([kol_article])
 
-    call_args = mock_client.models.generate_content.call_args
+    call_args = mock_client.responses.create.call_args
     prompt_text = str(call_args)
     # KOL prompt includes "Author:" field
     assert "Author:" in prompt_text or "Ben Thompson" in prompt_text

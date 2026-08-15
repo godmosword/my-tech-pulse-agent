@@ -1,7 +1,7 @@
 """LLM-based 0-10 item scorer using Gemini Flash as a cheap fast filter gate.
 
 Inspired by Thysrael/Horizon: run a cheap model score gate *before* expensive
-Gemini Pro agent calls so only high-signal items reach the extraction agents.
+Pro-tier agent calls so only high-signal items reach the extraction agents.
 """
 
 import json
@@ -235,6 +235,7 @@ class Scorer:
                 prompt=prompt,
                 response_schema=ScoreResult,
                 log_parse_errors=False,
+                tier="flash",
             )
             return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
         except GeminiEmptyResponseError as exc:
@@ -273,6 +274,7 @@ class Scorer:
                     prompt=retry_prompt,
                     response_schema=ScoreResult,
                     log_parse_errors=False,
+                    tier="flash",
                 )
                 return ScoreOutcome(result=ScoreResult(**data), error_kind="none")
             except GeminiEmptyResponseError as empty_exc:

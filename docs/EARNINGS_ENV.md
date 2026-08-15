@@ -6,7 +6,7 @@ Pipeline（GitHub Actions）與 Dashboard（Vercel）分工不同：**Finnhub �
 
 | 變數 | 在哪設定 | 說明 |
 |------|----------|------|
-| `GEMINI_API_KEY` | Pipeline | 敘事、分析、逐字稿摘要、結論 |
+| `OPENAI_API_KEY` | Pipeline | 敘事、分析、逐字稿摘要、結論 |
 | `TELEGRAM_BOT_TOKEN` | Pipeline | 財報深度摘要推送（可選但 production 通常有） |
 | `TELEGRAM_CHANNEL_ID` | Pipeline | 目標頻道 |
 | `SEC_USER_AGENT` | Pipeline | **必填**，格式含聯絡 email（SEC 政策） |
