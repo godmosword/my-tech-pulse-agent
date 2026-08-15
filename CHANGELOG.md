@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - **離開 GCP**：pipeline 改由 GitHub Actions 直接跑 `python main.py`；內容 SSOT 改為 `dashboard/data/*.json`（90 天）與 `state/dedup.sqlite`（去重／embedding）。Dashboard `/api/v1` 欄位不變。已移除 Cloud Run deploy、WIF、Firestore 依賴與 `firebase-admin`。排程見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
 - **死碼清理**：刪過期 `export_firestore_to_json.py`、未引用的 vendor／feedback／portfolio／CIK helper、未使用的 `PullQuote`；`MEMORY_BACKEND` preflight 只接受 `json`；datetime 解析改走 `json_io.parse_iso`。
 - **新聞／財報減源**：RSS 主源收成 9 路（TechCrunch→Verge→Ars→Wired→Register 備援；IEEE／HF／OpenAI／CoinDesk）。關 Bloomberg／Reuters／Decrypt／The Block／AnandTech／重複的 SemiAnalysis RSS。NewsAPI 與社群趨勢改要明示旗標（預設 `0`）；Finnhub vendor 維持 `off`。`earnings_fetcher`／10-K 正文 UA 改走 `SEC_USER_AGENT`。清單見 [`docs/SOURCES.md`](docs/SOURCES.md)。
+- **來源可用性對齊（2026-08-15 探測）**：IEEE Spectrum 改活 URL；停用 Sequoia（Framer 無 RSS）與動區專欄（opinion feed 404）；EFTS JSON 源關掉，`EarningsFetcher` 改尊重 `enabled`，發現層只留 browse-edgar Atom。
 
 ### Added
 - **新聞／財報來源盤點**：新增 [`docs/SOURCES.md`](docs/SOURCES.md)（RSS／KOL／NewsAPI／Apify、SEC／XBRL／vendor 開關與金鑰）。[`docs/ENABLEMENT_CHECKLIST.md`](docs/ENABLEMENT_CHECKLIST.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) 改為 GHA 預設：Finnhub／FMP／takeaway `off`，Telegram 非必要；有 key 不代表已開。

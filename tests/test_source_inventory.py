@@ -1,8 +1,8 @@
 import yaml
 
-from sources.earnings_fetcher import sec_document_headers
+from sources.earnings_fetcher import EarningsFetcher, REGISTRY_PATH, sec_document_headers
 from sources.newsapi_fetcher import newsapi_enabled
-from sources.rss_fetcher import REGISTRY_PATH
+from sources.rss_fetcher import KOL_REGISTRY_PATH, RSSFetcher
 from sources.social_tracker import SocialTracker, social_trending_enabled
 
 ENABLED_NEWS = {
@@ -26,11 +26,16 @@ DISABLED_NEWS = {
     "semianalysis_rss",
 }
 
+IEEE_FEED_URL = "https://spectrum.ieee.org/feeds/feed.rss"
+
+
+def _registry() -> dict:
+    with open(REGISTRY_PATH, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
 
 def _news_entries() -> list[dict]:
-    with open(REGISTRY_PATH, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    return [s for s in data["sources"] if s.get("type", "news") == "news"]
+    return [s for s in _registry()["sources"] if s.get("type", "news") == "news"]
 
 
 def test_enabled_news_sources_are_the_primary_set():
@@ -41,6 +46,11 @@ def test_enabled_news_sources_are_the_primary_set():
     assert DISABLED_NEWS <= names
 
 
+def test_ieee_spectrum_uses_live_feed_url():
+    by_name = {s["name"]: s for s in _news_entries()}
+    assert by_name["ieee_spectrum_rss"]["url"] == IEEE_FEED_URL
+
+
 def test_primary_fallback_chain():
     by_name = {s["name"]: s for s in _news_entries()}
     assert by_name["techcrunch_rss"]["fallback"] == "theverge_rss"
@@ -48,6 +58,25 @@ def test_primary_fallback_chain():
     assert by_name["ars_technica_rss"]["fallback"] == "wired_rss"
     assert by_name["wired_rss"]["fallback"] == "theregister_rss"
     assert by_name["theregister_rss"]["fallback"] is None
+
+
+def test_earnings_fetcher_skips_disabled_efts():
+    fetcher = EarningsFetcher()
+    names = [s["name"] for s in fetcher._sources]
+    assert names == ["sec_edgar_earnings_rss"]
+    by_name = {s["name"]: s for s in _registry()["sources"] if s.get("type") == "earnings"}
+    assert by_name["sec_edgar_rss"]["enabled"] is False
+
+
+def test_dead_kol_feeds_stay_in_registry_but_disabled():
+    fetcher = RSSFetcher()
+    assert fetcher._kol_registry["sequoia_blog"].enabled is False
+    assert fetcher._kol_registry["blocktempo_opinion"].enabled is False
+    with open(KOL_REGISTRY_PATH, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    chinese = [src for group in data["chinese_sources"].values() for src in group]
+    blocktempo = next(s for s in chinese if s["name"] == "blocktempo_opinion")
+    assert blocktempo["enabled"] is False
 
 
 def test_newsapi_and_trending_default_off(monkeypatch):

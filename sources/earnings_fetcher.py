@@ -47,7 +47,11 @@ class EarningsFetcher:
     def _load_registry(self, path: Path) -> None:
         with open(path) as f:
             data = yaml.safe_load(f)
-        self._sources = [s for s in data["sources"] if s.get("type") == "earnings"]
+        self._sources = [
+            s
+            for s in data["sources"]
+            if s.get("type") == "earnings" and s.get("enabled", True)
+        ]
 
     def fetch_recent_filings(
         self, form_types: tuple[str, ...] = ("8-K", "10-Q", "10-K")

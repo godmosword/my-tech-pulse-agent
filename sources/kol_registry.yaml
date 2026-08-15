@@ -52,13 +52,14 @@ kol_sources:
 
   - name: sequoia_blog
     author: Sequoia Capital
+    # Disabled: sequoiacap.com is a Framer site with no RSS (404 on /feed/, probed 2026-08-15).
     url: https://www.sequoiacap.com/feed/
     tier: deep
     domain: [vc_thesis, market_maps]
     focus: [VC_thesis, market_maps]
     min_words: 800
     priority: 3
-    enabled: true
+    enabled: false
 
   - name: lenny_newsletter
     author: Lenny Rachitsky
@@ -227,6 +228,8 @@ chinese_sources:
     - name: blocktempo_opinion
       display_name: "動區動趨 (BlockTempo) - 深度專欄區"
       author: BlockTempo
+      # Disabled: category/opinion/feed 404 (probed 2026-08-15). Site-wide /feed/ is live
+      # but is a high-volume news dump, not the opinion column this entry was for.
       url: https://www.blocktempo.com/category/opinion/feed/
       connector: rss
       language: zh-TW
@@ -237,4 +240,4 @@ chinese_sources:
       min_words: 800
       priority: 2
       weight: 1.2
-      enabled: true
+      enabled: false

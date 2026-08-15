@@ -4,6 +4,7 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **來源可用性對齊（2026-08-15）**：IEEE 換活 URL；Sequoia／動區專欄停用；EFTS 關、earnings 尊重 `enabled`
 - [x] **新聞／財報減源**：主源 9 RSS + KOL；關重複／不穩源；NewsAPI／trending 預設 off；`SEC_USER_AGENT` 用於 filing 正文；vendor 維持 off。見 [`docs/SOURCES.md`](docs/SOURCES.md)
 - [x] **新聞／財報來源盤點**：[`docs/SOURCES.md`](docs/SOURCES.md)；ENABLEMENT／EARNINGS_ENV 對齊 GHA 預設 off
 - [x] **Agent 編排（Cursor）**：bootstrap agent-orchestration（`/agent-plan`、`/agent-action`）+ `docs/AGENT-DOMAIN.md`（tech-pulse Domain）
@@ -181,7 +182,7 @@
 - [ ] **P1 整合測試**：transcript timeout；有 key 時 end-to-end `price_reaction` + scorecard surprise
 - [ ] **Backfill（需 key）**：歷史報告補 `price_reaction`、Finnhub 共識／transcript（可選）
 - [ ] **其他付費來源**（評估中）：FMP paid tier、NewsAPI / Apify 配額監控與降本
-- [ ] **來源後續**：必要時重開 Bloomberg／NewsAPI／trending；vendor 仍預設 off（見 [`docs/SOURCES.md`](docs/SOURCES.md)）
+- [ ] **來源後續**：必要時重開 Bloomberg／NewsAPI／trending；vendor 仍預設 off；watchlist 直查 `sec_submissions` 補 Atom 40 筆窗口（見 [`docs/SOURCES.md`](docs/SOURCES.md)）
 
 ## 積壓（Backlog）
 

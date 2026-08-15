@@ -1,18 +1,18 @@
 # 新聞與財報來源
 
-以程式與 GHA workflow 為準（2026-08-15）。減源後的主源＋備援寫在這裡。
+以程式與 GHA workflow 為準。最後探測：**2026-08-15**（httpx + certifi，與 pipeline 相同）。
 
 **設定來源**
 
 - 新聞 RSS：[`sources/source_registry.yaml`](../sources/source_registry.yaml)（`type: news` 或未標 type）
 - KOL／中文：[`sources/kol_registry.yaml`](../sources/kol_registry.yaml)
 - 新聞取料：[`sources/rss_fetcher.py`](../sources/rss_fetcher.py)、[`sources/newsapi_fetcher.py`](../sources/newsapi_fetcher.py)
-- 財報發現：同 registry 的 `type: earnings` + [`sources/earnings_fetcher.py`](../sources/earnings_fetcher.py)
+- 財報發現：同 registry 的 `type: earnings` 且 `enabled` + [`sources/earnings_fetcher.py`](../sources/earnings_fetcher.py)
 - 財報數字：[`sources/sec_xbrl_fetcher.py`](../sources/sec_xbrl_fetcher.py)（SEC XBRL 為 actual 真值）
 - Watchlist：[`config/earnings_watchlist.yaml`](../config/earnings_watchlist.yaml)
 - 每日注入：[`.github/workflows/schedule.yml`](.github/workflows/schedule.yml)、[`.env.example`](../.env.example)
 
-每日 `main.py` 兩條線分開：新聞走 RSS／KOL（NewsAPI 預設關）；財報走 SEC RSS → XBRL。Finnhub／FMP／NewsAPI／社群趨勢只在對應旗標開啟 **且**有 key 時才打。有 secret **不代表**已開。Vendor 維持 `off`（SEC-only）。
+每日 `main.py` 兩條線分開：新聞走 RSS／KOL（NewsAPI 預設關）；財報走 SEC Atom → XBRL。Finnhub／FMP／NewsAPI／社群趨勢只在對應旗標開啟 **且**有 key 時才打。有 secret **不代表**已開。Vendor 維持 `off`（SEC-only）。
 
 ```mermaid
 flowchart TD
@@ -28,7 +28,6 @@ flowchart TD
     Deep[Apify deep scrape if key]
   end
   subgraph earnIngest [Earnings ingest]
-    EdgarEfts["SEC EFTS 8-K search"]
     EdgarAtom["SEC browse-edgar Atom"]
     XBRL["data.sec.gov companyfacts"]
   end
@@ -38,8 +37,7 @@ flowchart TD
   Dedup --> Score
   Score --> Extract
   Score --> Deep
-  EdgarEfts --> Filings[EarningsFetcher]
-  EdgarAtom --> Filings
+  EdgarAtom --> Filings[EarningsFetcher]
   Filings --> XBRL
   XBRL --> Full["Watchlist full report max 8"]
   XBRL --> Broad["Broad XBRL archive max 30"]
@@ -90,7 +88,7 @@ flowchart TD
 | `ars_technica_rss` | Ars Technica Technology Lab | `wired_rss` |
 | `wired_rss` | Wired | `theregister_rss` |
 | `theregister_rss` | The Register | — |
-| `ieee_spectrum_rss` | IEEE Spectrum | — |
+| `ieee_spectrum_rss` | IEEE Spectrum（`feeds/feed.rss`，舊 blog/fulltext 404） | — |
 | `huggingface_blog_rss` | Hugging Face Blog | — |
 | `openai_news_rss` | OpenAI News | — |
 | `coindesk_rss` | CoinDesk（唯一加密新聞 RSS） | — |
@@ -109,11 +107,11 @@ flowchart TD
 
 只抓 `connector: rss` 且 `enabled: true`。
 
-**開**：Stratechery、Import AI、Pragmatic Engineer、Platformer、Sequoia、Lenny、Simon Willison、Latent Space、Interconnects、SemiAnalysis、High Scalability、arXiv cs.AI、arXiv cs.AR、IACR ePrint。
+**開**：Stratechery、Import AI、Pragmatic Engineer、Platformer、Lenny、Simon Willison、Latent Space、Interconnects、SemiAnalysis、High Scalability、arXiv cs.AI、arXiv cs.AR、IACR ePrint。
 
-**關**：`a16z_blog`（舊 Future archive 停更）、`ethereum_crypto_research`（無 RSS）。
+**關**：`a16z_blog`（舊 Future archive 停更）、`sequoia_blog`（Framer 站無 RSS，404）、`ethereum_crypto_research`（無 RSS）。
 
-**中文開**：曼報、區塊勢、動區專欄。**關**：曲博（YouTube，無 connector）、SemiAnalysis 中文討論（manual）。
+**中文開**：曼報（pipeline UA `tech-pulse/0.1` 可用；其他 UA 可能 403）、區塊勢。**關**：動區專欄（opinion feed 404，不改用全站快訊）、曲博（YouTube，無 connector）、SemiAnalysis 中文討論（manual）。
 
 ### 付費補充（預設關）
 
@@ -134,12 +132,12 @@ flowchart TD
 
 ### 發現
 
-| name | URL 角色 | 視窗 |
-|------|----------|------|
-| `sec_edgar_rss` | EFTS `search-index`，查 8-K | 注入近 7 日 `startdt` |
-| `sec_edgar_earnings_rss` | browse-edgar Atom | 最近 40 筆 8-K |
+| name | 狀態 | 說明 |
+|------|------|------|
+| `sec_edgar_earnings_rss` | 開 | browse-edgar Atom，最近 40 筆 8-K（2026-08-15 實測 200／可 parse） |
+| `sec_edgar_rss` | 關 | EFTS `search-index` 回 JSON，fetcher 只 parse XML，實務 0 筆。URL 留著；`EarningsFetcher` 會跳過 `enabled: false` |
 
-兩源都進 [`EarningsFetcher.fetch_recent_filings`](../sources/earnings_fetcher.py)，再濾 8-K／10-Q／10-K。RSS／filing 正文與 XBRL 皆走 `SEC_USER_AGENT`（[`sec_document_headers`](../sources/earnings_fetcher.py)／[`sec_user_agent`](../sources/sec_client.py)）。
+發現層目前只有 Atom。filing 正文與 XBRL 皆走 `SEC_USER_AGENT`（[`sec_document_headers`](../sources/earnings_fetcher.py)／[`sec_user_agent`](../sources/sec_client.py)）。後續若要提高 watchlist 命中，可改 `sec_submissions` 按 ticker 直查（尚未做）。
 
 ### 數字真值
 
