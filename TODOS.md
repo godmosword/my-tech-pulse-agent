@@ -4,6 +4,7 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **GitHub Actions 收斂**：只留 CI + 日更；關 GitHub Pages；runbook 對齊現況 secrets
 - [x] **財報 YTD／發現／中英對照**：earnings 豁免 90 天剪；submissions+Atom 並存；`translation_aligned`；Today 已公布財報＋中英對照（T4b／T6 未做）
 - [x] **Cursor npm task 誤報**：`.vscode/settings.json` 關掉 `npm.autoDetect`／`task.autoDetect`（`dashboard/package.json` 合法）
 - [x] **來源可用性對齊（2026-08-15）**：IEEE 換活 URL；Sequoia／動區專欄停用；EFTS 關、earnings 尊重 `enabled`

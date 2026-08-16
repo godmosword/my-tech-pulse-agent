@@ -172,21 +172,14 @@ python scripts/preflight.py
 python main.py
 ```
 
-### CI
+### GitHub Actions
 
-Pushes to `main` run lint / typecheck / tests via `.github/workflows/ci.yml`.
-Commits that only touch `dashboard/data/**`, `state/**`, or `backtest/results/**` skip CI.
+兩支自維 workflow，地圖見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
 
-### Scheduled pipeline (GitHub Actions)
+- **CI**（`.github/workflows/ci.yml`）：`main` push 跑 lint／typecheck／tests。只改 `dashboard/data/**`、`state/**`、`backtest/results/**` 的 commit 略過。
+- **日更**（`.github/workflows/schedule.yml`）：23:20 UTC（07:20 台北）跑 `python main.py`，有變更才 commit JSON。`PIPELINE_SCHEDULE_ENABLED=true` 才跑 cron；手動 `workflow_dispatch` 不受限。
 
-`.github/workflows/schedule.yml` runs `python main.py` on the runner (23:20 UTC =
-07:20 Asia/Taipei), then commits `dashboard/data/**`, `state/dedup.sqlite`, and
-invest artifacts. Enable with `PIPELINE_SCHEDULE_ENABLED=true`, or use
-`workflow_dispatch`. Delivery is `dashboard/data` JSON → Vercel rebuild (no Telegram).
-Details: [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md).
-
-**Repository secrets** for the scheduled job: `OPENAI_API_KEY`,
-`SEC_USER_AGENT`, plus optional NewsAPI / Apify / Finnhub / FMP / FRED.
+**日更必備 secrets**：`OPENAI_API_KEY`、`SEC_USER_AGENT`。NewsAPI／Apify 有 key 但預設關；Finnhub／FMP／FRED 未設。
 
 ### JSON memory and sqlite state
 

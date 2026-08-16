@@ -85,15 +85,15 @@ curl -sS -X POST \
 
 ### 2.2 可選 secrets
 
-| Secret | 說明 |
-|--------|------|
-| `NEWSAPI_KEY` | NewsAPI（還要 `NEWSAPI_ENABLED=1`，預設關） |
-| `APIFY_API_KEY` | deep 全文；trending 還要 `SOCIAL_TRENDING_ENABLED=1`（預設關） |
-| `FINNHUB_API_KEY` | 財報 consensus / surprise |
-| `FMP_API_KEY` | FMP 比率 / 現金流 |
-| `FRED_API_KEY` | 宏觀利率 / CPI |
+| Secret | 現況 | 說明 |
+|--------|------|------|
+| `NEWSAPI_KEY` | 已設，預設關 | 還要 `NEWSAPI_ENABLED=1` |
+| `APIFY_API_KEY` | 已設，預設關 | deep 全文；trending 還要 `SOCIAL_TRENDING_ENABLED=1` |
+| `FINNHUB_API_KEY` | **未設** | 財報 consensus／surprise（`EARNINGS_VENDOR_MODE` 仍 `off`） |
+| `FMP_API_KEY` | **未設** | FMP 比率／現金流 |
+| `FRED_API_KEY` | **未設** | 宏觀利率／CPI |
 
-完整列表見根目錄 [`.env.example`](../.env.example)。ISR webhook 可省略：GHA commit 後 Vercel 會重建。
+完整列表見根目錄 [`.env.example`](../.env.example)。ISR webhook 可省略：GHA commit 後 Vercel 會重建。Actions 地圖見 [`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)。
 
 ### 2.3 Variables
 

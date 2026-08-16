@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **GitHub Actions 收斂**：只維護 CI 與 `schedule.yml`；關掉廢棄的 GitHub Pages（原 `github.io` 404）。Invest artifacts 已併進日更，不再另開 refresh job。地圖見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
 - **財報發現並存**：日更 watchlist 走 `sec_submissions`（可關 `EARNINGS_WATCHLIST_SUBMISSIONS`），Atom 續供廣覆蓋；以 Archives URL 補 accession 去重；`MAX_SEC_API_CALLS_PER_RUN` 預設 120，watchlist 按年積日輪替。`kind=earnings` 豁免 90 天 JSON prune。YAML 1.1 的 `ON` 加引號，避免被當成布林。
 - **LLM 改 OpenAI Luna**：pipeline 直連 `api.openai.com`（不再用 Gemini）。生成一律 `gpt-5.6-luna`——重活 `reasoning.mode=pro` + `effort=medium`，打分／繁中補譯 `effort=none`；embedding 改 `text-embedding-3-small`（768 維）。必填 `OPENAI_API_KEY`。
 - **停 Telegram 推送**：digest／財報／深度稿只寫 `dashboard/data` JSON，由 GHA commit 觸發 Vercel 重建。不再需要 `TELEGRAM_BOT_TOKEN`／`TELEGRAM_CHANNEL_ID`。
