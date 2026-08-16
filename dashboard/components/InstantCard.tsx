@@ -9,8 +9,10 @@ import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
 import type { Quote } from "@/lib/quotes";
 import { publicSummaryLine } from "@/lib/public-excerpt";
 import {
-  authenticatedPrimaryBody,
+  bilingualEnglishSummary,
+  bilingualEnglishTitle,
   hasGatedLongContent,
+  shouldShowBilingualCompare,
 } from "@/lib/zh-content";
 import {
   PRIORITY_DOT_CLASS,
@@ -20,6 +22,7 @@ import {
   priorityLevel,
   type RenderableItem,
 } from "@/lib/types";
+import { BilingualCompare } from "./BilingualCompare";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { LoginToReadCta } from "./LoginToReadCta";
 import { Kicker, MetaDot } from "./Kicker";
@@ -62,6 +65,9 @@ export function InstantCard({
   const subline = isList
     ? listingZhSubline(item) ?? (authenticated ? null : previewLine)
     : null;
+  const enTitle = bilingualEnglishTitle(item);
+  const enSummary = bilingualEnglishSummary(item);
+  const showCompare = !isList && shouldShowBilingualCompare(item);
 
   return (
     <article className={isList ? "space-y-2 py-4" : "space-y-3 py-6"}>
@@ -98,20 +104,25 @@ export function InstantCard({
           {item.zh_summary && (
             <p className="font-sans text-dek text-ink">{item.zh_summary}</p>
           )}
-          {authenticatedPrimaryBody(item) && (
+          {item.zh_body?.trim() && (
             <p className="whitespace-pre-line font-serif text-editorial-body text-ink">
-              {authenticatedPrimaryBody(item)}
+              {item.zh_body}
             </p>
           )}
-          {item.zh_body?.trim() && item.summary?.trim() && (
-            <details className="font-sans text-meta text-ink-soft">
-              <summary className="cursor-pointer text-accent underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-                英文原文摘要
-              </summary>
-              <p className="mt-2 whitespace-pre-line text-body text-ink-soft">
-                {item.summary}
+          {!item.zh_summary?.trim() &&
+            !item.zh_body?.trim() &&
+            enSummary &&
+            !showCompare && (
+              <p className="whitespace-pre-line font-serif text-editorial-body text-ink">
+                {enSummary}
               </p>
-            </details>
+            )}
+          {showCompare && (
+            <BilingualCompare
+              englishTitle={enTitle}
+              englishSummary={enSummary}
+              presentation="details"
+            />
           )}
         </>
       ) : (
@@ -210,7 +221,7 @@ function CardFooter({
               rel="noreferrer"
               className="underline-offset-4 hover:text-accent hover:underline"
             >
-              阅读原文
+              閱讀原文
             </a>
           )}
         </div>

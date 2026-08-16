@@ -22,6 +22,7 @@ from agents.news_takeaway_agent import NewsTakeawayAgent, news_takeaway_enabled
 from agents.relationship_extractor import _load_aliases
 from agents.reviewer_agent import ReviewerAgent
 from agents.translation_agent import TranslationAgent
+from agents.translation_align import apply_translation_alignment
 from agents.synthesizer_agent import DigestOutput, SynthesizerAgent
 from delivery.feedback_poller import poll_pending_feedback
 from delivery.pipeline_alert import notify_pipeline_failure
@@ -301,6 +302,7 @@ class TechPulseCrew:
                 except Exception as exc:
                     logger.error("Translation agent failed: %s", exc, exc_info=True)
                     critical_errors.append("llm:translation")
+                summaries = apply_translation_alignment(summaries)
             if summaries:
                 summaries = self._apply_news_takeaways(summaries)
             if summaries:

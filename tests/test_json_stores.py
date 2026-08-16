@@ -8,6 +8,7 @@ from scoring.json_io import (
     earnings_index_path,
     earnings_report_path,
     memory_items_path,
+    prune_by_timestamp,
     read_json_list,
     read_json_object,
 )
@@ -105,6 +106,36 @@ def test_json_memory_upsert_and_prune(tmp_path):
     urls = {row["source_url"] for row in rows}
     assert "https://example.com/new" in urls
     assert "https://example.com/old" not in urls
+
+
+def test_prune_keeps_old_earnings_kind():
+    old = datetime.now(timezone.utc) - timedelta(days=200)
+    rows = [
+        {
+            "kind": "earnings",
+            "item_id": "e1",
+            "delivered_at": old.isoformat().replace("+00:00", "Z"),
+        },
+        {
+            "kind": "instant_summary",
+            "item_id": "n1",
+            "delivered_at": old.isoformat().replace("+00:00", "Z"),
+        },
+    ]
+    kept = prune_by_timestamp(rows, retention_days=90)
+    ids = {row["item_id"] for row in kept}
+    assert ids == {"e1"}
+
+
+def test_json_memory_writes_translation_aligned(tmp_path):
+    service = _service(tmp_path)
+    summary = _summary()
+    summary.translation_aligned = True
+    service.archive_summaries(
+        [summary], delivered_at=datetime.now(timezone.utc) - timedelta(days=1)
+    )
+    payload = read_json_list(memory_items_path(tmp_path / "data"))[0]
+    assert payload["translation_aligned"] is True
 
 
 def test_json_memory_search_uses_sqlite_cosine(tmp_path):

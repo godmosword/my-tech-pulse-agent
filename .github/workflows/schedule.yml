@@ -57,6 +57,8 @@ jobs:
           MEMORY_ENABLED: "1"
           DIGEST_SNAPSHOT_ENABLED: "1"
           EARNINGS_REPORTS_ENABLED: "1"
+          EARNINGS_WATCHLIST_SUBMISSIONS: "1"
+          MAX_SEC_API_CALLS_PER_RUN: "120"
           DASHBOARD_DATA_DIR: dashboard/data
           JSON_RETENTION_DAYS: "90"
           DIGEST_FORMAT: v1

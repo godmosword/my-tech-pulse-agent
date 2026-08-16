@@ -39,6 +39,29 @@ class EarningsFiling(BaseModel):
     source: str                      # "SEC 10-Q" | "SEC 8-K" | "IR page"
 
 
+_ARCHIVES_ACC_RE = re.compile(
+    r"/Archives/edgar/data/\d+/(\d{18})(?:/|$)",
+    re.IGNORECASE,
+)
+
+
+def accession_from_filing_url(url: str) -> str | None:
+    """Parse dashed accession from an SEC Archives URL path segment."""
+    match = _ARCHIVES_ACC_RE.search(url or "")
+    if not match:
+        return None
+    digits = match.group(1)
+    return f"{digits[:10]}-{digits[10:12]}-{digits[12:]}"
+
+
+def filing_accession_key(filing: EarningsFiling) -> str:
+    raw = (filing.accession or "").strip() or accession_from_filing_url(filing.filing_url) or ""
+    digits = re.sub(r"[^0-9]", "", raw)
+    if len(digits) == 18:
+        return digits
+    return raw or (filing.filing_url or "").strip()
+
+
 class EarningsFetcher:
     def __init__(self, registry_path: Path = REGISTRY_PATH):
         self._sources: list[dict] = []
@@ -130,6 +153,7 @@ class EarningsFetcher:
                 filing = EarningsFiling(
                     company=self._extract_company(title),
                     form_type=form_type,
+                    accession=accession_from_filing_url(link),
                     filed_at=filed_at,
                     filing_url=link,
                     source=f"SEC {form_type}",

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { Hairline } from "@/components/Hairline";
 import { BackLink } from "@/components/BackLink";
@@ -34,7 +33,29 @@ export default async function EarningsTickerPage({ params }: Props) {
   const rows = await listEarningsReports({ ticker: symbol, limit: 24 });
 
   if (!rows.length) {
-    notFound();
+    return (
+      <div>
+        <BackLink href="/earnings" label="返回財報列表" />
+        <Breadcrumb
+          items={[
+            { label: "投資", href: "/invest" },
+            { label: "財報", href: "/earnings" },
+            { label: symbol },
+          ]}
+        />
+        <h1 className="mt-4 font-serif text-3xl font-semibold text-ink">{symbol}</h1>
+        <p className="mt-2 font-sans text-body text-ink-soft">
+          尚無已歸檔財報。可先前往{" "}
+          <Link
+            href="/earnings"
+            className="text-accent underline-offset-4 hover:underline"
+          >
+            財報雷達
+          </Link>
+          。
+        </p>
+      </div>
+    );
   }
 
   const tier = rows[0]?.tier;

@@ -14,6 +14,7 @@ from agents.translation_agent import (
     needs_zh_translation,
     translation_agent_enabled,
 )
+from agents.translation_align import apply_translation_alignment, translation_is_aligned
 from llm.zh_backfill import ZhBackfillResult
 
 
@@ -71,3 +72,38 @@ def test_translate_batch_skips_when_disabled():
         out, filled = agent.translate_batch([_summary()])
     assert filled == 0
     assert len(out) == 1
+
+
+def test_translation_aligned_when_numbers_and_ticker_match():
+    s = _summary(
+        title="NVDA revenue rose 20%",
+        summary="NVDA posted 20% growth.",
+        what_happened="NVDA reported 20% revenue growth.",
+        tickers=["NVDA"],
+        zh_title="NVDA 營收增 20%",
+        zh_summary="NVDA 公布營收成長 20%。",
+    )
+    assert translation_is_aligned(s) is True
+
+
+def test_translation_not_aligned_when_number_missing_in_zh():
+    s = _summary(
+        title="Revenue rose 20%",
+        summary="Growth was 20%.",
+        what_happened="The company reported 20% growth.",
+        zh_title="營收成長",
+        zh_summary="公司公布成長。",
+    )
+    assert translation_is_aligned(s) is False
+
+
+def test_apply_translation_alignment_sets_flag():
+    s = _summary(
+        title="Quiet update",
+        summary="No figures.",
+        what_happened="The vendor shipped a patch.",
+        zh_title="靜默更新",
+        zh_summary="供應商釋出修補。",
+    )
+    apply_translation_alignment([s])
+    assert s.translation_aligned is True

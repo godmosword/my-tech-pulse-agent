@@ -185,6 +185,7 @@ class JsonMemoryService:
                 "score": float(summary.score or 0.0),
                 "score_status": summary.score_status,
                 "kind": "instant_summary",
+                "translation_aligned": summary.translation_aligned,
                 "expires_at": delivered_at + self._ttl,
             }
             embedding = self._embedder.embed_document(title=summary.title or summary.entity, text=text)

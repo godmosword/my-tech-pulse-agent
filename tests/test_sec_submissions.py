@@ -46,6 +46,37 @@ def test_list_filings_in_range_filters_dates(monkeypatch):
     assert filings[0].filed_at.date() == date(2026, 5, 15)
 
 
+def test_list_filings_in_range_reuses_payload(monkeypatch):
+    submissions = {
+        "name": "NVIDIA CORP",
+        "filings": {
+            "recent": {
+                "form": ["8-K"],
+                "accessionNumber": ["0001045810-26-000001"],
+                "filingDate": ["2026-05-15"],
+                "reportDate": ["2026-05-14"],
+                "primaryDocument": ["d8k.htm"],
+            }
+        },
+    }
+    client = SecSubmissionsClient()
+
+    def boom(_cik: str) -> dict:
+        raise AssertionError("should not refetch submissions")
+
+    monkeypatch.setattr(client, "get_submissions", boom)
+    filings = client.list_filings_in_range(
+        ticker="NVDA",
+        company="NVIDIA CORP",
+        cik="0001045810",
+        since=date(2026, 5, 1),
+        until=date(2026, 5, 21),
+        submissions=submissions,
+    )
+    assert len(filings) == 1
+    assert filings[0].accession == "0001045810-26-000001"
+
+
 def test_list_filings_in_range_fetches_archive_when_needed(monkeypatch):
     submissions = json.loads(
         (FIXTURES / "sec_submissions_with_archive.json").read_text(encoding="utf-8")

@@ -140,8 +140,10 @@ class SecSubmissionsClient:
         since: date,
         until: date,
         forms: frozenset[str] = EARNINGS_FORMS,
+        submissions: dict | None = None,
     ) -> list[SubmissionFiling]:
-        submissions = self.get_submissions(cik)
+        if submissions is None:
+            submissions = self.get_submissions(cik)
         out: list[SubmissionFiling] = []
         for row in self.iter_filing_rows(submissions, since=since, until=until):
             form = str(row.get("form") or "").strip().upper()

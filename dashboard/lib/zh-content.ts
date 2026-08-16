@@ -1,4 +1,4 @@
-import type { RenderableItem } from "./types";
+import { displayTitle, type RenderableItem } from "./types";
 
 import { englishExcerpt } from "./public-excerpt";
 
@@ -31,4 +31,25 @@ export function hasGatedLongContent(item: RenderableItem): boolean {
     s.length > englishExcerpt(s).length ||
     (Boolean(item.zh_summary?.trim()) && Boolean(s))
   );
+}
+
+/** 與顯示用中文標題不同的英文原題；相同則不重複。 */
+export function bilingualEnglishTitle(item: RenderableItem): string | null {
+  const en = item.title?.trim();
+  if (!en) return null;
+  return en === displayTitle(item) ? null : en;
+}
+
+export function bilingualEnglishSummary(item: RenderableItem): string | null {
+  return item.summary?.trim() || null;
+}
+
+/** 有任一中文欄且有可對照的英文標題／摘要時顯示。不必等 zh_body。 */
+export function shouldShowBilingualCompare(item: RenderableItem): boolean {
+  const hasZh = Boolean(
+    item.zh_title?.trim() || item.zh_summary?.trim() || item.zh_body?.trim(),
+  );
+  const enTitle = bilingualEnglishTitle(item);
+  const enSummary = bilingualEnglishSummary(item);
+  return Boolean(hasZh && (enTitle || enSummary));
 }

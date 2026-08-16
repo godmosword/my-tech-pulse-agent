@@ -149,6 +149,7 @@ class ArticleSummary(BaseModel):
     takeaway: Optional[NewsTakeaway] = None  # optional one-line investment takeaway (NEWS_TAKEAWAY_MODE)
     portfolio_impact: Optional[PortfolioImpact] = None  # P1: relevance to user's holdings
     market_context: Optional[MarketContext] = None  # P2: price/valuation flags (gated)
+    translation_aligned: Optional[bool] = None  # T4a: EN/ZH number+ticker overlap
 
 
 class ExtractorAgent:

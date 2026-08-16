@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from sources.watchlist import EarningsWatchlist, normalize_watchlist_ticker
 from sources.watchlist_audit import (
     coverage_report,
     find_duplicates,
@@ -30,6 +31,14 @@ def entries(tmp_path: Path):
     p = tmp_path / "wl.yaml"
     p.write_text(SAMPLE_YAML, encoding="utf-8")
     return load_raw_entries(p)
+
+
+def test_normalize_yaml_bool_on_and_real_watchlist():
+    assert normalize_watchlist_ticker(True) == "ON"
+    assert normalize_watchlist_ticker(False) == "OFF"
+    tickers = EarningsWatchlist.load().tickers()
+    assert "ON" in tickers
+    assert "TRUE" not in tickers
 
 
 def test_load_raw_entries_preserves_duplicates_and_skips_blank(entries):

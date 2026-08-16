@@ -73,7 +73,7 @@ export function TodayRail({ items, usingStaleFallback = false }: Props) {
             {tickerRows.map((row) => (
               <li key={row.value}>
                 <Link
-                  href={buildArchiveHref(EMPTY_FILTER, { ticker: row.value })}
+                  href={`/earnings/${encodeURIComponent(row.value)}`}
                   className="flex items-baseline gap-1 rounded-sm border border-rule px-2 py-1 hover:border-accent hover:text-accent"
                 >
                   <span className="font-mono text-meta text-ink">{row.value}</span>

@@ -16,7 +16,7 @@ from typing import Any, Iterable
 
 import yaml
 
-from sources.watchlist import WATCHLIST_PATH
+from sources.watchlist import WATCHLIST_PATH, normalize_watchlist_ticker
 
 
 def load_raw_entries(path: Path = WATCHLIST_PATH) -> list[dict[str, Any]]:
@@ -25,7 +25,7 @@ def load_raw_entries(path: Path = WATCHLIST_PATH) -> list[dict[str, Any]]:
         data = yaml.safe_load(f) or {}
     out: list[dict[str, Any]] = []
     for row in data.get("entries") or []:
-        ticker = str(row.get("ticker", "")).strip().upper()
+        ticker = normalize_watchlist_ticker(row.get("ticker", ""))
         if not ticker:
             continue
         out.append(

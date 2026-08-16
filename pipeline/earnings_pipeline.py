@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from agents.earnings_analyzer import EarningsAnalyzer
@@ -22,7 +22,8 @@ from agents.earnings_narrative_extractor import EarningsNarrativeExtractor
 from agents.earnings_v3_enrich import enrich_earnings_v3, finalize_conclusion
 from agents.scorecard_builder import apply_scorecard_v3
 from scoring.earnings_report_store import EarningsReportStore
-from sources.earnings_fetcher import EarningsFetcher, EarningsFiling
+from sources.earnings_fetcher import EarningsFetcher, EarningsFiling, filing_accession_key
+from sources.sec_submissions import SecSubmissionsClient
 from sources.sec_xbrl_fetcher import SecXbrlFetcher
 from sources.ticker_cik_map import TickerCikMap
 from sources.vendor_earnings_provider import VendorEarningsProvider
@@ -35,8 +36,34 @@ logger = logging.getLogger(__name__)
 
 MAX_EARNINGS_FILINGS = int(os.getenv("MAX_EARNINGS_FILINGS", "8"))
 MAX_EARNINGS_FILINGS_BROAD = int(os.getenv("MAX_EARNINGS_FILINGS_BROAD", "30"))
-MAX_SEC_API_CALLS_PER_RUN = int(os.getenv("MAX_SEC_API_CALLS_PER_RUN", "60"))
+MAX_SEC_API_CALLS_PER_RUN = int(os.getenv("MAX_SEC_API_CALLS_PER_RUN", "120"))
 EARNINGS_TELEGRAM_MIN_TIER = int(os.getenv("EARNINGS_TELEGRAM_MIN_TIER", "2"))
+WATCHLIST_SUBMISSIONS_DAYS = int(os.getenv("EARNINGS_WATCHLIST_SUBMISSIONS_DAYS", "7"))
+
+
+def watchlist_submissions_enabled() -> bool:
+    raw = os.getenv("EARNINGS_WATCHLIST_SUBMISSIONS", "1").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def rotate_tickers(tickers: list[str], day_index: int) -> list[str]:
+    if not tickers:
+        return []
+    idx = day_index % len(tickers)
+    return tickers[idx:] + tickers[:idx]
+
+
+def merge_filings_by_accession(*groups: list[EarningsFiling]) -> list[EarningsFiling]:
+    seen: set[str] = set()
+    out: list[EarningsFiling] = []
+    for group in groups:
+        for filing in group:
+            key = filing_accession_key(filing)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(filing)
+    return out
 
 
 @dataclass
@@ -210,18 +237,57 @@ class EarningsPipelineRunner:
         self.vendor = vendor or VendorEarningsProvider()
 
     def run(self) -> tuple[list[EarningsReport], list[EarningsReport], EarningsRunStats]:
-        filings = self.fetcher.fetch_recent_filings()
-        stats = EarningsRunStats(filings_seen=len(filings))
-        filings = sorted(
-            filings,
-            key=lambda f: self.watchlist.sort_key(
-                f.ticker or self.cik_map.resolve_ticker(f.company, f.form_type)
-            ),
-        )
-
+        atom = self.fetcher.fetch_recent_filings()
+        stats = EarningsRunStats()
         reports: list[EarningsReport] = []
         telegram_reports: list[EarningsReport] = []
         sec_calls = 0
+        facts_cache: dict[str, dict] = {}
+
+        yday = datetime.now(timezone.utc).timetuple().tm_yday
+        rotated = rotate_tickers(self.watchlist.tickers(), yday)
+        watchlist_filings: list[EarningsFiling] = []
+        if watchlist_submissions_enabled():
+            sub_client = SecSubmissionsClient(self.xbrl._client)
+            until = datetime.now(timezone.utc).date()
+            since = until - timedelta(days=WATCHLIST_SUBMISSIONS_DAYS)
+            for ticker in rotated:
+                if sec_calls >= MAX_SEC_API_CALLS_PER_RUN:
+                    logger.warning("SEC API cap reached (%d)", MAX_SEC_API_CALLS_PER_RUN)
+                    break
+                cik = self.cik_map.cik_for(ticker)
+                if not cik:
+                    continue
+                try:
+                    payload = sub_client.get_submissions(cik)
+                    sec_calls += 1
+                except Exception as exc:
+                    logger.warning("submissions failed for %s: %s", ticker, exc)
+                    continue
+                company = str(payload.get("name") or ticker)
+                found = sub_client.list_filings_in_range(
+                    ticker=ticker,
+                    company=company,
+                    cik=cik,
+                    since=since,
+                    until=until,
+                    submissions=payload,
+                )
+                watchlist_filings.extend(sub_client.to_earnings_filing(item) for item in found)
+
+        filings = merge_filings_by_accession(watchlist_filings, atom)
+        stats.filings_seen = len(filings)
+        rank = {ticker: idx for idx, ticker in enumerate(rotated)}
+
+        def _filing_sort_key(filing: EarningsFiling) -> tuple[int, int, str]:
+            ticker = filing.ticker or self.cik_map.resolve_ticker(filing.company, filing.form_type)
+            key = (ticker or "").upper()
+            if key in rank:
+                return (0, rank[key], key)
+            tier, name = self.watchlist.sort_key(ticker)
+            return (1, tier, name)
+
+        filings = sorted(filings, key=_filing_sort_key)
 
         # One provider for the whole run so MAX_FMP_CALLS_PER_RUN is a true
         # per-run cap (was reset every report when constructed per call).
@@ -248,8 +314,15 @@ class EarningsPipelineRunner:
             on_watchlist = tier is not None
 
             try:
-                company_facts = self.xbrl.get_company_facts(cik)
-                sec_calls += 1
+                if cik in facts_cache:
+                    company_facts = facts_cache[cik]
+                else:
+                    if sec_calls >= MAX_SEC_API_CALLS_PER_RUN:
+                        logger.warning("SEC API cap reached (%d)", MAX_SEC_API_CALLS_PER_RUN)
+                        break
+                    company_facts = self.xbrl.get_company_facts(cik)
+                    sec_calls += 1
+                    facts_cache[cik] = company_facts
             except Exception as exc:
                 logger.warning("XBRL fetch failed for %s: %s", ticker, exc)
                 continue

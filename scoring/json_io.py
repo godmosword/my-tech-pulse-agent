@@ -128,16 +128,24 @@ def json_safe(value: Any) -> Any:
     return str(value)
 
 
+_RETAIN_KINDS = frozenset({"earnings"})
+
+
 def prune_by_timestamp(
     rows: list[dict[str, Any]],
     *,
     field: str = "delivered_at",
     retention_days: int | None = None,
+    retain_kinds: frozenset[str] | None = None,
 ) -> list[dict[str, Any]]:
     days = json_retention_days() if retention_days is None else retention_days
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    kinds = _RETAIN_KINDS if retain_kinds is None else retain_kinds
     kept: list[dict[str, Any]] = []
     for row in rows:
+        if str(row.get("kind") or "") in kinds:
+            kept.append(row)
+            continue
         ts = parse_iso(row.get(field))
         if ts is None or ts >= cutoff:
             kept.append(row)

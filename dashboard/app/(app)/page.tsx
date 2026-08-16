@@ -15,8 +15,14 @@ import { Kicker } from "@/components/Kicker";
 import { Reveal } from "@/components/Reveal";
 import { ThemeSection } from "@/components/ThemeSection";
 import { PortfolioTierBadge } from "@/components/data/PortfolioTierBadge";
-import { listEarningsSince } from "@/lib/earnings-firestore";
-import { withPortfolioTierOnReports } from "@/lib/portfolio-server";
+import {
+  listEarningsReports,
+  type EarningsReportRow,
+} from "@/lib/earnings-firestore";
+import {
+  withPortfolioTierOnReports,
+  type PortfolioTier,
+} from "@/lib/portfolio-server";
 
 /** Avoid static prerender of live digest JSON. */
 export const dynamic = "force-dynamic";
@@ -35,16 +41,20 @@ export default async function HomePage() {
   const authenticated =
     !isPublicReadMode() || (await getReaderSession()) !== null;
 
-  const { items, snapshots, usingStaleFallback, todayStart } =
-    await loadTodayDigestData();
-  const todayEarnings = withPortfolioTierOnReports(
-    await listEarningsSince(todayStart, { limit: 6 }).catch(() => []),
+  const { items, snapshots, usingStaleFallback } = await loadTodayDigestData();
+  const publishedEarnings = withPortfolioTierOnReports(
+    await listEarningsReports({ limit: 6 }).catch(() => []),
   );
   const view = resolveDigestView(items, snapshots);
   const latestDelivered = latestDeliveredIso(items);
 
   if (!items.length) {
-    return <EmptyState />;
+    return (
+      <div>
+        <EmptyState />
+        <PublishedEarnings reports={publishedEarnings} />
+      </div>
+    );
   }
 
   if (view.totalShown === 0) {
@@ -68,6 +78,7 @@ export default async function HomePage() {
             。
           </p>
         </div>
+        <PublishedEarnings reports={publishedEarnings} />
       </div>
     );
   }
@@ -82,32 +93,7 @@ export default async function HomePage() {
 
       <AttentionTriage />
 
-      {todayEarnings.length > 0 && (
-        <section className="pt-4">
-          <Kicker tone="accent">今日財報</Kicker>
-          <Hairline className="mt-3" />
-          <ul className="divide-y divide-rule">
-            {todayEarnings.map((e) => (
-              <li key={e.report_id} className="py-4">
-                <span className="flex flex-wrap items-baseline gap-2">
-                  <Link
-                    href={`/earnings/report/${encodeURIComponent(e.report_id)}`}
-                    className="font-serif text-dek text-ink hover:text-accent hover:underline"
-                  >
-                    {e.ticker} · {e.quarter_label}
-                  </Link>
-                  <PortfolioTierBadge tier={e.portfolio_tier} />
-                </span>
-                {e.investment_takeaway_zh && (
-                  <p className="mt-2 font-sans text-body text-ink-soft line-clamp-2">
-                    {e.investment_takeaway_zh}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <PublishedEarnings reports={publishedEarnings} />
 
       {view.deepInsights.length > 0 && (
         <section className="pt-2">
@@ -148,8 +134,72 @@ function EmptyState() {
         <Link href="/archive" className="text-accent underline-offset-4 hover:underline">
           歸檔
         </Link>
-        查看近期內容。
+        或{" "}
+        <Link href="/earnings" className="text-accent underline-offset-4 hover:underline">
+          已公布財報
+        </Link>
+        。
       </p>
     </div>
+  );
+}
+
+function PublishedEarnings({
+  reports,
+}: {
+  reports: Array<EarningsReportRow & { portfolio_tier: PortfolioTier }>;
+}) {
+  return (
+    <section className="pt-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <Kicker tone="accent">已公布財報</Kicker>
+        <Link
+          href="/earnings"
+          className="font-sans text-meta text-accent underline-offset-4 hover:underline"
+        >
+          查看全部
+        </Link>
+      </div>
+      <Hairline className="mt-3" />
+      {reports.length === 0 ? (
+        <p className="py-6 font-sans text-body text-ink-soft">
+          尚無已歸檔財報。可先前往{" "}
+          <Link
+            href="/earnings"
+            className="text-accent underline-offset-4 hover:underline"
+          >
+            財報雷達
+          </Link>
+          。
+        </p>
+      ) : (
+        <ul className="divide-y divide-rule">
+          {reports.map((e) => (
+            <li key={e.report_id} className="py-4">
+              <span className="flex flex-wrap items-baseline gap-2">
+                <Link
+                  href={`/earnings/${encodeURIComponent(e.ticker)}`}
+                  className="font-mono text-meta text-ink hover:text-accent hover:underline"
+                >
+                  {e.ticker}
+                </Link>
+                <Link
+                  href={`/earnings/report/${encodeURIComponent(e.report_id)}`}
+                  className="font-serif text-dek text-ink hover:text-accent hover:underline"
+                >
+                  {e.quarter_label}
+                </Link>
+                <PortfolioTierBadge tier={e.portfolio_tier} />
+              </span>
+              {e.investment_takeaway_zh && (
+                <p className="mt-2 font-sans text-body text-ink-soft line-clamp-2">
+                  {e.investment_takeaway_zh}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

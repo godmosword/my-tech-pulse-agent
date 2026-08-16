@@ -9,8 +9,15 @@ import {
 import { isPublicReadMode } from "@/lib/env-public-read";
 import { englishExcerpt, publicSummaryLine } from "@/lib/public-excerpt";
 import { getReaderSession } from "@/lib/session";
-import { chineseAbstract, hasGatedLongContent } from "@/lib/zh-content";
+import {
+  bilingualEnglishSummary,
+  bilingualEnglishTitle,
+  chineseAbstract,
+  hasGatedLongContent,
+  shouldShowBilingualCompare,
+} from "@/lib/zh-content";
 import { displayTitle } from "@/lib/types";
+import { BilingualCompare } from "@/components/BilingualCompare";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { AgentCommentary } from "@/components/AgentCommentary";
 import { BackLink } from "@/components/BackLink";
@@ -20,6 +27,7 @@ import { tagItemPortfolioRelevance } from "@/lib/portfolio-relevance";
 import { LoginToReadCta } from "@/components/LoginToReadCta";
 import { Hairline } from "@/components/Hairline";
 import { Kicker, MetaDot } from "@/components/Kicker";
+import { TickerQuote } from "@/components/data/TickerQuote";
 
 /** Avoid static prerender of live item JSON. */
 export const dynamic = "force-dynamic";
@@ -88,8 +96,15 @@ export default async function ItemPage({
   const zhAbstract = authenticated
     ? chineseAbstract(item)
     : item.zh_summary?.trim() || "";
-  const englishSummary = (item.summary || "").trim();
+  const enTitle = bilingualEnglishTitle(item);
+  const enSummaryRaw = bilingualEnglishSummary(item);
+  const englishSummary = enSummaryRaw
+    ? authenticated
+      ? enSummaryRaw
+      : englishExcerpt(enSummaryRaw)
+    : "";
   const cat = categoryLabel(item.category);
+  const tickers = item.tickers ?? [];
   const metaDate = formatMetaDate(
     item.published_at_iso || item.delivered_at_iso
   );
@@ -151,12 +166,23 @@ export default async function ItemPage({
         <LoginToReadCta returnToPath={returnToPath} />
       )}
 
-      {englishSummary && (
-        <div className="space-y-2 border-t border-rule pt-6">
-          <Kicker>英文摘要</Kicker>
-          <p className="whitespace-pre-line font-sans text-body leading-[1.65] text-ink-soft">
-            {authenticated ? englishSummary : englishExcerpt(englishSummary)}
-          </p>
+      {shouldShowBilingualCompare(item) && (enTitle || englishSummary) && (
+        <BilingualCompare
+          englishTitle={enTitle}
+          englishSummary={englishSummary || null}
+          presentation="stacked"
+        />
+      )}
+
+      {tickers.length > 0 && (
+        <div
+          aria-label={`相關代號：${tickers.join(", ")}`}
+          className="flex flex-wrap items-center gap-1.5 font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-ink-soft"
+        >
+          <span className="text-ink-faint">代號</span>
+          {tickers.map((t) => (
+            <TickerQuote key={t} ticker={t} />
+          ))}
         </div>
       )}
 

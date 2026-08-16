@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { Quote } from "@/lib/quotes";
 
 interface TickerQuoteProps {
@@ -37,7 +39,10 @@ export function TickerQuote({ ticker, quote }: TickerQuoteProps) {
           : "text-ink-faint";
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-sm border border-rule px-1.5 py-0.5 font-mono text-kicker text-ink">
+    <Link
+      href={`/earnings/${encodeURIComponent(ticker)}`}
+      className="inline-flex items-center gap-1.5 rounded-sm border border-rule px-1.5 py-0.5 font-mono text-kicker text-ink hover:border-accent hover:text-accent"
+    >
       <span>{ticker}</span>
       {price != null && (
         <span className="text-ink-soft">{fmtPrice(price)}</span>
@@ -45,6 +50,6 @@ export function TickerQuote({ ticker, quote }: TickerQuoteProps) {
       {changePct != null && (
         <span className={changeClass}>{fmtChange(changePct)}</span>
       )}
-    </span>
+    </Link>
   );
 }

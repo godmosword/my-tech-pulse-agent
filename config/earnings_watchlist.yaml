@@ -27,7 +27,7 @@ entries:
   - { ticker: AMZN, tier: 2, tags: [cloud_software] }
 
   # Tier 3 — RF / edge / analog (4 named / 10 target)
-  - { ticker: ON, tier: 3, tags: [sic] }
+  - { ticker: "ON", tier: 3, tags: [sic] }
   - { ticker: WOLF, tier: 3, tags: [sic] }
   - { ticker: TXN, tier: 3, tags: [analog] }
   - { ticker: ADI, tier: 3, tags: [analog] }

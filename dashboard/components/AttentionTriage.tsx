@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { signalHitRateCaption } from "@/lib/backtest-data";
 import { listEarningsSince } from "@/lib/earnings-firestore";
-import { loadUpcomingEarnings } from "@/lib/earnings-portal";
 import { listLatestItems } from "@/lib/firestore";
 import {
   tagItemPortfolioRelevance,
@@ -44,13 +43,6 @@ interface SignalRow {
   rating: string;
   conviction: string;
   relevance: PortfolioRelevance;
-}
-
-interface UpcomingRow {
-  ticker: string;
-  date: string;
-  days_until: number;
-  pillar: string;
 }
 
 function holdingNewsRows(items: RenderableItem[]): HoldingNewsRow[] {
@@ -119,35 +111,22 @@ export async function AttentionTriage() {
   const since30 = new Date();
   since30.setUTCDate(since30.getUTCDate() - SIGNAL_LOOKBACK_DAYS);
 
-  const [recentItems, reports, upcoming] = await Promise.all([
+  const [recentItems, reports] = await Promise.all([
     listLatestItems({ limit: 120, since: since48 }).catch(() => [] as RenderableItem[]),
     listEarningsSince(since30, { limit: 80, maxTier: 5 }).catch(() => []),
-    loadUpcomingEarnings(7).catch(() => null),
   ]);
 
   const holdingNews = holdingNewsRows(recentItems);
   const { buys, avoids } = signalRows(reports);
-  const upcomingRows: UpcomingRow[] = (upcoming?.items ?? [])
-    .slice(0, 5)
-    .map((item) => ({
-      ticker: item.symbol,
-      date: item.next_earnings_date,
-      days_until: item.days_until,
-      pillar: item.pillar,
-    }));
 
   const hasContent =
-    holdingNews.length > 0 ||
-    buys.length > 0 ||
-    avoids.length > 0 ||
-    upcomingRows.length > 0;
+    holdingNews.length > 0 || buys.length > 0 || avoids.length > 0;
 
   // Batch all quotes for the section in a single Finnhub pass.
   const allTickers = [
     ...holdingNews.flatMap((r) => r.tickers),
     ...buys.map((r) => r.ticker),
     ...avoids.map((r) => r.ticker),
-    ...upcomingRows.map((r) => r.ticker),
   ];
   const quotes: Map<string, Quote> = hasContent
     ? await fetchQuotes(allTickers)
@@ -245,24 +224,6 @@ export async function AttentionTriage() {
             </div>
           )}
 
-          {upcomingRows.length > 0 && (
-            <div>
-              <SubLabel>未來 7 日財報</SubLabel>
-              <ul className="divide-y divide-rule">
-                {upcomingRows.map((row) => (
-                  <li
-                    key={`${row.ticker}-${row.date}`}
-                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3"
-                  >
-                    <TickerQuote ticker={row.ticker} quote={quotes.get(row.ticker)} />
-                    <span className="font-sans text-meta text-ink-soft">
-                      {row.date} · {row.days_until} 日後 · {row.pillar}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
     </section>

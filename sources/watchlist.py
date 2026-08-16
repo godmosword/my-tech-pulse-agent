@@ -10,6 +10,15 @@ import yaml
 WATCHLIST_PATH = Path(__file__).resolve().parent.parent / "config" / "earnings_watchlist.yaml"
 
 
+def normalize_watchlist_ticker(raw: object) -> str:
+    """YAML 1.1 treats bare `ON`/`OFF` as booleans."""
+    if raw is True:
+        return "ON"
+    if raw is False:
+        return "OFF"
+    return str(raw or "").strip().upper()
+
+
 @dataclass(frozen=True)
 class WatchlistEntry:
     ticker: str
@@ -27,7 +36,7 @@ class EarningsWatchlist:
             data = yaml.safe_load(f) or {}
         entries: list[WatchlistEntry] = []
         for row in data.get("entries") or []:
-            ticker = str(row.get("ticker", "")).strip().upper()
+            ticker = normalize_watchlist_ticker(row.get("ticker", ""))
             if not ticker:
                 continue
             tier = int(row.get("tier", 99))

@@ -1,0 +1,411 @@
+{
+  "report_id": "CSCO_2026_Q3",
+  "ticker": "CSCO",
+  "company": "CISCO SYSTEMS, INC.",
+  "cik": "0000858877",
+  "tier": 3,
+  "fiscal_year": 2026,
+  "fiscal_period": "Q3",
+  "period_end": "2026-04-25T00:00:00Z",
+  "quarter_label": "FY2026 Q3（至 2026-04-25）",
+  "published_at": "2026-05-19T00:00:00Z",
+  "filed_at": "2026-05-19T00:00:00Z",
+  "headline_metrics": [
+    {
+      "metric": "revenue",
+      "label_zh": "營收",
+      "value": 46073000000.0,
+      "unit": "USD",
+      "period": "FY2026Q3",
+      "fiscal_year": 2026,
+      "fiscal_period": "Q3",
+      "form_type": "10-Q",
+      "source_type": "sec_xbrl",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/858877/000085887726000078/csco-20260425.htm",
+      "source_tag": "us-gaap:revenue",
+      "confidence": "high"
+    },
+    {
+      "metric": "net_income",
+      "label_zh": "淨利",
+      "value": 9408000000.0,
+      "unit": "USD",
+      "period": "FY2026Q3",
+      "fiscal_year": 2026,
+      "fiscal_period": "Q3",
+      "form_type": "10-Q",
+      "source_type": "sec_xbrl",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/858877/000085887726000078/csco-20260425.htm",
+      "source_tag": "us-gaap:net_income",
+      "confidence": "high"
+    },
+    {
+      "metric": "gross_profit",
+      "label_zh": "毛利",
+      "value": 29797000000.0,
+      "unit": "USD",
+      "period": "FY2026Q3",
+      "fiscal_year": 2026,
+      "fiscal_period": "Q3",
+      "form_type": "10-Q",
+      "source_type": "sec_xbrl",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/858877/000085887726000078/csco-20260425.htm",
+      "source_tag": "us-gaap:gross_profit",
+      "confidence": "high"
+    },
+    {
+      "metric": "operating_income",
+      "label_zh": "營業利益",
+      "value": 11104000000.0,
+      "unit": "USD",
+      "period": "FY2026Q3",
+      "fiscal_year": 2026,
+      "fiscal_period": "Q3",
+      "form_type": "10-Q",
+      "source_type": "sec_xbrl",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/858877/000085887726000078/csco-20260425.htm",
+      "source_tag": "us-gaap:operating_income",
+      "confidence": "high"
+    }
+  ],
+  "segment_metrics": [],
+  "guidance": {},
+  "estimates": {},
+  "surprise": {},
+  "key_quotes": [],
+  "management_tone": null,
+  "ai_infra_relevance": null,
+  "investment_takeaway_zh": null,
+  "risk_flags": [],
+  "ai_infra_signal": "not_relevant",
+  "earnings_quality_score": null,
+  "market_surprise_level": "unknown",
+  "source_documents": [
+    {
+      "form_type": "10-Q",
+      "filing_url": "https://www.sec.gov/Archives/edgar/data/858877/000085887726000078/csco-20260425.htm",
+      "accession": "0000858877-26-000078",
+      "filed_at": "2026-05-19T00:00:00Z"
+    }
+  ],
+  "confidence": "high",
+  "schema_version": "earnings_v2",
+  "scorecard": null,
+  "market_context": null,
+  "rendered_markdown_zh": null,
+  "transcript_status": null,
+  "transcript_id": null,
+  "guidance_capex": null,
+  "segments": [],
+  "call_insights": null,
+  "financial_health": null,
+  "conclusion": null,
+  "trend": {
+    "trends": [
+      {
+        "metric": "revenue",
+        "label_zh": "營收",
+        "points": [
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2024-10-26",
+            "value": 13841000000.0,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "Q2",
+            "period_end": "2025-01-25",
+            "value": 27832000000.0,
+            "filed": "2025-02-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2025-01-25",
+            "value": 27832000000.0,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "Q3",
+            "period_end": "2025-04-26",
+            "value": 41981000000.0,
+            "filed": "2025-05-20"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2025-04-26",
+            "value": 41981000000.0,
+            "filed": "2026-05-19"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2025-10-25",
+            "value": 14883000000.0,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2026-01-24",
+            "value": 30232000000.0,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2026-04-25",
+            "value": 46073000000.0,
+            "filed": "2026-05-19"
+          }
+        ],
+        "yoy_pct": 9.75,
+        "qoq_pct": 52.4,
+        "direction": "擴張"
+      },
+      {
+        "metric": "eps_diluted",
+        "label_zh": "稀釋 EPS",
+        "points": [
+          {
+            "fiscal_year": 2010,
+            "fiscal_period": "Q3",
+            "period_end": "2009-04-25",
+            "value": 0.23,
+            "filed": "2010-05-26"
+          }
+        ],
+        "yoy_pct": null,
+        "qoq_pct": null,
+        "direction": "資料不足"
+      },
+      {
+        "metric": "net_income",
+        "label_zh": "淨利",
+        "points": [
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2024-10-26",
+            "value": 2711000000.0,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "Q2",
+            "period_end": "2025-01-25",
+            "value": 5139000000.0,
+            "filed": "2025-02-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2025-01-25",
+            "value": 5139000000.0,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "Q3",
+            "period_end": "2025-04-26",
+            "value": 7630000000.0,
+            "filed": "2025-05-20"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2025-04-26",
+            "value": 7630000000.0,
+            "filed": "2026-05-19"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2025-10-25",
+            "value": 2860000000.0,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2026-01-24",
+            "value": 6035000000.0,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2026-04-25",
+            "value": 9408000000.0,
+            "filed": "2026-05-19"
+          }
+        ],
+        "yoy_pct": 23.3,
+        "qoq_pct": 55.89,
+        "direction": "擴張"
+      },
+      {
+        "metric": "operating_income",
+        "label_zh": "營業利益",
+        "points": [
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2024-10-26",
+            "value": 2358000000.0,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "Q2",
+            "period_end": "2025-01-25",
+            "value": 5471000000.0,
+            "filed": "2025-02-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2025-01-25",
+            "value": 5471000000.0,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "Q3",
+            "period_end": "2025-04-26",
+            "value": 8673000000.0,
+            "filed": "2025-05-20"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2025-04-26",
+            "value": 8673000000.0,
+            "filed": "2026-05-19"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2025-10-25",
+            "value": 3363000000.0,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2026-01-24",
+            "value": 7144000000.0,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2026-04-25",
+            "value": 11104000000.0,
+            "filed": "2026-05-19"
+          }
+        ],
+        "yoy_pct": 28.03,
+        "qoq_pct": 55.43,
+        "direction": "擴張"
+      },
+      {
+        "metric": "gross_margin",
+        "label_zh": "毛利率(%)",
+        "points": [
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2024-10-26",
+            "value": 65.9,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2025-01-25",
+            "value": 65.51,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2025-04-26",
+            "value": 65.53,
+            "filed": "2026-05-19"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q1",
+            "period_end": "2025-10-25",
+            "value": 65.48,
+            "filed": "2025-11-18"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q2",
+            "period_end": "2026-01-24",
+            "value": 65.22,
+            "filed": "2026-02-17"
+          },
+          {
+            "fiscal_year": 2026,
+            "fiscal_period": "Q3",
+            "period_end": "2026-04-25",
+            "value": 64.67,
+            "filed": "2026-05-19"
+          }
+        ],
+        "yoy_pct": null,
+        "qoq_pct": -0.84,
+        "direction": "收縮"
+      }
+    ],
+    "quarters_covered": 8
+  },
+  "price_reaction": null,
+  "ratios": null,
+  "surprise_history": [],
+  "investment_signal": {
+    "score": 81.2,
+    "rating": "看多",
+    "conviction": "low",
+    "factors": [
+      {
+        "name": "fundamental_momentum",
+        "score": 81.2,
+        "weight": 1.0,
+        "detail_zh": "營收 YoY 9.8%（擴張）",
+        "available": true
+      },
+      {
+        "name": "surprise",
+        "score": null,
+        "weight": 0.0,
+        "detail_zh": "缺少 scorecard",
+        "available": false
+      },
+      {
+        "name": "market_confirmation",
+        "score": null,
+        "weight": 0.0,
+        "detail_zh": "缺少 price_reaction",
+        "available": false
+      },
+      {
+        "name": "quality",
+        "score": null,
+        "weight": 0.0,
+        "detail_zh": "缺少 ratios 品質指標",
+        "available": false
+      }
+    ],
+    "rationale_zh": "綜合分 81.2，主要受 基本面動能 81 分（營收 YoY 9.8%（擴張）） 影響。 資料不足，訊號參考性有限。此為系統綜合訊號，非投資建議。",
+    "as_of": "2026-08-16"
+  },
+  "updated_at": "2026-08-16T02:16:42.612827Z"
+}

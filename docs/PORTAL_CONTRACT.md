@@ -47,6 +47,7 @@ tech-pulse 寫入的 document **body** 鍵（見 `JsonMemoryService.archive_*`�
 | `score` | **對應合約 `confidence` 的數值載體之一**：Flash 文章分數（約 0–10 量級，見 scorer），**不是** 0.0–1.0 的 Gemini 機率 |
 | `score_status` | 字串（如 `ok`、`fallback`）；deep／earnings 上可承載 `high`/`medium`/`low` 類語意，與數值 `score` 並存 |
 | `kind` | `instant_summary` \| `deep_brief` \| `earnings`；Portal 可依此區分深度稿與快訊 |
+| `translation_aligned` | （additive）`instant_summary`：中英數字／ticker 是否對齊；Portal 可忽略 |
 | `embedding` | 向量；Portal 可不讀 |
 | `expires_at` | TTL 用；Portal 可忽略 |
 
@@ -110,4 +111,4 @@ print(rows[0].keys() if rows else 'empty')
 
 與本節「實體欄位對照」不一致時，**只更新本合約文件**，不改 tech-pulse pipeline。
 
-**單筆樣本觀測**：`category`, `delivered_at`, `entity`, `expires_at`, `item_id`, `kind`, `published_at`, `score`, `score_status`, `source_name`, `source_url`, `summary`, `title`（與 `memory_store` 寫入一致；JSON **不存** `embedding`）。
+**單筆樣本觀測**：`category`, `delivered_at`, `entity`, `expires_at`, `item_id`, `kind`, `published_at`, `score`, `score_status`, `source_name`, `source_url`, `summary`, `title`；`instant_summary` 可有 additive `translation_aligned`（與 `memory_store` 寫入一致；JSON **不存** `embedding`）。

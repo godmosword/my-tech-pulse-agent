@@ -61,8 +61,12 @@ def _in_range(dt: datetime, since: date, until: date) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Backfill earnings by SEC filed date range")
-    parser.add_argument("--since", type=_parse_date_arg, default=_parse_date_arg("2026-05-01"))
-    parser.add_argument("--until", type=_parse_date_arg, default=_parse_date_arg("2026-05-21"))
+    parser.add_argument("--since", type=_parse_date_arg, default=_parse_date_arg("2026-01-01"))
+    parser.add_argument(
+        "--until",
+        type=_parse_date_arg,
+        default=datetime.now(timezone.utc).date(),
+    )
     parser.add_argument("--dry-run", action="store_true", help="List filings only, no writes")
     parser.add_argument(
         "--with-llm",
@@ -126,12 +130,26 @@ def main() -> int:
             cik=cik,
             since=args.since,
             until=args.until,
+            submissions=sub_payload,
         )
         if not filings:
             logger.info("%s: no filings in range", ticker)
             continue
 
         logger.info("%s: %d filing(s) in %s..%s", ticker, len(filings), args.since, args.until)
+
+        if args.dry_run:
+            for sub in filings:
+                if args.max_filings and filings_seen >= args.max_filings:
+                    logger.info("max-filings cap reached")
+                    return 0
+                filings_seen += 1
+                filing = submissions.to_earnings_filing(sub)
+                print(
+                    f"  [dry-run] {ticker} {filing.form_type} filed={filing.filed_at.date()} "
+                    f"acc={filing.accession} {filing.filing_url[:80]}"
+                )
+            continue
 
         try:
             company_facts = xbrl.get_company_facts(cik)
@@ -148,12 +166,6 @@ def main() -> int:
             filings_seen += 1
 
             filing = submissions.to_earnings_filing(sub)
-            if args.dry_run:
-                print(
-                    f"  [dry-run] {ticker} {filing.form_type} filed={filing.filed_at.date()} "
-                    f"acc={filing.accession} {filing.filing_url[:80]}"
-                )
-                continue
 
             report = build_report_from_filing(
                 filing,

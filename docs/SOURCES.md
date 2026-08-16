@@ -137,15 +137,15 @@ flowchart TD
 | `sec_edgar_earnings_rss` | 開 | browse-edgar Atom，最近 40 筆 8-K（2026-08-15 實測 200／可 parse） |
 | `sec_edgar_rss` | 關 | EFTS `search-index` 回 JSON，fetcher 只 parse XML，實務 0 筆。URL 留著；`EarningsFetcher` 會跳過 `enabled: false` |
 
-發現層目前只有 Atom。filing 正文與 XBRL 皆走 `SEC_USER_AGENT`（[`sec_document_headers`](../sources/earnings_fetcher.py)／[`sec_user_agent`](../sources/sec_client.py)）。後續若要提高 watchlist 命中，可改 `sec_submissions` 按 ticker 直查（尚未做）。
+發現層**並存**：watchlist 走 `sec_submissions`（`EARNINGS_WATCHLIST_SUBMISSIONS=1`，近 `EARNINGS_WATCHLIST_SUBMISSIONS_DAYS` 天，預設 7）；Atom 續供非 watchlist 廣覆蓋。去重鍵為 accession。關 submissions 旗標則只剩 Atom。filing 正文與 XBRL 皆走 `SEC_USER_AGENT`。
 
 ### 數字真值
 
 | 步驟 | 模組 | 上限／宇宙 |
 |------|------|------------|
-| companyfacts | [`sec_xbrl_fetcher.py`](../sources/sec_xbrl_fetcher.py) | `MAX_SEC_API_CALLS_PER_RUN=60` |
+| companyfacts | [`sec_xbrl_fetcher.py`](../sources/sec_xbrl_fetcher.py) | `MAX_SEC_API_CALLS_PER_RUN=120`（含 submissions） |
 | Ticker ↔ CIK | [`ticker_cik_map.py`](../sources/ticker_cik_map.py) | |
-| Watchlist | [`config/earnings_watchlist.yaml`](../config/earnings_watchlist.yaml) | T1–T5，約 40 檔 |
+| Watchlist | [`config/earnings_watchlist.yaml`](../config/earnings_watchlist.yaml) | T1–T5，45 檔；日更按年積日輪替起點 |
 | 完整管線 | watchlist 命中 | `MAX_EARNINGS_FILINGS=8` |
 | 廣覆蓋歸檔 | 非 watchlist | `MAX_EARNINGS_FILINGS_BROAD=30` |
 

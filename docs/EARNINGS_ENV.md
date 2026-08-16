@@ -40,7 +40,9 @@ Pipeline（GitHub Actions）與 Dashboard（Vercel）分工不同：**Finnhub �
 |------|------|------|
 | `MAX_EARNINGS_FILINGS` | `8` | Watchlist 完整 pipeline 檔數 |
 | `MAX_EARNINGS_FILINGS_BROAD` | `30` | 非 watchlist 僅 XBRL 歸檔 |
-| `MAX_SEC_API_CALLS_PER_RUN` | `60` | SEC `companyfacts` 上限 |
+| `MAX_SEC_API_CALLS_PER_RUN` | `120` | SEC submissions + `companyfacts` 上限 |
+| `EARNINGS_WATCHLIST_SUBMISSIONS` | `1` | `1` 時 watchlist 另查 CIK submissions；Atom 仍供廣覆蓋 |
+| `EARNINGS_WATCHLIST_SUBMISSIONS_DAYS` | `7` | submissions 回看天數 |
 | `EARNINGS_TELEGRAM_MIN_TIER` | `2` | 舊旗標；頻道推送已關，不影響 JSON 歸檔 |
 | `EARNINGS_TRANSCRIPT_MODE` | `lazy_sync` | `lazy_sync`（同 Job 末尾）或預留 `async_worker` |
 
