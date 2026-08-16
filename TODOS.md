@@ -4,6 +4,7 @@
 
 ## 近期已完成（0.2.0）
 
+- [x] **Cursor npm task 誤報**：`.vscode/settings.json` 關掉 `npm.autoDetect`／`task.autoDetect`（`dashboard/package.json` 合法）
 - [x] **來源可用性對齊（2026-08-15）**：IEEE 換活 URL；Sequoia／動區專欄停用；EFTS 關、earnings 尊重 `enabled`
 - [x] **新聞／財報減源**：主源 9 RSS + KOL；關重複／不穩源；NewsAPI／trending 預設 off；`SEC_USER_AGENT` 用於 filing 正文；vendor 維持 off。見 [`docs/SOURCES.md`](docs/SOURCES.md)
 - [x] **新聞／財報來源盤點**：[`docs/SOURCES.md`](docs/SOURCES.md)；ENABLEMENT／EARNINGS_ENV 對齊 GHA 預設 off

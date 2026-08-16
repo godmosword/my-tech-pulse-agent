@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - **來源可用性對齊（2026-08-15 探測）**：IEEE Spectrum 改活 URL；停用 Sequoia（Framer 無 RSS）與動區專欄（opinion feed 404）；EFTS JSON 源關掉，`EarningsFetcher` 改尊重 `enabled`，發現層只留 browse-edgar Atom。
 
 ### Added
+- **Cursor npm task 誤報**：新增 [`.vscode/settings.json`](.vscode/settings.json)，關掉 `npm.autoDetect`／`task.autoDetect`。`dashboard/package.json` 本身合法，但 Cursor 掃描時會把 `openTextDocument` 失敗標成 parse error。
 - **新聞／財報來源盤點**：新增 [`docs/SOURCES.md`](docs/SOURCES.md)（RSS／KOL／NewsAPI／Apify、SEC／XBRL／vendor 開關與金鑰）。[`docs/ENABLEMENT_CHECKLIST.md`](docs/ENABLEMENT_CHECKLIST.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) 改為 GHA 預設：Finnhub／FMP／takeaway `off`，Telegram 非必要；有 key 不代表已開。
 - **Agent 編排（Cursor）**：自 investment-ai-agent 可攜模板 bootstrap（`.cursor/commands/agent-plan.md`、`agent-action.md`、`.cursor/rules/agent-orchestration.mdc`、`docs/AGENT-WORKFLOW.md`）；填寫 tech-pulse 專用 [`docs/AGENT-DOMAIN.md`](docs/AGENT-DOMAIN.md)（Bootstrap、pipeline 核准紅線、驗證矩陣、Ship 政策）。`README.md`／`CLAUDE.md`／`docs/WORKFLOW.md` 加導航。
 
