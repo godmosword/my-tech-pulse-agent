@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **Dashboard 設計文件**：`InstantCard variant="full"` 標為測試專用；item 頁為自繪。`DESIGN.md` Do not 禁止引入 Beautiful UI 色票／假串流，以及把 dense `SourceTag` 當新聞出處。
-- **GitHub Actions 收斂**：只維護 CI 與 `schedule.yml`；關掉廢棄的 GitHub Pages（原 `github.io` 404）。Invest artifacts 已併進日更，不再另開 refresh job。地圖見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
+- **GitHub Actions 收斂**：維護 CI、`schedule.yml`、以及 Dashboard `vercel.yml`；關掉廢棄的 GitHub Pages（原 `github.io` 404）。Invest artifacts 已併進日更，不再另開 refresh job。地圖見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
 - **財報發現並存**：日更 watchlist 走 `sec_submissions`（可關 `EARNINGS_WATCHLIST_SUBMISSIONS`），Atom 續供廣覆蓋；以 Archives URL 補 accession 去重；`MAX_SEC_API_CALLS_PER_RUN` 預設 120，watchlist 按年積日輪替。`kind=earnings` 豁免 90 天 JSON prune。YAML 1.1 的 `ON` 加引號，避免被當成布林。
 - **LLM 改 OpenAI Luna**：pipeline 直連 `api.openai.com`（不再用 Gemini）。生成一律 `gpt-5.6-luna`——重活 `reasoning.mode=pro` + `effort=medium`，打分／繁中補譯 `effort=none`；embedding 改 `text-embedding-3-small`（768 維）。必填 `OPENAI_API_KEY`。
 - **停 Telegram 推送**：digest／財報／深度稿只寫 `dashboard/data` JSON，由 GHA commit 觸發 Vercel 重建。不再需要 `TELEGRAM_BOT_TOKEN`／`TELEGRAM_CHANNEL_ID`。
@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - **來源可用性對齊（2026-08-15 探測）**：IEEE Spectrum 改活 URL；停用 Sequoia（Framer 無 RSS）與動區專欄（opinion feed 404）；EFTS JSON 源關掉，`EarningsFetcher` 改尊重 `enabled`，發現層只留 browse-edgar Atom。
 
 ### Added
+- **Dashboard 自動部署**：`main` 上 `dashboard/**` 變更由 [`.github/workflows/vercel.yml`](.github/workflows/vercel.yml) POST Vercel Deploy Hook（含 pipeline JSON）。`dashboard/vercel.json` 關掉 Git push webhook 自動建，避免漏部署或雙重建。需 GitHub secret `VERCEL_DEPLOY_HOOK_URL`。
 - **Dashboard 文章頁來源 chip 與相關閱讀**：`/item/[id]` header 的 `source_name` 在有 `source_url` 時改為外連 chip；右欄不再重複「Read original」。同 theme／ticker 最多兩篇「相關閱讀」（本地 `listLatestItems`，不新增 API）。
 - **Dashboard 搜尋建議**：`NavSearch` 空查詢或 0 命中時，在 combobox listbox 外提供 NVDA／AI／財報靜態 chips。
 - **中英對照（T4a／T5）**：pipeline 寫 additive `translation_aligned`（數字／ticker）；Today／內頁不必等 `zh_body` 即可看中英對照。Today「已公布財報」連 `/earnings`，不把 upcoming 當本週預告。

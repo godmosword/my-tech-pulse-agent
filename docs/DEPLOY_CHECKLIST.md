@@ -31,7 +31,13 @@
 | 變數 | 範例 / 說明 |
 |------|-------------|
 | `NEXT_PUBLIC_SITE_URL` | `https://my-tech-pulse-agent.vercel.app`（無結尾 `/`）。供 sitemap、OG、`metadataBase`。 |
-| `REVALIDATE_TOKEN` | 可選；GHA commit JSON 後 Vercel 會重建，通常不必再打 ISR。 |
+| `REVALIDATE_TOKEN` | 可選；GHA commit JSON 後 `vercel.yml` 會重建，通常不必再打 ISR。 |
+
+GitHub secret（不是 Vercel env）：
+
+| Secret | 說明 |
+|--------|------|
+| `VERCEL_DEPLOY_HOOK_URL` | Vercel Deploy Hook（`gha-main` → `main`）。[`vercel.yml`](../.github/workflows/vercel.yml) 在 `dashboard/**` push 時 POST 此 URL。 |
 
 ### 1.2 讀取 API（`/api/v1/*`）
 
@@ -68,7 +74,7 @@ curl -sS -X POST \
 
 預期：`health` → `200` 且 `{"ok":true,...}`；未設 token → `503` 與 `API_READ_TOKEN not configured`。
 
-合併 `main` 後請在 Vercel 確認 **Production 已 Redeploy** 最新 commit（含 #44–#46）。
+合併 `main` 且改到 `dashboard/**` 後，看 GitHub Action **Deploy dashboard** 是否成功；Vercel production 應出現對應 commit。
 
 ---
 
@@ -93,7 +99,7 @@ curl -sS -X POST \
 | `FMP_API_KEY` | **未設** | FMP 比率／現金流 |
 | `FRED_API_KEY` | **未設** | 宏觀利率／CPI |
 
-完整列表見根目錄 [`.env.example`](../.env.example)。ISR webhook 可省略：GHA commit 後 Vercel 會重建。Actions 地圖見 [`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)。
+完整列表見根目錄 [`.env.example`](../.env.example)。ISR webhook 可省略：GHA commit JSON 後 `vercel.yml` 會重建。Actions 地圖見 [`SCHEDULED_RUNS.md`](SCHEDULED_RUNS.md)。
 
 ### 2.3 Variables
 
@@ -111,7 +117,7 @@ curl -sS -X POST \
 
 ## 4. GitHub Actions CI
 
-`ci.yml` 只跑 pytest / dashboard lint。`dashboard/data/**` 與 `state/**` 的資料 commit **不重跑** CI。
+`ci.yml` 只跑 pytest / dashboard lint。`dashboard/data/**` 與 `state/**` 的資料 commit **不重跑** CI，但會觸發 `vercel.yml` 重建 production。
 
 ---
 
@@ -174,7 +180,7 @@ python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 
 腳本讀寫 `dashboard/data/memory_items.json`，再以 **Flash 輕量 JSON**（`llm/zh_backfill.py`）只生成 `zh_title` / `zh_summary` / `hook`。
 
-完成後 commit JSON，Vercel 會隨 push 重建。
+完成後 commit JSON，`vercel.yml` 會重建 production。
 
 ---
 
@@ -184,7 +190,7 @@ python scripts/backfill_zh_fields.py --limit 12 --max-updates 8
 |------|----------|------|
 | `/api/v1/health` → 503 | Vercel 未設 `API_READ_TOKEN` | 設定 token 並 redeploy |
 | 首頁部分標題仍英文 | 舊稿缺 `zh_title` | 執行 `backfill_zh_fields.py` 或等 pipeline 新稿 |
-| 送報後網站未更新 | GHA 未 commit／未 push，或 Vercel 未重建 | 查 `schedule.yml` 與 Vercel deploy |
+| 送報後網站未更新 | GHA 未 commit／未 push，或 Deploy dashboard 未跑 | 查 `schedule.yml` 與 **Deploy dashboard** Action |
 | Staging 指標全是 0 | 未設 `TECH_PULSE_ENV=staging` | 見 §3 |
 | `newsapi_fetched` 永遠 0 | 未設 `NEWSAPI_ENABLED=1` 或沒有 `NEWSAPI_KEY` | 預設關；要開才設旗標 + secret |
 

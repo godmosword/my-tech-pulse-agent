@@ -1,0 +1,50 @@
+name: Deploy dashboard
+
+# GitHub → Vercel Git push webhooks can miss a commit (no deployment row).
+# This job POSTs a Vercel Deploy Hook so production follows main even when
+# the Git integration is silent. CI still skips data-only commits; this job
+# must run for dashboard/data, or the reader UI stays stale.
+#
+# Secret: VERCEL_DEPLOY_HOOK_URL (hook gha-main → ref main).
+# Recreate: npx vercel deploy-hooks create gha-main --ref main --project my-tech-pulse-agent --scope godmoswords-projects
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dashboard/**"
+      - ".github/workflows/vercel.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Trigger Vercel production
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+
+    steps:
+      - name: Require deploy hook secret
+        run: |
+          if [ -z "${VERCEL_DEPLOY_HOOK_URL}" ]; then
+            echo "Missing GitHub secret VERCEL_DEPLOY_HOOK_URL"
+            echo "Create: npx vercel deploy-hooks create gha-main --ref main --project my-tech-pulse-agent --scope godmoswords-projects"
+            echo "Then: gh secret set VERCEL_DEPLOY_HOOK_URL"
+            exit 1
+          fi
+
+      - name: Trigger Vercel deploy hook
+        run: |
+          code=$(curl -sS -o /tmp/vercel-hook-resp.json -w '%{http_code}' \
+            -X POST "$VERCEL_DEPLOY_HOOK_URL")
+          echo "HTTP ${code}"
+          python3 -c 'import json; print(json.load(open("/tmp/vercel-hook-resp.json")))'
+          test "${code}" = "201" -o "${code}" = "200"

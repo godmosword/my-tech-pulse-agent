@@ -100,7 +100,7 @@
 | branch protection | 失敗時報錯，改人類處理 |
 | 完整 VERSION ship | gstack `/ship` |
 
-**注意**：`main` push 只跑 CI；pipeline 由 `schedule.yml` 執行。資料 commit 不重跑 pytest。
+**注意**：`main` push 跑 CI；`dashboard/**` 另跑 `vercel.yml` 部署 production。pipeline 由 `schedule.yml` 執行。資料 commit 不重跑 pytest，但仍會部署 Dashboard。
 
 ---
 

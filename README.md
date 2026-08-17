@@ -38,7 +38,7 @@ RSS / Social / SEC EDGAR
 
 **Smart message delivery**: Long digests are split at newline (theme) boundaries when possible. Messages stay under Telegram's 4096 character limit with **HTML** `parse_mode` (dynamic text is escaped in `message_formatter.py`). Each chunk includes boundary validation and configurable inter-message delays (`TELEGRAM_CHUNK_DELAY_MS`).
 
-**Web dashboard**: [`dashboard/README.md`](dashboard/README.md) reads `dashboard/data/memory_items.json`. The scheduled GitHub Action commits those files so Vercel rebuilds; ISR webhook is optional.
+**Web dashboard**: [`dashboard/README.md`](dashboard/README.md) reads `dashboard/data/memory_items.json`. The scheduled GitHub Action commits those files; [`.github/workflows/vercel.yml`](.github/workflows/vercel.yml) deploys production. ISR webhook is optional.
 
 Earnings reports follow a dedicated sub-pipeline (`earnings_v3` in
 `dashboard/data/earnings/`). SEC XBRL is the source of truth for **actual**

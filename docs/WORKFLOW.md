@@ -17,7 +17,7 @@
 3. **同一輪**更新 [`CHANGELOG.md`](../CHANGELOG.md) 與 [`TODOS.md`](../TODOS.md)（可與功能同一 commit，或緊接著的 docs commit）
 4. `git push origin main`
 
-不需為例行段落另開長壽命 feature branch；`main` 上的 push 會觸發 [CI](../.github/workflows/ci.yml)（資料 commit 除外）。
+不需為例行段落另開長壽命 feature branch；`main` 上的 push 會觸發 [CI](../.github/workflows/ci.yml)（資料 commit 除外）。`dashboard/**` 變更另跑 [Deploy dashboard](../.github/workflows/vercel.yml) 更新 Vercel production。
 
 ### CHANGELOG 怎麼寫
 

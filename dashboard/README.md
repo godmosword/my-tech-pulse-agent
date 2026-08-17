@@ -167,8 +167,10 @@ Production 環境變數勾選表與驗證指令：[`../docs/DEPLOY_CHECKLIST.md`
    - `NEXT_PUBLIC_SITE_URL` — canonical site origin for SEO (recommended in
      production).
    - `API_READ_TOKEN` — Bearer token for `/api/v1`.
-4. Pipeline commits `dashboard/data/**` on the scheduled Action; Vercel rebuilds
-   from that push. ISR webhook is optional.
+4. Pipeline commits `dashboard/data/**` on the scheduled Action;
+   [`.github/workflows/vercel.yml`](../.github/workflows/vercel.yml) POSTs the
+   Deploy Hook (`VERCEL_DEPLOY_HOOK_URL`) so production rebuilds without
+   relying on the GitHub → Vercel push webhook. ISR webhook is optional.
 
 ## Read-only contract
 
