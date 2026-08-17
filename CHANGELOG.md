@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **Dashboard 設計文件**：`InstantCard variant="full"` 標為測試專用；item 頁為自繪。`DESIGN.md` Do not 禁止引入 Beautiful UI 色票／假串流，以及把 dense `SourceTag` 當新聞出處。
 - **GitHub Actions 收斂**：只維護 CI 與 `schedule.yml`；關掉廢棄的 GitHub Pages（原 `github.io` 404）。Invest artifacts 已併進日更，不再另開 refresh job。地圖見 [`docs/SCHEDULED_RUNS.md`](docs/SCHEDULED_RUNS.md)。
 - **財報發現並存**：日更 watchlist 走 `sec_submissions`（可關 `EARNINGS_WATCHLIST_SUBMISSIONS`），Atom 續供廣覆蓋；以 Archives URL 補 accession 去重；`MAX_SEC_API_CALLS_PER_RUN` 預設 120，watchlist 按年積日輪替。`kind=earnings` 豁免 90 天 JSON prune。YAML 1.1 的 `ON` 加引號，避免被當成布林。
 - **LLM 改 OpenAI Luna**：pipeline 直連 `api.openai.com`（不再用 Gemini）。生成一律 `gpt-5.6-luna`——重活 `reasoning.mode=pro` + `effort=medium`，打分／繁中補譯 `effort=none`；embedding 改 `text-embedding-3-small`（768 維）。必填 `OPENAI_API_KEY`。
@@ -15,6 +16,8 @@ All notable changes to this project will be documented in this file.
 - **來源可用性對齊（2026-08-15 探測）**：IEEE Spectrum 改活 URL；停用 Sequoia（Framer 無 RSS）與動區專欄（opinion feed 404）；EFTS JSON 源關掉，`EarningsFetcher` 改尊重 `enabled`，發現層只留 browse-edgar Atom。
 
 ### Added
+- **Dashboard 文章頁來源 chip 與相關閱讀**：`/item/[id]` header 的 `source_name` 在有 `source_url` 時改為外連 chip；右欄不再重複「Read original」。同 theme／ticker 最多兩篇「相關閱讀」（本地 `listLatestItems`，不新增 API）。
+- **Dashboard 搜尋建議**：`NavSearch` 空查詢或 0 命中時，在 combobox listbox 外提供 NVDA／AI／財報靜態 chips。
 - **中英對照（T4a／T5）**：pipeline 寫 additive `translation_aligned`（數字／ticker）；Today／內頁不必等 `zh_body` 即可看中英對照。Today「已公布財報」連 `/earnings`，不把 upcoming 當本週預告。
 - **Cursor npm task 誤報**：新增 [`.vscode/settings.json`](.vscode/settings.json)，關掉 `npm.autoDetect`／`task.autoDetect`。`dashboard/package.json` 本身合法，但 Cursor 掃描時會把 `openTextDocument` 失敗標成 parse error。
 - **新聞／財報來源盤點**：新增 [`docs/SOURCES.md`](docs/SOURCES.md)（RSS／KOL／NewsAPI／Apify、SEC／XBRL／vendor 開關與金鑰）。[`docs/ENABLEMENT_CHECKLIST.md`](docs/ENABLEMENT_CHECKLIST.md)、[`docs/EARNINGS_ENV.md`](docs/EARNINGS_ENV.md) 改為 GHA 預設：Finnhub／FMP／takeaway `off`，Telegram 非必要；有 key 不代表已開。

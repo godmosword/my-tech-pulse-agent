@@ -11,7 +11,7 @@ Design tokens and UI rules: [`DESIGN.md`](./DESIGN.md).
   sections (mirrors the v1 Telegram formatter after PR1).
 - `/archive` — last 14 days grouped by delivery day.
 - `/health` — ops summary of delivered content counts and score distribution.
-- `/item/[id]` — single-doc detail (full deep brief or expanded instant card).
+- `/item/[id]` — single-doc detail (full deep brief or expanded instant card); source chip + 相關閱讀 when matches exist.
 - `/invest` — investment hub (portfolio, signals, earnings, macro, calibration summaries).
 - `/earnings` — earnings radar list (`dashboard/data/earnings/`).
 - `/earnings/[ticker]` — per-ticker filings + same-tier comparison.

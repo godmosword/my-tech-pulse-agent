@@ -35,6 +35,8 @@ type Props = {
   onClose?: () => void;
 };
 
+const SEARCH_SUGGESTIONS = ["NVDA", "AI", "財報"] as const;
+
 export function NavSearch({ variant, onClose }: Props) {
   const router = useRouter();
   const listboxId = useId();
@@ -51,6 +53,10 @@ export function NavSearch({ variant, onClose }: Props) {
 
   const flatCount = (results?.news.length ?? 0) + (results?.earnings.length ?? 0);
   const showPanel = open && debouncedQuery.length > 0;
+  const showSuggestions =
+    open &&
+    (debouncedQuery.length === 0 ||
+      (!loading && !error && flatCount === 0));
 
   useEffect(() => {
     if (variant === "mobile") {
@@ -103,7 +109,7 @@ export function NavSearch({ variant, onClose }: Props) {
   }, [debouncedQuery]);
 
   useEffect(() => {
-    if (!showPanel) return;
+    if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -111,7 +117,7 @@ export function NavSearch({ variant, onClose }: Props) {
     };
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [showPanel]);
+  }, [open]);
 
   const closeSearch = useCallback(() => {
     setOpen(false);
@@ -176,6 +182,13 @@ export function NavSearch({ variant, onClose }: Props) {
     inputRef.current?.focus();
   }, []);
 
+  const onSuggestionClick = useCallback((suggestion: string) => {
+    setQuery(suggestion);
+    setDebouncedQuery(suggestion);
+    setOpen(true);
+    inputRef.current?.focus();
+  }, []);
+
   const inputClass =
     "w-full rounded border border-rule bg-paper pl-9 pr-9 py-2 font-sans text-body text-ink placeholder:text-ink-faint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
@@ -184,7 +197,7 @@ export function NavSearch({ variant, onClose }: Props) {
       id={listboxId}
       role="listbox"
       aria-label="搜尋結果"
-      className="absolute left-0 right-0 z-50 mt-2 max-h-80 overflow-y-auto rounded border border-rule bg-paper shadow-sm"
+      className="max-h-80 overflow-y-auto rounded border border-rule bg-paper shadow-sm"
     >
       {loading && (
         <p className="px-3 py-2 font-sans text-meta text-ink-faint">搜尋中…</p>
@@ -341,7 +354,33 @@ export function NavSearch({ variant, onClose }: Props) {
           </button>
         )}
       </div>
-      {panel}
+      {showPanel || showSuggestions ? (
+        <div className="absolute left-0 right-0 z-50 mt-2">
+          {panel}
+          {showSuggestions && (
+            <div
+              aria-label="搜尋建議"
+              className={`rounded border border-rule bg-paper px-3 py-2 shadow-sm ${
+                showPanel ? "mt-2" : ""
+              }`}
+            >
+              <p className="font-sans text-kicker text-meta text-ink-faint">建議</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {SEARCH_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => onSuggestionClick(suggestion)}
+                    className="rounded border border-rule px-2 py-1 font-sans text-kicker text-meta text-ink-soft hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

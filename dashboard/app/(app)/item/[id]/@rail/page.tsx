@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { getItemById } from "@/lib/firestore";
 import { categoryLabel, formatEditorialDate } from "@/lib/digest";
 import { Kicker } from "@/components/Kicker";
@@ -11,8 +9,7 @@ export const revalidate = 600;
  * Right-rail provenance card for /item/[id]. Mirrors the bottom-of-page
  * Meta block but compressed: kicker labels stacked, only the fields a reader
  * actually skims for during reading (kind, category, delivered date, source,
- * score). Full provenance + original link still lives at the foot of the
- * main column.
+ * score). The original URL lives in the main column footer only.
  */
 export default async function ItemRail({
   params,
@@ -50,18 +47,6 @@ export default async function ItemRail({
           </div>
         ))}
       </dl>
-      {item.source_url && (
-        <div className="border-t border-rule pt-4">
-          <Link
-            href={item.source_url}
-            target="_blank"
-            rel="noreferrer"
-            className="font-sans text-kicker font-semibold uppercase tracking-[0.12em] text-accent underline-offset-4 hover:underline"
-          >
-            Read original ↗
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

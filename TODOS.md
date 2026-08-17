@@ -151,6 +151,7 @@
 
 - [x] **離開 GCP**：Actions 跑 pipeline + `dashboard/data` JSON SSOT；停 Cloud Run / Firestore
 - [x] **OpenAI Luna + Vercel 送報**：LLM 直連 OpenAI（`gpt-5.6-luna`）；停 Telegram；內容只走 JSON → Vercel
+- [x] **Dashboard 來源 chip／相關閱讀／搜尋建議**（Beautiful UI pattern 對齊，不換膚）：item header 來源可點、右欄去掉重複 original CTA、相關閱讀；NavSearch 靜態建議 chips。見 `dashboard/DESIGN.md` Do not。
 - [ ] **本機開發設定**：依 [`docs/LOCAL_DEV_SETUP.md`](docs/LOCAL_DEV_SETUP.md) 完成 `.env` / `main.py` / `backfill_zh_fields.py`
 - [x] **GCP 收尾**：GHA 已啟用；專案 `my-tech-pulse-agent-494715` 為 `DELETE_REQUESTED`
 - [x] **EarningsAgent 類別**：**保留**（judge baseline）—— 仍由 `smoke_test.py` + `agents/__init__` + vulture 白名單引用；生產路徑僅 v3 agents，刪除擾動多檔無實益

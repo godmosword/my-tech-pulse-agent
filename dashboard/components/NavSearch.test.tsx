@@ -108,5 +108,45 @@ describe("NavSearch", () => {
     await waitFor(() => {
       expect(screen.getByText("找不到符合的新聞或財報")).toBeTruthy();
     });
+
+    for (const suggestion of ["NVDA", "AI", "財報"]) {
+      expect(screen.getByRole("button", { name: suggestion })).toBeTruthy();
+    }
+  });
+
+  it("shows suggestion chips on empty-query focus without expanding combobox", () => {
+    render(<NavSearch variant="rail" />);
+    const input = screen.getByRole("combobox", { name: "搜尋新聞或財報" });
+    fireEvent.focus(input);
+
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.getByLabelText("搜尋建議")).toBeTruthy();
+    for (const suggestion of ["NVDA", "AI", "財報"]) {
+      expect(screen.getByRole("button", { name: suggestion })).toBeTruthy();
+    }
+  });
+
+  it("runs search when a suggestion chip is clicked", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: "NVDA",
+        news: [{ id: "n1", title: "NVDA 新聞", href: "/item/n1" }],
+        earnings: [],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<NavSearch variant="rail" />);
+    fireEvent.focus(screen.getByRole("combobox", { name: "搜尋新聞或財報" }));
+    fireEvent.click(screen.getByRole("button", { name: "NVDA" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/search?q=NVDA",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
   });
 });

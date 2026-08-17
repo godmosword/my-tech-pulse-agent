@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getItemById } from "@/lib/firestore";
+import { getItemById, listLatestItems } from "@/lib/firestore";
 import {
   categoryLabel,
   formatEditorialDate,
@@ -16,7 +17,8 @@ import {
   hasGatedLongContent,
   shouldShowBilingualCompare,
 } from "@/lib/zh-content";
-import { displayTitle } from "@/lib/types";
+import { pickRelatedItems } from "@/lib/related-items";
+import { displayTitle, type RenderableItem } from "@/lib/types";
 import { BilingualCompare } from "@/components/BilingualCompare";
 import { DeepInsightCard } from "@/components/DeepInsightCard";
 import { AgentCommentary } from "@/components/AgentCommentary";
@@ -73,6 +75,9 @@ export default async function ItemPage({
   const item = await getItemById(decodedId);
   if (!item) notFound();
 
+  const latestItems = await listLatestItems({ limit: 60 });
+  const relatedItems = pickRelatedItems(item, latestItems);
+
   const authenticated =
     !isPublicReadMode() || (await getReaderSession()) !== null;
   const returnToPath = `/item/${encodeURIComponent(decodedId)}`;
@@ -87,6 +92,7 @@ export default async function ItemPage({
           authenticated={authenticated}
           returnToPath={returnToPath}
         />
+        <RelatedReading items={relatedItems} />
         <Meta item={item} />
       </article>
     );
@@ -119,7 +125,18 @@ export default async function ItemPage({
           {item.source_name && (
             <>
               <MetaDot />
-              <span>{item.source_name}</span>
+              {item.source_url ? (
+                <a
+                  href={item.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent underline-offset-4 hover:underline"
+                >
+                  {item.source_name}
+                </a>
+              ) : (
+                <span>{item.source_name}</span>
+              )}
             </>
           )}
           {metaDate && (
@@ -186,8 +203,32 @@ export default async function ItemPage({
         </div>
       )}
 
+      <RelatedReading items={relatedItems} />
       <Meta item={item} />
     </article>
+  );
+}
+
+function RelatedReading({ items }: { items: RenderableItem[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className="space-y-4">
+      <Kicker>相關閱讀</Kicker>
+      <Hairline />
+      <ul className="divide-y divide-rule">
+        {items.map((related) => (
+          <li key={related.id} className="py-4">
+            <Link
+              href={`/item/${encodeURIComponent(related.id)}`}
+              className="font-serif text-dek leading-snug text-ink hover:text-accent"
+            >
+              {displayTitle(related)}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

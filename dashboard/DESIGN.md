@@ -9,8 +9,8 @@ Tokens live in `app/globals.css` and `tailwind.config.ts`.
 
 - Warm paper + ink + oxblood accent — publication, not generic SaaS.
 - Serif headlines (`font-serif`, `text-editorial-*`), reading column `max-w-column`.
-- List density on Today theme sections: `InstantCard variant="list"` (title + one subline).
-- Full article density on `/item/[id]`: `InstantCard variant="full"`.
+- List density on Today theme sections: `InstantCardNewsList` + `InstantCard variant="list"` (title + one subline).
+- Item detail (`/item/[id]`) is **hand-rolled** (`page.tsx` + `DeepInsightCard` for deep briefs), not `InstantCard variant="full"`.
 - Kickers in Traditional Chinese where reader-facing (`主題`, `深度洞見`).
 
 ### Dense (Invest hub and sub-pages)
@@ -44,7 +44,7 @@ Tokens live in `app/globals.css` and `tailwind.config.ts`.
 |-----------|-----|
 | `Kicker` | Section label above headline |
 | `Hairline` | Editorial divider |
-| `InstantCard` | News row; `list` vs `full` variants |
+| `InstantCard` | News **list** row (`variant="list"` via `InstantCardNewsList`). `full` exists in tests only. |
 | `DeepInsightCard` | Long-form deep brief on Today |
 | `NewsTakeawayBlock` | Portfolio angle; **outside** headline link |
 | `ConfidenceBadge` | Only when `shouldShowConfidenceBadge` (warn/bad) |
@@ -55,8 +55,8 @@ Tokens live in `app/globals.css` and `tailwind.config.ts`.
 
 | Variant | Where | Shows |
 |---------|-------|--------|
-| `list` | ThemeSection, HoldingNewsSection | Kicker, title, one subline, compact footer |
-| `full` | Item detail | zh_summary, gated zh_body, expand analysis, 阅读原文 |
+| `list` | ThemeSection, HoldingNewsSection (`InstantCardNewsList`) | Kicker, title, one subline, compact footer |
+| `full` | Tests only — not used on `/item/[id]` | Gated body / bilingual compare path in the component |
 
 ## Allowed accents
 
@@ -72,6 +72,9 @@ Tokens live in `app/globals.css` and `tailwind.config.ts`.
 - Show `ConfidenceBadge` on every row (noise).
 - Placeholder-as-label on forms (use visible `<label>`).
 - Expose pipeline/GCP jargon in reader empty states.
+- Import Beautiful UI (beautifului.dev) charcoal / `#3d9aff` tokens, or copy their `--ink` names — this app uses `--color-ink` / Tailwind `text-ink`.
+- Typewriter or fake token streaming on static JSON.
+- Reuse `SourceTag` for news provenance (it is a dense data-quality lamp: `degraded` / `manual`).
 
 ## Empty states
 
